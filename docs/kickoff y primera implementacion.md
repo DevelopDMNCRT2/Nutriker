@@ -19,12 +19,12 @@ Plan integral para el desarrollo y estructuración del sistema **NutriKer**, aba
 
 ---
 
-## Open Questions
+## Definiciones y Decisiones del Proyecto
 
 > [!NOTE]
-> 1. ¿Qué proveedor de pagos prefieres integrar para la tienda en línea? (Stripe, MercadoPago, PayPal)
-> 2. ¿La sincronización de citas requerirá integrarse con Google Calendar de la doctora o únicamente con el sistema de disponibilidad interno?
-> 3. Para la Fase 2 (IA), ¿utilizaremos la API de Gemini (Google DeepMind) para la generación de menús semanales personalizados?
+> 1. **Pasarela de Pagos:** Por definir por el cliente final (candidato más probable: **MercadoPago**). El desarrollo de la tienda debe ser modular para poder conectar cualquier pasarela fácilmente.
+> 2. **Sincronización de Citas / Calendario:** Conexión con **Google Calendar API** para sincronización, pero manteniendo una interfaz y panel de control visual propio y personalizado dentro del sistema (usando FullCalendar en la vista del Admin).
+> 3. **Modelo de IA (Fase 2 & Chat Agencial):** Se optará por **Gemini 1.5 / 2.5 Flash** (Google DeepMind). Es el modelo más recomendado por su excelente relación costo-beneficio, velocidad y gran ventana de contexto para procesar expedientes clínicos largos.
 
 ---
 
