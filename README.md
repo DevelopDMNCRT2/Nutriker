@@ -58,7 +58,15 @@ El panel privado de gestión de la Dra. Karla y su equipo debe implementar las s
 
 ---
 
-### 🔑 3. Portal del Paciente (`client/` / Login)
+### 🔄 3. Flujo de Gestión de Pacientes (Flujo Estricto)
+El ciclo de vida y manejo del paciente dentro de la plataforma debe seguir un flujo lineal y estructurado:
+1.  **Primera Cita (Registro):** Captura de datos personales, historial clínico inicial y antecedentes generales de interés nutricional. Se sincroniza y aprovecha la base de datos robusta de pacientes existente.
+2.  **Generación del Expediente:** Creación formal de su expediente clínico digital para el registro de mediciones antropométricas, evolución física y notas de consulta subsecuentes.
+3.  **Generación de Menús:** Creación de menús semanales personalizados y planes alimenticios adaptados a la información registrada en el expediente.
+
+---
+
+### 🔑 4. Portal del Paciente (`client/` / Login)
 *   **Acceso Seguro:** Ingreso de pacientes mediante correo electrónico y contraseña.
 *   **Perfil de Paciente:** Espacio donde pueden visualizar su historial, expediente de evolución (mediciones) y descargar/consultar sus menús semanales asignados.
 

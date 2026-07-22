@@ -27,6 +27,19 @@ Plan integral para el desarrollo y estructuración del sistema **NutriKer**, aba
 > 3. **Modelo de IA (Fase 2 & Chat Agencial):** Se optará por **Gemini 1.5 / 2.5 Flash** (Google DeepMind). Es el modelo más recomendado por su excelente relación costo-beneficio, velocidad y gran ventana de contexto para procesar expedientes clínicos largos.
 > 4. **Identidad Visual y Colores:** Toda la interfaz (tanto en el cliente público como en el panel de administración) debe utilizar la paleta de colores **Verde y Rojo** en coherencia con el logotipo oficial provisto.
 
+## Flujo de Gestión de Pacientes (Estricto)
+
+El ciclo de vida del paciente dentro de la plataforma debe seguir un flujo lineal y estructurado:
+
+1. **Primera Cita (Registro de Datos):**
+   * Captura de datos personales y antecedentes generales de interés para la nutrióloga.
+   * Sincronización y aprovechamiento de la base de datos robusta de pacientes existente.
+2. **Generación del Expediente Clínico:**
+   * Con los datos iniciales, se abre el expediente clínico del paciente.
+   * Registro de mediciones antropométricas, evolución y notas detalladas.
+3. **Generación de Menús Semanales:**
+   * Creación del plan alimenticio y menús semanales adaptados específicamente a la información registrada en su expediente clínico.
+
 ---
 
 ## Proposed Changes
