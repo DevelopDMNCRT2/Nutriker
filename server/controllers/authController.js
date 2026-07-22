@@ -12,11 +12,11 @@ export async function login(req, res) {
   }
 
   try {
-    // Buscar usuario por correo y que no esté eliminado
+    // Buscar usuario por correo o nombre de usuario y que no esté eliminado
     const result = await pool.query(
       `SELECT id, nombre, usuario, correo, contrasena, rol
        FROM usuarios
-       WHERE correo = $1 AND deleted_at IS NULL`,
+       WHERE (correo = $1 OR usuario = $1) AND deleted_at IS NULL`,
       [email]
     )
 

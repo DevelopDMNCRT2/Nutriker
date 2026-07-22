@@ -244,27 +244,27 @@
               <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <div class="col-span-1 md:col-span-2">
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Nombre Completo *</label>
-                  <input v-model="form.nombre" type="text" required class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90" />
+                  <input v-model="form.nombre" type="text" required placeholder="Ej. Ana Sofía Montenegro" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
                 </div>
                 <div>
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Edad</label>
-                  <input v-model="form.edad" type="number" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90" />
+                  <input v-model="form.edad" type="number" placeholder="Ej. 30" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
                 </div>
                 <div>
-                  <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Teléfono *</label>
-                  <input v-model="form.telefono" type="text" required class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90" />
+                  <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Teléfono * <span class="text-xs text-gray-400 font-normal">(10 dígitos)</span></label>
+                  <input v-model="form.telefono" type="tel" required maxlength="10" @input="sanitizeTelefono" placeholder="1234567890" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
                 </div>
                 <div>
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Correo</label>
-                  <input v-model="form.correo" type="email" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90" />
+                  <input v-model="form.correo" type="email" placeholder="ejemplo@correo.com" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
                 </div>
                 <div>
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Ocupación</label>
-                  <input v-model="form.ocupacion" type="text" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90" />
+                  <input v-model="form.ocupacion" type="text" placeholder="Ej. Arquitecta, Ingeniero..." class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
                 </div>
                 <div class="col-span-1 md:col-span-3">
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Motivo de Consulta *</label>
-                  <textarea v-model="form.motivo_consulta" required class="form-input min-h-[80px] py-2"></textarea>
+                  <textarea v-model="form.motivo_consulta" required placeholder="Describe el motivo principal de la consulta nutricional..." class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 min-h-[80px]"></textarea>
                 </div>
               </div>
             </div>
@@ -275,23 +275,23 @@
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Patologías Relevantes</label>
-                  <textarea v-model="form.patologias" class="form-input h-16 py-2"></textarea>
+                  <textarea v-model="form.patologias" placeholder="Ej. Hipertensión, resistencia a la insulina..." class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 h-20"></textarea>
                 </div>
                 <div>
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Antecedentes Familiares</label>
-                  <textarea v-model="form.antecedentes_familiares" class="form-input h-16 py-2"></textarea>
+                  <textarea v-model="form.antecedentes_familiares" placeholder="Ej. Padre con diabetes tipo 2, madre con HTA..." class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 h-20"></textarea>
                 </div>
                 <div>
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Farmacos</label>
-                  <textarea v-model="form.farmacos" class="form-input h-16 py-2"></textarea>
+                  <textarea v-model="form.farmacos" placeholder="Ej. Metformina 500mg, Losartán..." class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 h-20"></textarea>
                 </div>
                 <div>
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Digestiva</label>
-                  <textarea v-model="form.digestiva" class="form-input h-16 py-2"></textarea>
+                  <textarea v-model="form.digestiva" placeholder="Ej. Inflamación por las tardes, acidez..." class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 h-20"></textarea>
                 </div>
                 <div class="col-span-1 sm:col-span-2">
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Laboratorios Bioquímicos</label>
-                  <input v-model="form.bioquimicos" type="text" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90" />
+                  <input v-model="form.bioquimicos" type="text" placeholder="Ej. Glucosa 98 mg/dL, Triglicéridos 160..." class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
                 </div>
               </div>
             </div>
@@ -302,19 +302,19 @@
               <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Peso (kg)</label>
-                  <input v-model="form.peso" type="number" step="0.1" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90" />
+                  <input v-model="form.peso" type="number" step="0.1" placeholder="Ej. 68.5" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
                 </div>
                 <div>
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Estatura (m)</label>
-                  <input v-model="form.estatura" type="number" step="0.01" class="form-input" />
+                  <input v-model="form.estatura" type="number" step="0.01" placeholder="Ej. 1.65" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
                 </div>
                 <div>
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Circunferencias</label>
-                  <input v-model="form.circunferencias" type="text" class="form-input" />
+                  <input v-model="form.circunferencias" type="text" placeholder="Ej. Cintura: 85cm, Cadera: 98cm" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
                 </div>
                 <div>
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Composición</label>
-                  <input v-model="form.composicion" type="text" class="form-input" />
+                  <input v-model="form.composicion" type="text" placeholder="Ej. 35% grasa corporal" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
                 </div>
               </div>
             </div>
@@ -325,27 +325,27 @@
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="col-span-1 sm:col-span-2">
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Recordatorio 24h</label>
-                  <textarea v-model="form.recordatorio_24h" class="form-input h-20 py-2"></textarea>
+                  <textarea v-model="form.recordatorio_24h" placeholder="Ej. Desayuno: Huevo y café. Almuerzo: Ensalada con pollo. Cena: Arroz y verdura..." class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 h-20"></textarea>
                 </div>
                 <div class="col-span-1 sm:col-span-2">
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Estilo de vida y Entrenamiento</label>
-                  <textarea v-model="form.estilo_vida" class="form-input h-16 py-2"></textarea>
+                  <textarea v-model="form.estilo_vida" placeholder="Ej. Ejercicio 3 días a la semana (pesas), trabajo sedentario..." class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 h-20"></textarea>
                 </div>
                 <div>
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Alergias Relevantes</label>
-                  <input v-model="form.alergias" type="text" class="form-input" />
+                  <input v-model="form.alergias" type="text" placeholder="Ej. Intolerancia a la lactosa, mariscos..." class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
                 </div>
                 <div>
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Gustos / Aversiones</label>
-                  <input v-model="form.gustos" type="text" class="form-input" />
+                  <input v-model="form.gustos" type="text" placeholder="Ej. Le gusta el aguacate, no tolera el pescado..." class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
                 </div>
                 <div>
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Frecuencia alimentos ultraprocesados</label>
-                  <input v-model="form.ultraprocesados" type="text" class="form-input" />
+                  <input v-model="form.ultraprocesados" type="text" placeholder="Ej. 2 veces por semana, ocasional..." class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
                 </div>
                  <div>
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Logística de compra/cocina</label>
-                  <input v-model="form.logistica_cocina" type="text" class="form-input" />
+                  <input v-model="form.logistica_cocina" type="text" placeholder="Ej. Cocina en casa por las noches..." class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
                 </div>
               </div>
             </div>
@@ -403,10 +403,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import Modal from '@/components/ui/Modal.vue'
-import { citasApi } from '@/api/index.js'
+import { citasApi, clientesApi } from '@/api/index.js'
 
 // Horarios disponibles de la clínica (mismo set que el servidor)
 const HORARIOS = [
@@ -418,7 +418,7 @@ const HORARIOS = [
 
 // Inicializador basado estrictamente en el formulario final de CitasModal.vue
 const initForm = () => ({
-  id: null as number | null,
+  id: null as string | null,
   cita_id: null as string | null,   // ID de la cita vinculada en la tabla `citas`
   nombre: '',
   telefono: '',
@@ -452,68 +452,26 @@ const modalFormVisible = ref(false)
 const modalDetallesVisible = ref(false)
 const isEditing = ref(false)
 const guardando = ref(false)
+const cargando = ref(false)
 const errorGuardado = ref('')
 const clienteSeleccionado = ref<any>(null)
 
-// Expedientes clínicos (en memoria — no conectado a un endpoint propio aún)
-const clientes = ref<any[]>([
-  { 
-    id: 1, 
-    cita_id: null,
-    nombre: 'Ana Sofía Montenegro', 
-    telefono: '+502 5544-2211', 
-    correo: 'ana_montenegro@gmail.com', 
-    edad: '31',
-    ocupacion: 'Arquitecta',
-    motivo_consulta: 'Busco mejorar mi composición corporal y energía, trabajo muchas horas sentada.',
-    patologias: 'Resistencia a la insulina hace 2 años.',
-    antecedentes_familiares: 'Padre con diabetes tipo 2',
-    bioquimicos: 'Glucosa en 98, insulina un poco elevada.',
-    farmacos: 'Metformina 500mg',
-    digestiva: 'Inflamación por las tardes',
-    peso: '72.5',
-    estatura: '1.63',
-    circunferencias: 'Cintura: 85cm, Cadera: 98cm',
-    composicion: '35% grasa corporal',
-    recordatorio_24h: 'Desayuno: Pan tostado con huevo y café. Almuerzo: Ensalada rápida. Cena: Pollo y arroz.',
-    alergias: 'Intolerancia a la lactosa',
-    ultraprocesados: '2 veces por semana',
-    gustos: 'Me encanta el aguacate y el pollo. No aguanto el pescado.',
-    logistica_cocina: 'Cocino yo en las noches.',
-    estilo_vida: 'Voy al gym 3 días a la semana, pesas.',
-    fecha: '',
-    horario: '',
-    atencionPrevia: 'no'
-  },
-  { 
-    id: 2, 
-    cita_id: null,
-    nombre: 'Fernando Rafael Orozco', 
-    telefono: '+502 3311-9988', 
-    correo: 'ferorozco@yahoo.es', 
-    edad: '45',
-    ocupacion: 'Ingeniero',
-    motivo_consulta: 'Hipertensión e hipertrofia muscular. Quiero subir masa limpia.',
-    patologias: 'Hipertensión leve',
-    antecedentes_familiares: 'Madre con HTA',
-    bioquimicos: 'Triglicéridos en 160',
-    farmacos: 'Losartán',
-    digestiva: 'Sin problemas aparentes',
-    peso: '88.0',
-    estatura: '1.80',
-    circunferencias: 'Cintura: 90cm',
-    composicion: '20% grasa corporal',
-    recordatorio_24h: 'Mucha proteína, avena, batidos.',
-    alergias: 'Ninguna',
-    ultraprocesados: 'Muy poco, los fines de semana',
-    gustos: 'Todo en especial la pasta.',
-    logistica_cocina: 'Mi esposa cocina.',
-    estilo_vida: 'Corredor aficionado, 10km semanales.',
-    fecha: '',
-    horario: '',
-    atencionPrevia: 'si'
-  },
-])
+// Expedientes clínicos desde la API
+const clientes = ref<any[]>([])
+
+async function cargarClientes() {
+  cargando.value = true
+  try {
+    const data = await clientesApi.getAll()
+    clientes.value = data
+  } catch (e: any) {
+    console.error('Error al cargar expedientes:', e.message)
+  } finally {
+    cargando.value = false
+  }
+}
+
+onMounted(cargarClientes)
 
 // Lógica operativa
 const abrirAgregar = () => {
@@ -532,8 +490,18 @@ const cerrarFormulario = () => {
   modalFormVisible.value = false
 }
 
+function sanitizeTelefono() {
+  form.telefono = form.telefono.replace(/[^0-9]/g, '').slice(0, 10)
+}
+
 const guardarCliente = async () => {
   errorGuardado.value = ''
+
+  if (!form.telefono || form.telefono.length !== 10) {
+    errorGuardado.value = 'El teléfono debe contener exactamente 10 dígitos numéricos.'
+    return
+  }
+
   guardando.value = true
 
   try {
@@ -559,17 +527,14 @@ const guardarCliente = async () => {
       }
     }
 
-    // ── Guardar expediente en memoria ───────────────────────────────────
+    // ── Persistir expediente en PostgreSQL Neon ───────────────────────
     if (isEditing.value && form.id) {
-      const objIndex = clientes.value.findIndex(obj => obj.id === form.id)
-      clientes.value[objIndex] = { ...form }
+      await clientesApi.update(form.id, form)
     } else {
-      clientes.value.push({
-        ...form,
-        id: Date.now()
-      })
+      await clientesApi.create(form)
     }
 
+    await cargarClientes()
     cerrarFormulario()
   } catch (e: any) {
     errorGuardado.value = e.message || 'Error al guardar el expediente.'
@@ -587,9 +552,14 @@ const cerrarDetalles = () => {
   modalDetallesVisible.value = false
 }
 
-const eliminar = (id: number) => {
-  if(confirm('¿Estás seguro que deseas eliminar este expediente clínico de forma permanente?')) {
-    clientes.value = clientes.value.filter(c => c.id !== id)
+const eliminar = async (id: string) => {
+  if (confirm('¿Estás seguro que deseas eliminar este expediente clínico de forma permanente?')) {
+    try {
+      await clientesApi.delete(id)
+      await cargarClientes()
+    } catch (e: any) {
+      alert(e.message || 'Error al eliminar expediente')
+    }
   }
 }
 </script>
