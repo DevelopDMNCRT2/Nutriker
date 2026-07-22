@@ -11,6 +11,7 @@ El proyecto está construido con la siguiente arquitectura:
 *   **Backend:** Express.js configurado en modo **Serverless** para despliegue optimizado en Vercel.
 *   **Base de Datos:** PostgreSQL alojado en **Neon** (Serverless Postgres).
 *   **Servicios Externos:** Cloudinary para almacenamiento de archivos e imágenes.
+*   **Identidad Visual:** La paleta de colores corporativos debe enfocarse en **Verde y Rojo** (basado en los colores oficiales del logotipo, reemplazando la paleta teal previa).
 
 ---
 
