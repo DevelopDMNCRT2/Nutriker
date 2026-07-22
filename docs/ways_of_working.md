@@ -4,16 +4,17 @@ Este documento define la metodología de trabajo, responsabilidades y el flujo d
 
 ---
 
-## 📋 División de Responsabilidades
+## 📋 División de Responsabilidades (Colaboración vía Git)
 
-*   **Propietario / Cliente Front (Owner):**
-    *   Desarrollo de las vistas y diseño del portal de clientes público (`client/`): Landing page, trayectoria, catálogo de tienda (maquetación) y flujo de agendamiento público.
-    *   Revisión de código (Code Review), aprobación de Pull Requests y cierre de tareas.
-*   **Yael (Desarrollador):**
-    *   Base de datos PostgreSQL en **Neon** (diseño de tablas, migraciones y queries).
-    *   Servidor Backend (`server/`): Endpoints de API REST en Express (modo serverless para Vercel).
-    *   Panel de Administración (`admin/`): Implementación completa del frontend (vistas de administración, lógica de flujos, calendario, CRUDs, etc.).
-    *   Integración del **Chat Agencial con Gemini Flash** y conexión con **Google Calendar**.
+*   **Ricardo (Owner & PM):**
+    *   **Definición:** Explica qué se necesita y define el alcance/requerimientos del proyecto.
+    *   **Gestión:** Crea los issues en GitHub y administra las prioridades.
+    *   **Control de Calidad:** Revisa el código, aprueba los Pull Requests (PR) y realiza la fusión (merge) final a la rama `main`.
+    *   **Front-End Cliente:** Desarrollo y maquetación de la interfaz pública en `client/`.
+*   **Yael (Dev):**
+    *   **Desarrollo:** Escribe y ejecuta el código en Backend (`server/`), base de datos (PostgreSQL Neon) y el Panel de Administración (`admin/`).
+    *   **QA y Pruebas:** Es responsable de probar localmente y asegurar el control de calidad (QA) antes de abrir un Pull Request.
+    *   **Git Flow:** Trabaja sobre la rama del issue respectivo y abre el PR correspondiente una vez completado el desarrollo.
 
 ---
 
