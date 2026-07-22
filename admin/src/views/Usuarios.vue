@@ -131,6 +131,14 @@
                 placeholder="••••••••" />
             </div>
             <div>
+              <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
+                Confirmar Contraseña
+              </label>
+              <input v-model="form.confirmarContrasena" type="password" :required="!isEditing || !!form.contrasena"
+                class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
+                placeholder="••••••••" />
+            </div>
+            <div>
               <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Rol</label>
               <select v-model="form.rol" required
                 class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90">
@@ -230,22 +238,21 @@ const isEditing            = ref(false)
 const usuarioSeleccionado  = ref<any>(null)
 
 // ── Formulario ────────────────────────────────────────────────────────────────
-const initForm = () => ({ id: null as string | null, nombre: '', usuario: '', correo: '', contrasena: '', rol: 'Asistente' })
+const initForm = () => ({ id: null as string | null, nombre: '', usuario: '', correo: '', contrasena: '', confirmarContrasena: '', rol: 'Asistente' })
 const form = reactive({ ...initForm() })
 
 // ── Cargar datos desde la API ─────────────────────────────────────────────────
 async function cargarUsuarios() {
   loading.value = true
-  
-  // Ejemplos estáticos de prueba para visualización
-  setTimeout(() => {
-    usuarios.value = [
-      { id: '1', nombre: 'Administrador Principal', usuario: 'admin', correo: 'admin@nutriker.com', rol: 'Administrador', fechaAlta: '2024-01-15' },
-      { id: '2', nombre: 'Asistente Recepción', usuario: 'asistente_01', correo: 'recepcion@nutriker.com', rol: 'Asistente', fechaAlta: '2024-02-20' },
-      { id: '3', nombre: 'Dr. Alejandro', usuario: 'alejandro_dr', correo: 'alejandro@nutriker.com', rol: 'Administrador', fechaAlta: '2024-03-05' }
-    ]
+  errorGlobal.value = ''
+  try {
+    const data = await usuariosApi.getAll()
+    usuarios.value = data
+  } catch (e: any) {
+    errorGlobal.value = e.message || 'Error al cargar la lista de usuarios'
+  } finally {
     loading.value = false
-  }, 400)
+  }
 }
 
 onMounted(cargarUsuarios)
@@ -260,7 +267,7 @@ function abrirAgregar() {
 
 function abrirEditar(user: any) {
   isEditing.value = true
-  Object.assign(form, { ...user, contrasena: '' })
+  Object.assign(form, { ...user, contrasena: '', confirmarContrasena: '' })
   formError.value = ''
   modalFormVisible.value = true
 }
@@ -270,8 +277,22 @@ function cerrarFormulario() {
 }
 
 async function guardarUsuario() {
-  saving.value = true
   formError.value = ''
+
+  // Validación de coincidencia de contraseñas
+  if (!isEditing.value && !form.contrasena) {
+    formError.value = 'La contraseña es obligatoria'
+    return
+  }
+
+  if (form.contrasena || form.confirmarContrasena) {
+    if (form.contrasena !== form.confirmarContrasena) {
+      formError.value = 'Las contraseñas no coinciden. Por favor verifícalas e intenta de nuevo.'
+      return
+    }
+  }
+
+  saving.value = true
   try {
     const payload: any = {
       nombre:     form.nombre,
@@ -282,13 +303,11 @@ async function guardarUsuario() {
     if (form.contrasena) payload.contrasena = form.contrasena
 
     if (isEditing.value && form.id) {
-      const updated = await usuariosApi.update(form.id, payload)
-      const idx = usuarios.value.findIndex(u => u.id === form.id)
-      if (idx !== -1) usuarios.value[idx] = updated
+      await usuariosApi.update(form.id, payload)
     } else {
-      const created = await usuariosApi.create({ ...payload, contrasena: form.contrasena })
-      usuarios.value.push(created)
+      await usuariosApi.create({ ...payload, contrasena: form.contrasena })
     }
+    await cargarUsuarios()
     cerrarFormulario()
   } catch (e: any) {
     formError.value = e.message || 'Error al guardar el usuario'

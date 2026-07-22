@@ -2,6 +2,7 @@ import pool from './pool.js'
 
 const resetTablesSQL = `
   -- Borrar todas las tablas existentes
+  DROP TABLE IF EXISTS clientes CASCADE;
   DROP TABLE IF EXISTS pedidos CASCADE;
   DROP TABLE IF EXISTS citas CASCADE;
   DROP TABLE IF EXISTS productos CASCADE;
@@ -51,7 +52,7 @@ const resetTablesSQL = `
 
   -- 4. Pedidos
   CREATE TABLE pedidos (
-    id                  VARCHAR(8) PRIMARY KEY, -- Será el id de 8 dígitos único
+    id                  VARCHAR(8) PRIMARY KEY,
     cliente_nombre      VARCHAR(150) NOT NULL,
     cliente_email       VARCHAR(200),
     cliente_telefono    VARCHAR(20),
@@ -74,6 +75,7 @@ const resetTablesSQL = `
     cliente_nombre    VARCHAR(150) NOT NULL,
     cliente_telefono  VARCHAR(20) NOT NULL,
     fecha             DATE NOT NULL,
+    horario           VARCHAR(10),
     atencion_previa   VARCHAR(10) DEFAULT 'no',
     peso              DECIMAL(5,2),
     estatura          DECIMAL(5,2),
@@ -81,16 +83,49 @@ const resetTablesSQL = `
     updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at        TIMESTAMPTZ DEFAULT NULL
   );
+
+  -- 6. Clientes (Expedientes Clínicos)
+  CREATE TABLE clientes (
+    id                      VARCHAR(8) PRIMARY KEY,
+    cita_id                 VARCHAR(8) REFERENCES citas(id) ON DELETE SET NULL,
+    nombre                  VARCHAR(150) NOT NULL,
+    telefono                VARCHAR(20) NOT NULL,
+    correo                  VARCHAR(200),
+    edad                    INTEGER,
+    ocupacion               VARCHAR(150),
+    motivo_consulta         TEXT,
+    patologias              TEXT,
+    antecedentes_familiares TEXT,
+    bioquimicos             TEXT,
+    farmacos                TEXT,
+    digestiva               TEXT,
+    peso                    DECIMAL(5,2),
+    estatura                DECIMAL(5,2),
+    circunferencias         TEXT,
+    composicion             TEXT,
+    recordatorio_24h        TEXT,
+    alergias                TEXT,
+    ultraprocesados         TEXT,
+    gustos                  TEXT,
+    logistica_cocina        TEXT,
+    estilo_vida             TEXT,
+    fecha                   DATE,
+    horario                 VARCHAR(10),
+    atencion_previa         VARCHAR(10) DEFAULT 'no',
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at              TIMESTAMPTZ DEFAULT NULL
+  );
 `
 
 async function migrateAll() {
   const client = await pool.connect()
   try {
-    console.log('🚀 Reiniciando la base de datos completa con IDs de 8 dígitos...')
+    console.log('🚀 Creando tablas en la base de datos Neon PostgreSQL...')
     await client.query(resetTablesSQL)
-    console.log('✅ Base de datos restaurada correctamente. Todas las tablas usan VARCHAR(8).')
+    console.log('✅ Tablas creadas correctamente (usuarios, categorias, productos, pedidos, citas, clientes).')
   } catch (err) {
-    console.error('❌ Error en el reinicio:', err.message)
+    console.error('❌ Error en el reinicio de tablas:', err.message)
     process.exit(1)
   } finally {
     client.release()

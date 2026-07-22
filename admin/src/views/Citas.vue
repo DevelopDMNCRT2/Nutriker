@@ -67,9 +67,34 @@
               <div v-if="modalError" class="form-error-banner">{{ modalError }}</div>
 
               <div class="form-grid">
-                <div class="form-group full-width">
+                <div class="form-group full-width relative">
                   <label>Nombre del Paciente *</label>
-                  <input v-model="form.cliente_nombre" type="text" placeholder="Nombre completo" class="form-input" />
+                  <input
+                    v-model="form.cliente_nombre"
+                    type="text"
+                    placeholder="Ej. Ana Sofía Montenegro"
+                    class="form-input"
+                    @focus="showDropdownClientes = true; loadClientesSearch()"
+                    @input="showDropdownClientes = true"
+                  />
+                  <!-- Dropdown de búsqueda de clientes -->
+                  <div
+                    v-if="clientesFiltrados.length > 0"
+                    class="absolute left-0 right-0 top-[100%] mt-1 z-50 rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 max-h-48 overflow-y-auto"
+                  >
+                    <div
+                      v-for="cliente in clientesFiltrados"
+                      :key="cliente.id"
+                      @mousedown.prevent="seleccionarCliente(cliente)"
+                      class="cursor-pointer px-4 py-2.5 hover:bg-brand-50 dark:hover:bg-gray-700/60 border-b border-gray-100 dark:border-gray-700/50 last:border-0 flex items-center justify-between transition-colors"
+                    >
+                      <div>
+                        <p class="text-sm font-semibold text-gray-800 dark:text-white">{{ cliente.nombre }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ cliente.telefono }} <span v-if="cliente.correo">• {{ cliente.correo }}</span></p>
+                      </div>
+                      <span class="text-xs font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/10 px-2 py-0.5 rounded-full">Cliente Registrado</span>
+                    </div>
+                  </div>
                 </div>
                 <div class="form-group full-width">
                   <label>Teléfono * <span style="font-weight:400;font-size:11px;color:#94a3b8;">(10 dígitos)</span></label>
@@ -161,7 +186,7 @@ import timeGridPlugin from '@fullcalendar/timegrid'
 import listPlugin from '@fullcalendar/list'
 import interactionPlugin from '@fullcalendar/interaction'
 import esLocale from '@fullcalendar/core/locales/es'
-import { citasApi } from '@/api/index.js'
+import { citasApi, clientesApi } from '@/api/index.js'
 
 // --- State ---
 const loading = ref(true)
@@ -173,6 +198,8 @@ const modalError = ref('')
 const calendarRef = ref(null)
 const allCitas = ref<any[]>([])
 const horariosOcupados = ref<string[]>([])
+const listaClientes = ref<any[]>([])
+const showDropdownClientes = ref(false)
 
 const HORARIOS = [
   '08:00','08:30','09:00','09:30','10:00','10:30',
@@ -193,6 +220,35 @@ const defaultForm = () => ({
 })
 const form = ref(defaultForm())
 const horariosDisponibles = ref([...HORARIOS])
+
+// --- Búsqueda / Autocomplete de Clientes ---
+async function loadClientesSearch() {
+  if (listaClientes.value.length === 0) {
+    try {
+      listaClientes.value = await clientesApi.getAll()
+    } catch {
+      listaClientes.value = []
+    }
+  }
+}
+
+const clientesFiltrados = computed(() => {
+  const query = form.value.cliente_nombre.toLowerCase().trim()
+  if (!query || !showDropdownClientes.value) return []
+  return listaClientes.value.filter(c =>
+    (c.nombre && c.nombre.toLowerCase().includes(query)) ||
+    (c.telefono && c.telefono.includes(query))
+  ).slice(0, 5)
+})
+
+function seleccionarCliente(cliente: any) {
+  form.value.cliente_nombre = cliente.nombre
+  if (cliente.telefono) form.value.cliente_telefono = cliente.telefono
+  if (cliente.peso) form.value.peso = String(cliente.peso)
+  if (cliente.estatura) form.value.estatura = String(cliente.estatura)
+  form.value.atencion_previa = 'si'
+  showDropdownClientes.value = false
+}
 
 // --- Stats ---
 const today = new Date().toISOString().split('T')[0]
@@ -246,29 +302,53 @@ const citasDemo = [
   },
 ]
 
+// Helper para calcular 30 min de duración en las citas para el TimeGrid de FullCalendar
+function calcularFinHorario(horario: string) {
+  if (!horario || !horario.includes(':')) return '08:30'
+  const [hStr, mStr] = horario.split(':')
+  let h = parseInt(hStr, 10)
+  let m = parseInt(mStr, 10) + 30
+  if (m >= 60) {
+    m -= 60
+    h += 1
+  }
+  const hh = h < 10 ? `0${h}` : `${h}`
+  const mm = m < 10 ? `0${m}` : `${m}`
+  return `${hh}:${mm}`
+}
+
 // --- Calendar events (API + demo) ---
 const calendarEvents = computed(() => {
-  const apiEvents = allCitas.value.map(c => ({
-    id: c.id,
-    title: `${c.horario} · ${c.cliente_nombre}`,
-    start: `${c.fecha?.split('T')[0]}T${c.horario}:00`,
-    extendedProps: { ...c },
-    backgroundColor: c.atencion_previa === 'si' ? '#4A8C5B' : '#A84A54',
-    borderColor: c.atencion_previa === 'si' ? '#3a7048' : '#8a3a44',
-    textColor: '#ffffff',
-  }))
+  const apiEvents = allCitas.value.map(c => {
+    const f = c.fecha?.split('T')[0] ?? c.fecha
+    const fin = calcularFinHorario(c.horario)
+    return {
+      id: c.id,
+      title: `${c.horario} · ${c.cliente_nombre}`,
+      start: `${f}T${c.horario}:00`,
+      end: `${f}T${fin}:00`,
+      extendedProps: { ...c },
+      backgroundColor: c.atencion_previa === 'si' ? '#33AAAE' : '#4A8C5B',
+      borderColor: c.atencion_previa === 'si' ? '#28898C' : '#3a7048',
+      textColor: '#ffffff',
+    }
+  })
 
-  const demoEvents = citasDemo.map(c => ({
-    id: c.id,
-    title: `${c.horario} · ${c.cliente_nombre}`,
-    start: `${c.fecha}T${c.horario}:00`,
-    extendedProps: { ...c },
-    backgroundColor: c.atencion_previa === 'si' ? '#4A8C5B' : '#A84A54',
-    borderColor: c.atencion_previa === 'si' ? '#3a7048' : '#8a3a44',
-    textColor: '#ffffff',
-    // Borde punteado para distinguir que son ejemplos
-    classNames: ['demo-event'],
-  }))
+  const demoEvents = citasDemo.map(c => {
+    const f = c.fecha?.split('T')[0] ?? c.fecha
+    const fin = calcularFinHorario(c.horario)
+    return {
+      id: c.id,
+      title: `${c.horario} · ${c.cliente_nombre}`,
+      start: `${f}T${c.horario}:00`,
+      end: `${f}T${fin}:00`,
+      extendedProps: { ...c },
+      backgroundColor: c.atencion_previa === 'si' ? '#33AAAE' : '#4A8C5B',
+      borderColor: c.atencion_previa === 'si' ? '#28898C' : '#3a7048',
+      textColor: '#ffffff',
+      classNames: ['demo-event'],
+    }
+  })
 
   return [...apiEvents, ...demoEvents]
 })
@@ -278,6 +358,11 @@ const calendarOptions = computed(() => ({
   plugins: [dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin],
   locale: esLocale,
   initialView: 'dayGridMonth',
+  displayEventTime: false,
+  slotDuration: '00:30:00',
+  slotMinTime: '08:00:00',
+  slotMaxTime: '18:00:00',
+  slotEventOverlap: false,
   headerToolbar: {
     left: 'prev,next today',
     center: 'title',
@@ -290,6 +375,20 @@ const calendarOptions = computed(() => ({
     list: 'Lista',
   },
   events: calendarEvents.value,
+  eventContent: (arg: any) => {
+    const isTimeGrid = arg.view.type.startsWith('timeGrid')
+    const nombre = arg.event.extendedProps.cliente_nombre || ''
+    const horario = arg.event.extendedProps.horario || ''
+
+    if (isTimeGrid) {
+      return {
+        html: `<div class="fc-custom-event-content"><span class="font-semibold">${nombre}</span></div>`
+      }
+    }
+    return {
+      html: `<div class="fc-custom-event-content"><span>${horario} · ${nombre}</span></div>`
+    }
+  },
   editable: false,
   selectable: true,
   selectMirror: true,
@@ -374,6 +473,7 @@ function closeModal() {
 
 function resetForm() {
   form.value = defaultForm()
+  showDropdownClientes.value = false
 }
 
 async function onFechaChange() {
@@ -665,15 +765,57 @@ onMounted(loadCitas)
   display: flex; align-items: center; justify-content: center;
   font-weight: 700;
 }
-.calendar-wrapper :deep(.fc-event) {
-  border-radius: 6px !important;
-  font-size: 11.5px !important;
-  font-weight: 500 !important;
-  padding: 2px 6px !important;
+.calendar-wrapper :deep(.fc-daygrid-event) {
+  border-radius: 8px !important;
+  padding: 4px 6px !important;
+  margin: 2px !important;
+  background-color: #4A8C5B !important;
+  border: 1px solid #3a7048 !important;
+  box-shadow: 0 2px 6px rgba(74, 140, 91, 0.25) !important;
+  transition: all 0.15s ease !important;
   cursor: pointer !important;
-  transition: opacity 0.15s !important;
 }
-.calendar-wrapper :deep(.fc-event:hover) { opacity: 0.85; }
+.calendar-wrapper :deep(.fc-timegrid-event) {
+  border-radius: 6px !important;
+  padding: 2px 4px !important;
+  margin: 1px 2px !important;
+  background-color: #4A8C5B !important;
+  border: 1px solid #3a7048 !important;
+  box-shadow: 0 1px 4px rgba(74, 140, 91, 0.2) !important;
+  transition: all 0.15s ease !important;
+  cursor: pointer !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+}
+.calendar-wrapper :deep(.fc-daygrid-event:hover),
+.calendar-wrapper :deep(.fc-timegrid-event:hover) {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(74, 140, 91, 0.4) !important;
+  opacity: 0.95 !important;
+}
+.calendar-wrapper :deep(.fc-timegrid-event-harness) {
+  margin: 1px 2px !important;
+}
+.calendar-wrapper :deep(.fc-event-main) {
+  color: #ffffff !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  text-align: center !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+.calendar-wrapper :deep(.fc-custom-event-content) {
+  width: 100%;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .calendar-wrapper :deep(.fc-highlight) {
   background: rgba(74, 140, 91, 0.12) !important;
 }

@@ -93,3 +93,13 @@ export const citasApi = {
   update:  (id, body) => request('PUT',    `/citas/${id}`, body),
   delete:  (id)       => request('DELETE', `/citas/${id}`),
 }
+
+// --- Clientes ---
+export const clientesApi = {
+  getAll:  ()         => request('GET',    '/clientes'),
+  getById: (id)       => request('GET',    `/clientes/${id}`),
+  create:  (body)     => request('POST',   '/clientes', body),
+  update:  (id, body) => request('PUT',    `/clientes/${id}`, body),
+  delete:  (id)       => request('DELETE', `/clientes/${id}`),
+}
+
