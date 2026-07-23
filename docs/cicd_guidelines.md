@@ -35,5 +35,5 @@ Este documento introduce el concepto de Integración Continua y Despliegue Conti
 
 ## 🏁 Siguientes Pasos
 Hemos creado dos nuevos Issues en el repositorio para que implementes esta automatización:
-1.  **Issue #9:** Configuración de la Integración Continua (CI) mediante GitHub Actions.
-2.  **Issue #10:** Integración del Despliegue Continuo (CD) con Vercel para staging y producción.
+1.  **Issue #15:** Configuración de la Integración Continua (CI) mediante GitHub Actions.
+2.  **Issue #16:** Integración del Despliegue Continuo (CD) con Vercel para staging y producción.
