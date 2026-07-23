@@ -94,6 +94,7 @@ const menuItems = [
   { name: 'Usuarios',  path: '/usuarios',   icon: UserCircleIcon },
   { name: 'Clientes',  path: '/clientes',   icon: ListIcon },
   { name: 'Citas',     path: '/citas',      icon: CalenderIcon },
+  { name: 'Productos', path: '/productos',  icon: BoxCubeIcon },
 ]
 
 const isActive = (path: string) => route.path === path
