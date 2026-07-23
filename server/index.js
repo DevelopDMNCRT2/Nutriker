@@ -10,6 +10,7 @@ import pedidosRouter from './routes/pedidos.js'
 import citasRouter from './routes/citas.js'
 import clientesRouter from './routes/clientes.js'
 import authRouter from './routes/auth.js'
+import dashboardRouter from './routes/dashboard.js'
 
 dotenv.config()
 
@@ -19,24 +20,18 @@ const PORT = process.env.PORT || 3000
 
 // ── Middleware ─────────────────────────────────────────
 app.use(cors({
-  origin: function (origin, callback) {
-    // Aceptamos peticiones locales, postman y todas las URLs de Vercel
-    if (!origin || origin.includes('localhost') || origin.includes('vercel.app')) {
-      callback(null, true)
-    } else {
-      callback(new Error('No permitido por CORS'))
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: '*',
+  credentials: true,
 }))
 
 app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
 
 // ── Archivos estáticos ─────────────────────────────────
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+app.use(express.static(path.join(__dirname, 'public')))
 
-// ── Ruta raíz (SOLUCIÓN) ───────────────────────────────
+// ── Ruta raíz ──────────────────────────────────────────
 app.get('/', (req, res) => {
   res.send('API NutriKer funcionando 🚀')
 })
@@ -53,6 +48,7 @@ app.use('/api/productos', productosRouter)
 app.use('/api/categorias', categoriasRouter)
 app.use('/api/pedidos', pedidosRouter)
 app.use('/api/citas', citasRouter)
+app.use('/api/dashboard', dashboardRouter)
 
 // ── 404 ────────────────────────────────────────────────
 app.use((req, res) => {
@@ -61,5 +57,5 @@ app.use((req, res) => {
 
 // ── Servidor ───────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor NutriKer escuchando en http://localhost:${PORT}`)
+  console.log(` Servidor NutriKer corriendo en http://localhost:${PORT}`)
 })

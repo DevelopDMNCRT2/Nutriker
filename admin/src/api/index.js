@@ -103,3 +103,7 @@ export const clientesApi = {
   delete:  (id)       => request('DELETE', `/clientes/${id}`),
 }
 
+// --- Dashboard ---
+export const dashboardApi = {
+  getResumenDiario: () => request('GET', '/dashboard/resumen-diario'),
+}
