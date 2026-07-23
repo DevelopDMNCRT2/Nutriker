@@ -46,6 +46,12 @@ const router = createRouter({
       component: () => import('../views/Productos.vue'),
       meta: { title: 'Productos' },
     },
+    {
+      path: '/zonas-envio',
+      name: 'ZonasEnvio',
+      component: () => import('../views/ZonasEnvio.vue'),
+      meta: { title: 'Zonas de Envío' },
+    },
   ],
 })
 

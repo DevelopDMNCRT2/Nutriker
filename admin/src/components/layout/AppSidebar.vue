@@ -81,7 +81,7 @@
 
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
-import { UserCircleIcon, CalenderIcon, ListIcon, HorizontalDots } from '../../icons'
+import { UserCircleIcon, CalenderIcon, ListIcon, HorizontalDots, PlugInIcon, TruckIcon } from '../../icons'
 import BoxCubeIcon from '@/icons/BoxCubeIcon.vue'
 import GridIcon from '@/icons/GridIcon.vue'
 import { useSidebar } from '@/composables/useSidebar'
@@ -90,11 +90,12 @@ const route = useRoute()
 const { isExpanded, isMobileOpen, isHovered } = useSidebar()
 
 const menuItems = [
-  { name: 'Inicio',    path: '/dashboard',  icon: GridIcon },
-  { name: 'Usuarios',  path: '/usuarios',   icon: UserCircleIcon },
-  { name: 'Clientes',  path: '/clientes',   icon: ListIcon },
-  { name: 'Citas',     path: '/citas',      icon: CalenderIcon },
-  { name: 'Productos', path: '/productos',  icon: BoxCubeIcon },
+  { name: 'Inicio',         path: '/dashboard',   icon: GridIcon },
+  { name: 'Usuarios',       path: '/usuarios',    icon: UserCircleIcon },
+  { name: 'Clientes',       path: '/clientes',    icon: ListIcon },
+  { name: 'Citas',          path: '/citas',       icon: CalenderIcon },
+  { name: 'Productos',      path: '/productos',   icon: BoxCubeIcon },
+  { name: 'Zonas de Envío', path: '/zonas-envio', icon: TruckIcon },
 ]
 
 const isActive = (path: string) => route.path === path
