@@ -58,6 +58,12 @@ const router = createRouter({
       component: () => import('../views/ExpedienteClinico.vue'),
       meta: { title: 'Expediente Clínico' },
     },
+    {
+      path: '/zonas-envio',
+      name: 'ZonasEnvio',
+      component: () => import('../views/ZonasEnvio.vue'),
+      meta: { title: 'Zonas de Envío' },
+    },
   ],
 })
 

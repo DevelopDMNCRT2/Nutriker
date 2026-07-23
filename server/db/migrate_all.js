@@ -117,6 +117,7 @@ const resetTablesSQL = `
     deleted_at              TIMESTAMPTZ DEFAULT NULL
   );
 
+<<<<<<< HEAD
   -- 10. Menus Semanales
   CREATE TABLE IF NOT EXISTS menus_semanales (
     id                  VARCHAR(8) PRIMARY KEY,
@@ -190,6 +191,19 @@ const resetTablesSQL = `
     observaciones       TEXT,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  -- 7. Zonas de Envío
+  CREATE TABLE IF NOT EXISTS zonas_envio (
+    id              VARCHAR(8) PRIMARY KEY,
+    nombre          VARCHAR(150) NOT NULL,
+    tipo_region     VARCHAR(50) NOT NULL DEFAULT 'Local',
+    costo           DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    tiempo_entrega  VARCHAR(100) DEFAULT '24 a 48 horas',
+    activa          BOOLEAN DEFAULT TRUE,
+    creado_en       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ DEFAULT NULL
   );
 `
 

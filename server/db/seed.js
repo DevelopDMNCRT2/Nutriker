@@ -119,6 +119,28 @@ async function seed() {
       ON CONFLICT (id) DO NOTHING;
     `, [prod2Id, 'Barra de Proteína Keto (12 pzas)', 'Barras energéticas bajas en carbohidratos.', 'Contiene almendras, cacao orgánico y eritritol. Snack perfecto pre o post entrenamiento.', 450.00, 0, 40, cat2Id])
 
+    // 7. Zonas de Envío iniciales
+    const zona1Id = await generarIdUnico('zonas_envio')
+    await client.query(`
+      INSERT INTO zonas_envio (id, nombre, tipo_region, costo, tiempo_entrega, activa)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (id) DO NOTHING;
+    `, [zona1Id, 'Envío Local ZMG (Guadalajara, Zapopan, Tlaquepaque)', 'Local', 50.00, '24 horas hábiles', true])
+
+    const zona2Id = await generarIdUnico('zonas_envio')
+    await client.query(`
+      INSERT INTO zonas_envio (id, nombre, tipo_region, costo, tiempo_entrega, activa)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (id) DO NOTHING;
+    `, [zona2Id, 'Envío Estatal Jalisco (Municipios foráneos)', 'Estatal', 90.00, '24 a 48 horas', true])
+
+    const zona3Id = await generarIdUnico('zonas_envio')
+    await client.query(`
+      INSERT INTO zonas_envio (id, nombre, tipo_region, costo, tiempo_entrega, activa)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (id) DO NOTHING;
+    `, [zona3Id, 'Envío Nacional Estándar (República Mexicana)', 'Nacional', 160.00, '3 a 5 días hábiles', true])
+
     console.log('✅ Datos iniciales sembrados correctamente en la base de datos de Neon.')
   } catch (err) {
     console.error('❌ Error sembrando datos:', err.message)
