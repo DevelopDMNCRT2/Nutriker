@@ -1,6 +1,12 @@
+import path from 'path'
+import { fileURLToPath } from 'url'
+import dotenv from 'dotenv'
 import pool from './pool.js'
 import bcrypt from 'bcrypt'
 import { generarIdUnico } from '../utils/generarId.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+dotenv.config({ path: path.join(__dirname, '../.env') })
 
 async function seed() {
   const client = await pool.connect()
@@ -82,6 +88,36 @@ async function seed() {
       'Todo en especial la pasta.', 'Mi esposa cocina.', 'Corredor aficionado, 10km semanales.',
       '2026-04-17', '14:00', 'si'
     ])
+
+    // 5. Categorías iniciales
+    const cat1Id = await generarIdUnico('categorias')
+    await client.query(`
+      INSERT INTO categorias (id, nombre, descripcion)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (id) DO NOTHING;
+    `, [cat1Id, 'Suplementos', 'Suplementos alimenticios y proteínas de alta calidad'])
+
+    const cat2Id = await generarIdUnico('categorias')
+    await client.query(`
+      INSERT INTO categorias (id, nombre, descripcion)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (id) DO NOTHING;
+    `, [cat2Id, 'Snacks Saludables', 'Barras, frutos secos y galletas nutritivas'])
+
+    // 6. Productos iniciales
+    const prod1Id = await generarIdUnico('productos')
+    await client.query(`
+      INSERT INTO productos (id, nombre, descripcion, descripcion_detallada, precio, descuento, stock, categoria_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (id) DO NOTHING;
+    `, [prod1Id, 'Proteína Whey NutriKer 1kg', 'Proteína aislada de suero de leche sabor vainilla.', 'Rica en BCAAs, bajo en carbohidratos y sin azúcar añadida. Ideal para recuperación muscular.', 799.00, 10, 25, cat1Id])
+
+    const prod2Id = await generarIdUnico('productos')
+    await client.query(`
+      INSERT INTO productos (id, nombre, descripcion, descripcion_detallada, precio, descuento, stock, categoria_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (id) DO NOTHING;
+    `, [prod2Id, 'Barra de Proteína Keto (12 pzas)', 'Barras energéticas bajas en carbohidratos.', 'Contiene almendras, cacao orgánico y eritritol. Snack perfecto pre o post entrenamiento.', 450.00, 0, 40, cat2Id])
 
     console.log('✅ Datos iniciales sembrados correctamente en la base de datos de Neon.')
   } catch (err) {
