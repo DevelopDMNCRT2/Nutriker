@@ -107,3 +107,12 @@ export const clientesApi = {
 export const dashboardApi = {
   getResumenDiario: () => request('GET', '/dashboard/resumen-diario'),
 }
+
+// --- Zonas de Envío ---
+export const zonasEnvioApi = {
+  getAll:  ()         => request('GET',    '/zonas-envio'),
+  getById: (id)       => request('GET',    `/zonas-envio/${id}`),
+  create:  (body)     => request('POST',   '/zonas-envio', body),
+  update:  (id, body) => request('PUT',    `/zonas-envio/${id}`, body),
+  delete:  (id)       => request('DELETE', `/zonas-envio/${id}`),
+}
