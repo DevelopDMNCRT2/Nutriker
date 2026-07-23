@@ -6,10 +6,12 @@ import pool from '../db/pool.js'
  */
 export const getResumenDiario = async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0]
-    const hour = new Date().getHours()
+    // Usar la zona horaria de México para evitar desfases en servidores con hora UTC (como Vercel)
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
+    const hourStr = new Date().toLocaleTimeString('en-US', { timeZone: 'America/Mexico_City', hour12: false, hour: '2-digit' })
+    const hour = parseInt(hourStr, 10)
 
-    // Determinar saludo dinámico
+    // Determinar saludo dinámico según la hora local de la doctora
     let saludo = '¡Buenos días, Dra. Karla! ☀️'
     if (hour >= 12 && hour < 19) {
       saludo = '¡Buenas tardes, Dra. Karla! 🌤️'
