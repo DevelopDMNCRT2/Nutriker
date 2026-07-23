@@ -14,7 +14,13 @@ const router = createRouter({
     },
     {
       path: '/',
-      redirect: '/usuarios',
+      redirect: '/dashboard',
+    },
+    {
+      path: '/dashboard',
+      name: 'Dashboard',
+      component: () => import('../views/DashboardBuenosDias.vue'),
+      meta: { title: 'Inicio / Buenos Días' },
     },
     {
       path: '/usuarios',
