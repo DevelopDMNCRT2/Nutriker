@@ -27,6 +27,8 @@ Para mantener el repositorio limpio y ordenado, el flujo de desarrollo debe ser 
 2.  **Desarrollo en Ramas (Branching):**
     *   Se debe crear una rama específica para cada issue. 
     *   *Nomenclatura:* `feature/issue-<numero>-nombre-corto` (Ejemplo: `feature/issue-2-dashboard-buenos-dias`).
+    *   ⚠️ **Origen de Ramas:** Toda nueva rama de desarrollo debe partir obligatoria y estrictamente desde la versión más reciente de `main` (`git checkout main && git pull`). **Nunca** se debe crear una rama partiendo de otra rama de feature que aún esté pendiente de mergear en `main`.
+    *   ⚠️ **Dependencia entre Tareas:** Si una tarea requiere obligatoriamente de los cambios de una rama anterior que no ha sido mergeada en `main` para poder avanzar, el desarrollador debe indicar esta dependencia de manera explícita desde la descripción del Issue.
 3.  **Pull Request (PR) y Aprobación:**
     *   Una vez terminada la tarea, se abre un Pull Request hacia la rama `main` y se asigna al Propietario.
     *   **Formato de Referencias:**
