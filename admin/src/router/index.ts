@@ -46,6 +46,12 @@ const router = createRouter({
       component: () => import('../views/Productos.vue'),
       meta: { title: 'Productos' },
     },
+    {
+      path: '/menus/:clienteId?',
+      name: 'GeneradorMenus',
+      component: () => import('../views/GeneradorMenus.vue'),
+      meta: { title: 'Generador de Menus Semanales' },
+    },
   ],
 })
 

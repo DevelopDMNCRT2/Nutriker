@@ -1,0 +1,325 @@
+<template>
+  <AdminLayout>
+    <div class="space-y-6">
+
+      <!-- Header -->
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-4 dark:border-gray-800">
+        <div>
+          <router-link to="/clientes" class="text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 flex items-center gap-1 mb-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            Regresar a Clientes
+          </router-link>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white flex flex-wrap items-center gap-2">
+            <span>Generador de Menús Semanales</span>
+            <span v-if="cliente" class="text-xl font-medium text-brand-600 dark:text-brand-400">
+              — {{ cliente.nombre }}
+            </span>
+          </h1>
+        </div>
+        <div class="flex items-center gap-3">
+          <button
+            @click="abrirModalNuevoMenu"
+            class="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-brand-700 transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Nuevo Menú Semanal
+          </button>
+        </div>
+      </div>
+
+      <!-- Estado vacío -->
+      <div v-if="!loading && menus.length === 0" class="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center dark:border-gray-700 dark:bg-gray-900">
+        <svg class="mx-auto w-12 h-12 text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">No hay menús semanales registrados para este paciente.</p>
+        <button @click="abrirModalNuevoMenu" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Crear primer menú
+        </button>
+      </div>
+
+      <!-- Lista de menus -->
+      <div v-if="!loading && menus.length > 0" class="space-y-4">
+        <div
+          v-for="menu in menus"
+          :key="menu.id"
+          class="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 overflow-hidden"
+        >
+          <!-- Encabezado del menú -->
+          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 cursor-pointer select-none"
+               @click="toggleMenu(menu.id)">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl bg-brand-50 dark:bg-brand-500/10 flex items-center justify-center">
+                <svg class="w-5 h-5 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm font-bold text-gray-900 dark:text-white">{{ menu.nombre }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Semana del {{ formatFecha(menu.semanaInicio) }}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button @click.stop="editarMenu(menu)" class="p-2 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-500/10 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              </button>
+              <button @click.stop="eliminarMenu(menu.id)" class="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+              <svg class="w-4 h-4 text-gray-400 transition-transform duration-200" :class="{ 'rotate-180': menuAbierto === menu.id }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Tabla semanal expandible -->
+          <div v-show="menuAbierto === menu.id" class="overflow-x-auto">
+            <table class="w-full min-w-[700px] text-xs">
+              <thead>
+                <tr class="bg-gray-50 dark:bg-gray-800/60">
+                  <th class="px-4 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide w-28">Tiempo</th>
+                  <th v-for="dia in dias" :key="dia.key" class="px-3 py-3 text-center font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{{ dia.label }}</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                <tr v-for="tiempo in tiempos" :key="tiempo.key" class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
+                  <td class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">{{ tiempo.label }}</td>
+                  <td v-for="dia in dias" :key="dia.key" class="px-3 py-3 text-center text-gray-600 dark:text-gray-400">
+                    <span v-if="menu[`${dia.key}_${tiempo.key}`]" class="inline-block bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-300 rounded-lg px-2 py-1 leading-tight">
+                      {{ menu[`${dia.key}_${tiempo.key}`] }}
+                    </span>
+                    <span v-else class="text-gray-300 dark:text-gray-600">—</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-if="menu.notas" class="px-6 py-3 border-t border-gray-100 dark:border-gray-800 text-xs text-gray-500 dark:text-gray-400">
+              <span class="font-semibold text-gray-700 dark:text-gray-300">Notas:</span> {{ menu.notas }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div v-if="loading" class="flex items-center justify-center py-20">
+        <div class="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div>
+      </div>
+
+    </div>
+
+    <!-- Modal Nuevo / Editar Menú -->
+    <Teleport to="body">
+      <Transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0" enter-to-class="opacity-100"
+                  leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100" leave-to-class="opacity-0">
+        <div v-if="modalVisible" class="fixed inset-0 z-99999 flex items-start justify-center bg-gray-900/60 backdrop-blur-sm overflow-y-auto py-8">
+          <div class="relative w-full max-w-5xl mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl">
+            <!-- Header modal -->
+            <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800">
+              <h2 class="text-base font-bold text-gray-900 dark:text-white">
+                {{ modoEdicion ? 'Editar Menú Semanal' : 'Nuevo Menú Semanal' }}
+              </h2>
+              <button @click="cerrarModal" class="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            <!-- Cuerpo modal -->
+            <div class="p-6 space-y-6">
+              <!-- Datos generales -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">Nombre del Menú *</label>
+                  <input v-model="form.nombre" type="text" placeholder="Plan semana 1 - Reducción" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors"/>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">Semana de Inicio *</label>
+                  <input v-model="form.semanaInicio" type="date" class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors"/>
+                </div>
+              </div>
+
+              <!-- Grid de comidas por dia -->
+              <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
+                <table class="w-full min-w-[700px] text-xs">
+                  <thead>
+                    <tr class="bg-gray-50 dark:bg-gray-800">
+                      <th class="px-4 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide w-28">Tiempo</th>
+                      <th v-for="dia in dias" :key="dia.key" class="px-2 py-3 text-center font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{{ dia.label }}</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                    <tr v-for="tiempo in tiempos" :key="tiempo.key" class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
+                      <td class="px-4 py-2 font-semibold text-gray-700 dark:text-gray-300">{{ tiempo.label }}</td>
+                      <td v-for="dia in dias" :key="dia.key" class="px-2 py-2">
+                        <input
+                          v-model="form[`${dia.key}_${tiempo.key}`]"
+                          type="text"
+                          :placeholder="tiempo.label"
+                          class="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Notas -->
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">Notas adicionales</label>
+                <textarea v-model="form.notas" rows="2" placeholder="Indicaciones especiales, restricciones, sustituciones..." class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors resize-none"/>
+              </div>
+            </div>
+
+            <!-- Footer modal -->
+            <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-800">
+              <button @click="cerrarModal" class="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">Cancelar</button>
+              <button @click="guardarMenu" :disabled="saving" class="px-5 py-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-xl transition-colors disabled:opacity-50">
+                {{ saving ? 'Guardando...' : (modoEdicion ? 'Actualizar Menú' : 'Guardar Menú') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+  </AdminLayout>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import AdminLayout from '@/components/layout/AdminLayout.vue'
+import { clientesApi, menusApi } from '@/api/index.js'
+
+const route = useRoute()
+const clienteId = ref<string>(route.params.clienteId as string || '')
+
+const loading = ref(true)
+const saving = ref(false)
+const modalVisible = ref(false)
+const modoEdicion = ref(false)
+const menuAbierto = ref<string | null>(null)
+
+const cliente = ref<any>(null)
+const menus = ref<any[]>([])
+
+const dias = [
+  { key: 'lunes',      label: 'Lun' },
+  { key: 'martes',     label: 'Mar' },
+  { key: 'miercoles',  label: 'Mie' },
+  { key: 'jueves',     label: 'Jue' },
+  { key: 'viernes',    label: 'Vie' },
+  { key: 'sabado',     label: 'Sab' },
+  { key: 'domingo',    label: 'Dom' },
+]
+
+const tiempos = [
+  { key: 'desayuno',    label: 'Desayuno'   },
+  { key: 'colacion_am', label: 'Colacion AM' },
+  { key: 'comida',      label: 'Comida'      },
+  { key: 'colacion_pm', label: 'Colacion PM' },
+  { key: 'cena',        label: 'Cena'        },
+]
+
+const camposMenú = dias.flatMap(d => tiempos.map(t => `${d.key}_${t.key}`))
+
+function formVacio() {
+  const base: Record<string, string> = { id: '', nombre: '', semanaInicio: '', notas: '' }
+  camposMenú.forEach(c => base[c] = '')
+  return base
+}
+
+const form = ref<Record<string, string>>(formVacio())
+
+function formatFecha(fecha: string) {
+  if (!fecha) return ''
+  const [y, m, d] = fecha.split('-')
+  return `${d}/${m}/${y}`
+}
+
+function toggleMenu(id: string) {
+  menuAbierto.value = menuAbierto.value === id ? null : id
+}
+
+function abrirModalNuevoMenu() {
+  modoEdicion.value = false
+  form.value = formVacio()
+  modalVisible.value = true
+}
+
+function editarMenu(menu: any) {
+  modoEdicion.value = true
+  const f = formVacio()
+  f.id           = menu.id
+  f.nombre       = menu.nombre || ''
+  f.semanaInicio = menu.semanaInicio || ''
+  f.notas        = menu.notas || ''
+  camposMenú.forEach(c => { f[c] = menu[c] || '' })
+  form.value = f
+  modalVisible.value = true
+}
+
+function cerrarModal() {
+  modalVisible.value = false
+}
+
+async function cargarDatos() {
+  loading.value = true
+  try {
+    const id = (route.params.clienteId as string) || clienteId.value
+    clienteId.value = id
+    const [clienteRes, menusRes] = await Promise.all([
+      clientesApi.getById(id).catch(() => null),
+      menusApi.getByCliente(id).catch(() => []),
+    ])
+    cliente.value = clienteRes
+    menus.value = menusRes
+  } catch (err) {
+    console.error('Error al cargar datos:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+async function guardarMenu() {
+  if (!form.value.nombre || !form.value.semanaInicio) return
+  saving.value = true
+  try {
+    const body: Record<string, any> = {
+      clienteId: clienteId.value,
+      nombre:       form.value.nombre,
+      semanaInicio: form.value.semanaInicio,
+      notas:        form.value.notas || '',
+    }
+    camposMenú.forEach(c => { body[c] = form.value[c] || null })
+
+    if (modoEdicion.value && form.value.id) {
+      await menusApi.update(form.value.id, body)
+    } else {
+      await menusApi.create(body)
+    }
+    await cargarDatos()
+    cerrarModal()
+  } catch (err: any) {
+    console.error('Error al guardar menu:', err)
+    alert(err.message || 'Error al guardar el menú')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function eliminarMenu(id: string) {
+  if (!confirm('¿Eliminar este menú semanal? Esta acción no se puede deshacer.')) return
+  try {
+    await menusApi.delete(id)
+    menus.value = menus.value.filter(m => m.id !== id)
+    if (menuAbierto.value === id) menuAbierto.value = null
+  } catch (err: any) {
+    alert(err.message || 'Error al eliminar el menú')
+  }
+}
+
+onMounted(() => {
+  cargarDatos()
+})
+</script>

@@ -107,3 +107,12 @@ export const clientesApi = {
 export const dashboardApi = {
   getResumenDiario: () => request('GET', '/dashboard/resumen-diario'),
 }
+
+// --- Menus Semanales ---
+export const menusApi = {
+  getByCliente: (clienteId)   => request('GET',    `/menus/cliente/${clienteId}`),
+  getById:      (id)          => request('GET',    `/menus/${id}`),
+  create:       (body)        => request('POST',   '/menus', body),
+  update:       (id, body)    => request('PUT',    `/menus/${id}`, body),
+  delete:       (id)          => request('DELETE', `/menus/${id}`),
+}
