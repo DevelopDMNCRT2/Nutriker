@@ -12,6 +12,7 @@ import clientesRouter from './routes/clientes.js'
 import authRouter from './routes/auth.js'
 import dashboardRouter from './routes/dashboard.js'
 import menusRouter from './routes/menus.js'
+import expedientesRouter from './routes/expedientes.js'
 
 dotenv.config()
 
@@ -51,6 +52,7 @@ app.use('/api/pedidos', pedidosRouter)
 app.use('/api/citas', citasRouter)
 app.use('/api/dashboard', dashboardRouter)
 app.use('/api/menus', menusRouter)
+app.use('/api/expedientes', expedientesRouter)
 
 // ── 404 ────────────────────────────────────────────────
 app.use((req, res) => {
