@@ -1,15 +1,25 @@
 <template>
   <header class="editorial-header">
     <div class="header-left">
-      <img src="/icon_apple.png" alt="NutriKer Ícono" class="navbar-icon" />
+      <router-link to="/">
+        <img src="/icon_apple.png" alt="NutriKer Ícono" class="navbar-icon" />
+      </router-link>
     </div>
     
     <div class="header-center">
-      <img src="/logo_text.png" alt="NutriKer" class="brand-image" />
+      <router-link to="/">
+        <img src="/logo_text.png" alt="NutriKer" class="brand-image" />
+      </router-link>
     </div>
 
-    <!-- Espacio en blanco a la derecha para emparejar la grilla y lograr centrado absoluto -->
-    <div class="header-right"></div>
+    <div class="header-right">
+      <router-link to="/portal" class="btn-portal">
+        <svg class="portal-btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+        </svg>
+        <span>Portal Paciente</span>
+      </router-link>
+    </div>
   </header>
 </template>
 
@@ -22,19 +32,18 @@
   top: 0;
   left: 0;
   width: 100%;
-  padding: 2rem 4rem;
+  padding: 1.5rem 3rem;
   z-index: 50;
   
-  /* Uso de Grid 1fr - auto - 1fr para asegurar centrado perfecto del texto */
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   
-  pointer-events: none; /* Allows clicking through the empty header space */
+  pointer-events: none;
 }
 
-.header-left, .header-center {
-  pointer-events: auto; /* Logo and brand name remain clickable/interactable */
+.header-left, .header-center, .header-right {
+  pointer-events: auto;
 }
 
 .header-left {
@@ -43,11 +52,12 @@
 }
 
 .header-right {
-  /* Only exists to balance the text perfectly in the middle */
+  display: flex;
+  justify-content: flex-end;
 }
 
 .navbar-icon {
-  height: 55px; /* Ícono agrandado */
+  height: 50px;
   object-fit: contain;
   filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
   transition: transform 0.3s;
@@ -58,20 +68,54 @@
 }
 
 .brand-image {
-  height: 48px; /* Tamaño equivalente al H1 gigante que teníamos */
+  height: 44px;
   object-fit: contain;
   filter: drop-shadow(0 2px 8px rgba(255, 255, 255, 0.8));
 }
 
+.btn-portal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  font-family: var(--font-main);
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-radius: var(--radius-full);
+  box-shadow: 0 4px 12px rgba(74, 140, 91, 0.25);
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.btn-portal:hover {
+  background-color: var(--color-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(74, 140, 91, 0.35);
+}
+
+.portal-btn-icon {
+  width: 16px;
+  height: 16px;
+}
+
 @media (max-width: 768px) {
   .editorial-header {
-    padding: 1.5rem 2rem;
+    padding: 1rem 1.5rem;
   }
   .navbar-icon {
-    height: 40px;
+    height: 38px;
   }
   .brand-image {
-    height: 35px;
+    height: 32px;
+  }
+  .btn-portal span {
+    display: none;
+  }
+  .btn-portal {
+    padding: 0.5rem;
+    border-radius: 50%;
   }
 }
 </style>
