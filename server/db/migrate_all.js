@@ -116,6 +116,52 @@ const resetTablesSQL = `
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at              TIMESTAMPTZ DEFAULT NULL
   );
+
+  -- 10. Menus Semanales
+  CREATE TABLE IF NOT EXISTS menus_semanales (
+    id                  VARCHAR(8) PRIMARY KEY,
+    cliente_id          VARCHAR(8) NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+    nombre              VARCHAR(255) NOT NULL,
+    semana_inicio       DATE NOT NULL,
+    lunes_desayuno      TEXT,
+    lunes_colacion_am   TEXT,
+    lunes_comida        TEXT,
+    lunes_colacion_pm   TEXT,
+    lunes_cena          TEXT,
+    martes_desayuno     TEXT,
+    martes_colacion_am  TEXT,
+    martes_comida       TEXT,
+    martes_colacion_pm  TEXT,
+    martes_cena         TEXT,
+    miercoles_desayuno  TEXT,
+    miercoles_colacion_am TEXT,
+    miercoles_comida    TEXT,
+    miercoles_colacion_pm TEXT,
+    miercoles_cena      TEXT,
+    jueves_desayuno     TEXT,
+    jueves_colacion_am  TEXT,
+    jueves_comida       TEXT,
+    jueves_colacion_pm  TEXT,
+    jueves_cena         TEXT,
+    viernes_desayuno    TEXT,
+    viernes_colacion_am TEXT,
+    viernes_comida      TEXT,
+    viernes_colacion_pm TEXT,
+    viernes_cena        TEXT,
+    sabado_desayuno     TEXT,
+    sabado_colacion_am  TEXT,
+    sabado_comida       TEXT,
+    sabado_colacion_pm  TEXT,
+    sabado_cena         TEXT,
+    domingo_desayuno    TEXT,
+    domingo_colacion_am TEXT,
+    domingo_comida      TEXT,
+    domingo_colacion_pm TEXT,
+    domingo_cena        TEXT,
+    notas               TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
 `
 
 async function migrateAll() {
