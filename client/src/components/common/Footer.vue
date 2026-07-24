@@ -31,6 +31,7 @@
               <li><a href="#inicio" class="hover-slide">Inicio</a></li>
               <li><a href="#nosotros" class="hover-slide">Nosotros</a></li>
               <li><a href="#servicios" class="hover-slide">Servicios</a></li>
+              <li><router-link to="/portal" class="hover-slide">Portal del Paciente</router-link></li>
               <li><a href="#contacto" class="hover-slide">Contacto</a></li>
             </ul>
           </div>
