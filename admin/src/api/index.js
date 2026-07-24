@@ -116,3 +116,13 @@ export const menusApi = {
   update:       (id, body)    => request('PUT',    `/menus/${id}`, body),
   delete:       (id)          => request('DELETE', `/menus/${id}`),
 }
+
+// --- Expedientes Clínicos y Mediciones ---
+export const expedientesApi = {
+  getByCliente:    (clienteId)   => request('GET', `/expedientes/cliente/${clienteId}`),
+  updateNotas:     (clienteId, body) => request('PUT', `/expedientes/cliente/${clienteId}`, body),
+  createMedicion:  (body)        => request('POST', '/expedientes/mediciones', body),
+  updateMedicion:  (id, body)    => request('PUT', `/expedientes/mediciones/${id}`, body),
+  deleteMedicion:  (id)          => request('DELETE', `/expedientes/mediciones/${id}`),
+}
+

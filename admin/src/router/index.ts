@@ -52,6 +52,12 @@ const router = createRouter({
       component: () => import('../views/GeneradorMenus.vue'),
       meta: { title: 'Generador de Menus Semanales' },
     },
+    {
+      path: '/expedientes/:clienteId?',
+      name: 'ExpedienteClinico',
+      component: () => import('../views/ExpedienteClinico.vue'),
+      meta: { title: 'Expediente Clínico' },
+    },
   ],
 })
 

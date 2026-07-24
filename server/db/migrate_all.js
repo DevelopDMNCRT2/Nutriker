@@ -162,6 +162,35 @@ const resetTablesSQL = `
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
+
+  -- 11. Expedientes Clínicos
+  CREATE TABLE IF NOT EXISTS expedientes_clinicos (
+    id                  VARCHAR(8) PRIMARY KEY,
+    cliente_id          VARCHAR(8) NOT NULL UNIQUE REFERENCES clientes(id) ON DELETE CASCADE,
+    diagnostico         TEXT,
+    objetivo_nutricional TEXT,
+    notas_medicas       TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  -- 12. Mediciones Antropométricas
+  CREATE TABLE IF NOT EXISTS mediciones_antropometricas (
+    id                  VARCHAR(8) PRIMARY KEY,
+    cliente_id          VARCHAR(8) NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+    fecha               DATE NOT NULL DEFAULT CURRENT_DATE,
+    peso                DECIMAL(10,2),
+    porcentaje_grasa    DECIMAL(10,2),
+    masa_muscular       DECIMAL(10,2),
+    porcentaje_agua     DECIMAL(10,2),
+    grasa_visceral      DECIMAL(10,2),
+    cintura             DECIMAL(10,2),
+    cadera              DECIMAL(10,2),
+    brazo               DECIMAL(10,2),
+    observaciones       TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
 `
 
 async function migrateAll() {
