@@ -101,21 +101,38 @@ export async function updateExpediente(req, res) {
   const { diagnostico, objetivoNutricional, notasMedicas } = req.body
 
   try {
-    const result = await pool.query(
-      `UPDATE expedientes_clinicos
-       SET diagnostico = COALESCE($1, diagnostico),
-           objetivo_nutricional = COALESCE($2, objetivo_nutricional),
-           notas_medicas = COALESCE($3, notas_medicas),
-           updated_at = NOW()
-       WHERE cliente_id = $4
-       RETURNING id, cliente_id AS "clienteId", diagnostico, objetivo_nutricional AS "objetivoNutricional",
-                 notas_medicas AS "notasMedicas"`,
-      [diagnostico, objetivoNutricional, notasMedicas, clienteId]
+    // 1. Verificar si ya existe un expediente registrado para el cliente
+    const checkResult = await pool.query(
+      'SELECT id FROM expedientes_clinicos WHERE cliente_id = $1',
+      [clienteId]
     )
 
-    if (!result.rows.length) {
-      return res.status(404).json({ error: 'Expediente no encontrado' })
+    let result
+    if (checkResult.rows.length === 0) {
+      // 2. Si no existe, crear el expediente inicial con los datos provistos
+      const newExpId = await generarIdUnico('expedientes_clinicos')
+      result = await pool.query(
+        `INSERT INTO expedientes_clinicos (id, cliente_id, diagnostico, objetivo_nutricional, notas_medicas)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, cliente_id AS "clienteId", diagnostico, objetivo_nutricional AS "objetivoNutricional",
+                   notas_medicas AS "notasMedicas"`,
+        [newExpId, clienteId, diagnostico || null, objetivoNutricional || null, notasMedicas || null]
+      )
+    } else {
+      // 3. Si ya existe, actualizar únicamente los datos provistos
+      result = await pool.query(
+        `UPDATE expedientes_clinicos
+         SET diagnostico = COALESCE($1, diagnostico),
+             objetivo_nutricional = COALESCE($2, objetivo_nutricional),
+             notas_medicas = COALESCE($3, notas_medicas),
+             updated_at = NOW()
+         WHERE cliente_id = $4
+         RETURNING id, cliente_id AS "clienteId", diagnostico, objetivo_nutricional AS "objetivoNutricional",
+                   notas_medicas AS "notasMedicas"`,
+        [diagnostico, objetivoNutricional, notasMedicas, clienteId]
+      )
     }
+
     res.json(result.rows[0])
   } catch (err) {
     console.error('updateExpediente:', err.message)

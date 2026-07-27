@@ -14,6 +14,7 @@ import dashboardRouter from './routes/dashboard.js'
 import menusRouter from './routes/menus.js'
 import expedientesRouter from './routes/expedientes.js'
 import zonasEnvioRouter from './routes/zonasEnvio.js'
+import iaRouter from './routes/ia.js'
 
 dotenv.config()
 
@@ -55,6 +56,7 @@ app.use('/api/dashboard', dashboardRouter)
 app.use('/api/menus', menusRouter)
 app.use('/api/expedientes', expedientesRouter)
 app.use('/api/zonas-envio', zonasEnvioRouter)
+app.use('/api/ia', iaRouter)
 
 // ── 404 ────────────────────────────────────────────────
 app.use((req, res) => {
