@@ -9,6 +9,7 @@
 El proyecto está construido con la siguiente arquitectura:
 *   **Frontend (Cliente & Admin):** Vue 3 (Composition API) + Vite + Tailwind CSS + Pinia (State Management) + TS (en Admin).
 *   **Backend:** Express.js configurado en modo **Serverless** para despliegue optimizado en Vercel.
+*   **Inteligencia Artificial:** Google Generative AI (Gemini Flash 1.5) SDK para estructuración de consulta clínica y asistente agencial.
 *   **Base de Datos:** PostgreSQL alojado en **Neon** (Serverless Postgres).
 *   **Servicios Externos:** Cloudinary para almacenamiento de archivos e imágenes.
 *   **Identidad Visual:** La paleta de colores corporativos debe enfocarse en **Verde y Rojo** (basado en los colores oficiales del logotipo, reemplazando la paleta teal previa).
@@ -119,7 +120,7 @@ Nutriker/
     ```bash
     cd server
     npm install
-    # Configurar archivo .env con DATABASE_URL, JWT_SECRET, etc.
+    # Configurar archivo .env con DATABASE_URL, JWT_SECRET, GEMINI_API_KEY, etc.
     npm run migrate  # Configura/actualiza las tablas en Neon
     npm run dev      # Corre localmente
     ```
