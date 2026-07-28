@@ -88,6 +88,14 @@ El proyecto cuenta con un pipeline automatizado en **GitHub Actions** (`.github/
 
 ---
 
+## 🚀 Despliegue Continuo (CD) en Vercel
+El proyecto está optimizado para Despliegue Continuo (CD) en **Vercel** mediante la integración nativa con GitHub:
+*   **Producción Automática:** Cada fusión (*merge*) a la rama `main` dispara la compilación y publicación serverless en vivo.
+*   **Preview Deployments:** Cada Pull Request abierto genera una URL de previsualización para validación visual rápida.
+*   **Variables de Entorno:** Configurar en Vercel (*Project Settings > Environment Variables*) las credenciales definidas en los archivos `.env.example`.
+
+---
+
 ## 📁 Estructura del Repositorio
 
 ```text
