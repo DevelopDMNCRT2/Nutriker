@@ -64,6 +64,12 @@ const router = createRouter({
       component: () => import('../views/ZonasEnvio.vue'),
       meta: { title: 'Zonas de Envío' },
     },
+    {
+      path: '/chat-agencial',
+      name: 'ChatAgencial',
+      component: () => import('../views/ChatAgencial.vue'),
+      meta: { title: 'Asistente Clínico IA' },
+    },
   ],
 })
 

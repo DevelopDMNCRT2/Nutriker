@@ -134,3 +134,9 @@ export const zonasEnvioApi = {
   update:  (id, body) => request('PUT',    `/zonas-envio/${id}`, body),
   delete:  (id)       => request('DELETE', `/zonas-envio/${id}`),
 }
+
+// --- Asistente de IA (Gemini) ---
+export const iaApi = {
+  sintetizarNotas: (body) => request('POST', '/ia/sintetizar-notas', body),
+  chatAsistente:   (body) => request('POST', '/ia/chat-asistente', body),
+}

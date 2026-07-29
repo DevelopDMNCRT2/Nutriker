@@ -16,6 +16,13 @@
         </div>
 
         <div class="flex items-center gap-3">
+          <router-link
+            :to="`/chat-agencial?clienteId=${clienteId}`"
+            class="inline-flex items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-purple-700 transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            <span>Asistente IA Gemini</span>
+          </router-link>
           <button
             @click="abrirModalMedicion"
             class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-brand-700 transition-colors"
@@ -72,14 +79,18 @@
           </div>
         </div>
 
-        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs border-t border-gray-100 dark:border-gray-800 pt-4">
           <div>
-            <span class="font-bold text-gray-700 dark:text-gray-300">Motivo de Consulta:</span>
-            <p class="text-gray-600 dark:text-gray-400 mt-0.5 leading-relaxed">{{ cliente.motivo_consulta || 'Sin datos' }}</p>
+            <span class="font-bold text-gray-700 dark:text-gray-300">Diagnóstico Clínico (IA):</span>
+            <p class="text-gray-600 dark:text-gray-400 mt-1 leading-relaxed bg-gray-50 dark:bg-gray-800/50 p-2.5 rounded-xl">{{ expediente.diagnostico || 'Evaluación inicial en curso.' }}</p>
           </div>
           <div>
-            <span class="font-bold text-gray-700 dark:text-gray-300">Diagnóstico Clínico:</span>
-            <p class="text-gray-600 dark:text-gray-400 mt-0.5 leading-relaxed">{{ expediente.diagnostico || 'Evaluación inicial en curso.' }}</p>
+            <span class="font-bold text-gray-700 dark:text-gray-300">Objetivo Nutricional (IA):</span>
+            <p class="text-gray-600 dark:text-gray-400 mt-1 leading-relaxed bg-gray-50 dark:bg-gray-800/50 p-2.5 rounded-xl">{{ expediente.objetivoNutricional || 'Optimizar composición corporal.' }}</p>
+          </div>
+          <div>
+            <span class="font-bold text-gray-700 dark:text-gray-300">Notas Médicas y Observaciones (IA):</span>
+            <p class="text-gray-600 dark:text-gray-400 mt-1 leading-relaxed bg-gray-50 dark:bg-gray-800/50 p-2.5 rounded-xl">{{ expediente.notasMedicas || 'Sin observaciones guardadas.' }}</p>
           </div>
         </div>
       </div>
