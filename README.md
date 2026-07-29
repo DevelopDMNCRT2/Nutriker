@@ -11,6 +11,7 @@ El proyecto está construido con la siguiente arquitectura:
 *   **Backend:** Express.js configurado en modo **Serverless** para despliegue optimizado en Vercel.
 *   **Inteligencia Artificial:** Google Generative AI (Gemini Flash 1.5) SDK para estructuración de consulta clínica y asistente agencial.
 *   **Base de Datos:** PostgreSQL alojado en **Neon** (Serverless Postgres).
+*   **Integración Continua (CI):** GitHub Actions (`.github/workflows/ci.yml`) para verificación de tipos TypeScript y build automatizado.
 *   **Servicios Externos:** Cloudinary para almacenamiento de archivos e imágenes.
 *   **Identidad Visual:** La paleta de colores corporativos debe enfocarse en **Verde y Rojo** (basado en los colores oficiales del logotipo, reemplazando la paleta teal previa).
 
@@ -76,6 +77,14 @@ El ciclo de vida y manejo del paciente dentro de la plataforma debe seguir un fl
 ## 🔮 Fase 2: Inteligencia Artificial (IA)
 En el segundo avance del proyecto, se introducirá un **Asistente de IA** integrado para:
 *   Apoyar a la Dra. Karla en la generación automatizada de menús semanales personalizados basados en el perfil clínico del paciente (alergias, metas, mediciones antropométricas, etc.).
+
+---
+
+## ⚙️ Integración Continua (CI)
+El proyecto cuenta con un pipeline automatizado en **GitHub Actions** (`.github/workflows/ci.yml`) que se ejecuta en cada Pull Request hacia la rama `main`:
+*   **Verificación de Tipos:** Ejecuta `npm run type-check` en `admin/` (`vue-tsc --build`).
+*   **Verificación de Compilación:** Valida la construcción del paquete de producción en Vite (`npm run build-only`).
+*   **Sintaxis del Servidor:** Comprueba la validez del backend Express (`node --check index.js`).
 
 ---
 
