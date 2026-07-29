@@ -4,9 +4,8 @@
       <!-- Header -->
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <BoxIcon class="w-7 h-7 text-brand-600 dark:text-brand-400" />
-            <span>Gestión de Productos y Categorías</span>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+            Gestión de Productos y Categorías
           </h1>
         </div>
 

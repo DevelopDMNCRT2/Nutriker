@@ -81,7 +81,7 @@
 
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
-import { UserCircleIcon, CalenderIcon, ListIcon, HorizontalDots, PlugInIcon, TruckIcon } from '../../icons'
+import { UserCircleIcon, CalenderIcon, ListIcon, HorizontalDots, ShoppingBagIcon, TruckIcon } from '../../icons'
 import BoxCubeIcon from '@/icons/BoxCubeIcon.vue'
 import GridIcon from '@/icons/GridIcon.vue'
 import { useSidebar } from '@/composables/useSidebar'
@@ -95,6 +95,7 @@ const menuItems = [
   { name: 'Clientes',       path: '/clientes',      icon: ListIcon },
   { name: 'Citas',          path: '/citas',         icon: CalenderIcon },
   { name: 'Productos',      path: '/productos',     icon: BoxCubeIcon },
+  { name: 'Órdenes',        path: '/ordenes',       icon: ShoppingBagIcon },
   { name: 'Zonas de Envío', path: '/zonas-envio',   icon: TruckIcon },
   { name: 'Asistente IA',   path: '/chat-agencial', icon: UserCircleIcon },
 ]

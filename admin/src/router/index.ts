@@ -65,6 +65,12 @@ const router = createRouter({
       meta: { title: 'Zonas de Envío' },
     },
     {
+      path: '/ordenes',
+      name: 'Ordenes',
+      component: () => import('../views/Ordenes.vue'),
+      meta: { title: 'Órdenes de Compra' },
+    },
+    {
       path: '/chat-agencial',
       name: 'ChatAgencial',
       component: () => import('../views/ChatAgencial.vue'),
