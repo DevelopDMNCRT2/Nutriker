@@ -10,8 +10,21 @@
       </button>
     </div>
 
+    <!-- Cargador Skeleton -->
+    <LoadingSkeleton v-if="cargando" :rows="5" type="table" class="mb-6" />
+
+    <!-- Estado Vacío Ilustrado -->
+    <EmptyState
+      v-else-if="clientes.length === 0"
+      title="No hay expedientes clínicos registrados"
+      description="Comienza agregando el expediente del primer paciente para dar seguimiento a su historial y antropometría."
+      actionText="Agregar Primer Paciente"
+      @action="abrirAgregar"
+      class="mb-6"
+    />
+
     <!-- Tabla -->
-    <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-white/[0.03]">
+    <div v-else class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-white/[0.03] mb-6">
       <div class="max-w-full overflow-x-auto custom-scrollbar">
         <table class="min-w-full">
           <thead>
@@ -43,27 +56,22 @@
               </td>
               <td class="px-5 py-4 sm:px-6">
                 <div class="flex justify-center gap-3">
-                  <button @click="abrirDetalles(cliente)" class="text-brand-500 hover:text-brand-700 transition-colors" title="Mostrar Detalles">
+                  <button @click="abrirDetalles(cliente)" class="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 transition-colors" title="Mostrar Detalles">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                   </button>
-                  <router-link :to="`/expedientes/${cliente.id}`" class="text-teal-500 hover:text-teal-700 transition-colors" title="Expediente Clínico">
+                  <router-link :to="`/expedientes/${cliente.id}`" class="text-teal-600 hover:text-teal-800 dark:text-teal-400 transition-colors" title="Expediente Clínico">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                   </router-link>
-                  <router-link :to="`/menus/${cliente.id}`" class="text-purple-500 hover:text-purple-700 transition-colors" title="Menú Semanal">
+                  <router-link :to="`/menus/${cliente.id}`" class="text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 transition-colors" title="Menú Semanal">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
                   </router-link>
-                  <button @click="abrirEditar(cliente)" class="text-orange-500 hover:text-orange-700 transition-colors" title="Editar">
+                  <button @click="abrirEditar(cliente)" class="text-amber-600 hover:text-amber-800 dark:text-amber-400 transition-colors" title="Editar">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                   </button>
-                  <button @click="eliminar(cliente.id)" class="text-red-500 hover:text-red-700 transition-colors" title="Eliminar">
+                  <button @click="eliminar(cliente.id)" class="text-rose-600 hover:text-rose-800 dark:text-rose-400 transition-colors" title="Eliminar">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                   </button>
                 </div>
-              </td>
-            </tr>
-            <tr v-if="clientes.length === 0">
-              <td colspan="5" class="px-5 py-10 text-center text-gray-500 dark:text-gray-400">
-                No hay expedientes clínicos registrados. ¡Agrega el primero!
               </td>
             </tr>
           </tbody>
@@ -412,6 +420,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import Modal from '@/components/ui/Modal.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { citasApi, clientesApi } from '@/api/index.js'
 
 // Horarios disponibles de la clínica (mismo set que el servidor)
