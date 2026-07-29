@@ -36,11 +36,8 @@
         </div>
       </div>
 
-      <!-- Loading -->
-      <div v-if="loading" class="loading-state">
-        <div class="spinner"></div>
-        <p>Cargando citas...</p>
-      </div>
+      <!-- Loading Skeleton -->
+      <LoadingSkeleton v-if="loading" :rows="5" type="table" class="my-6" />
 
       <!-- Calendar -->
       <div v-else class="calendar-wrapper">
@@ -180,6 +177,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
+import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'

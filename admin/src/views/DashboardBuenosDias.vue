@@ -118,17 +118,17 @@
             </router-link>
           </div>
 
-          <!-- Estado si no hay citas hoy -->
-          <div v-if="datosDashboard.citasHoy && datosDashboard.citasHoy.length === 0" class="py-12 text-center">
-            <div class="mx-auto w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center text-brand-600 mb-3 dark:bg-brand-500/10 dark:text-brand-400">
-              <CalenderIcon class="w-6 h-6 text-brand-600 dark:text-brand-400" />
-            </div>
-            <h3 class="text-sm font-semibold text-gray-800 dark:text-white">No tienes citas agendadas para hoy</h3>
-            <p class="text-xs text-gray-500 mt-1 max-w-sm mx-auto">Disfruta tu jornada o aprovecha para revisar expedientes clínicos de pacientes anteriores.</p>
-            <router-link to="/citas" class="mt-4 inline-flex items-center justify-center px-4 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors">
-              Agendar una Cita
-            </router-link>
-          </div>
+          <!-- Cargador Skeleton -->
+          <LoadingSkeleton v-if="loading" :rows="3" type="list" />
+
+          <!-- Estado Vacío Ilustrado -->
+          <EmptyState
+            v-else-if="datosDashboard.citasHoy && datosDashboard.citasHoy.length === 0"
+            title="No tienes citas agendadas para hoy"
+            description="Disfruta tu jornada o aprovecha para revisar expedientes clínicos de pacientes anteriores."
+            actionText="Agendar una Cita"
+            @action="$router.push('/citas')"
+          />
 
           <!-- Lista de Citas de Hoy -->
           <div v-else class="space-y-3">
@@ -215,6 +215,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { dashboardApi } from '@/api/index.js'
 import { CalenderIcon, ListIcon, TaskIcon, InfoCircleIcon, BarChartIcon, SuccessIcon } from '@/icons'
 

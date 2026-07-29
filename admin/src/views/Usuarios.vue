@@ -16,15 +16,22 @@
       <span>{{ errorGlobal }}</span>
     </div>
 
-    <!-- Tabla -->
-    <div class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
-      <!-- Loading -->
-      <div v-if="loading" class="flex items-center justify-center py-16">
-        <div class="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
-        <span class="ml-3 text-gray-500 dark:text-gray-400">Cargando usuarios...</span>
-      </div>
+    <!-- Cargador Skeleton -->
+    <LoadingSkeleton v-if="loading" :rows="4" type="table" class="mb-6" />
 
-      <div v-else class="max-w-full overflow-x-auto custom-scrollbar">
+    <!-- Estado Vacío Ilustrado -->
+    <EmptyState
+      v-else-if="usuarios.length === 0"
+      title="No hay usuarios registrados"
+      description="No hay usuarios ni administradores registrados en este momento."
+      actionText="Agregar Usuario"
+      @action="abrirAgregar"
+      class="mb-6"
+    />
+
+    <!-- Tabla -->
+    <div v-else class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] mb-6">
+      <div class="max-w-full overflow-x-auto custom-scrollbar">
         <table class="min-w-full">
           <thead>
             <tr class="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
@@ -221,6 +228,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import Modal from '@/components/ui/Modal.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { usuariosApi } from '@/api/index.js'
 
 // ── Estado ────────────────────────────────────────────────────────────────────

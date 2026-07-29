@@ -47,8 +47,20 @@
         </div>
       </div>
 
+      <!-- Cargador Skeleton -->
+      <LoadingSkeleton v-if="loading" :rows="4" type="table" />
+
+      <!-- Estado Vacío Ilustrado -->
+      <EmptyState
+        v-else-if="productosFiltrados.length === 0"
+        title="No se encontraron productos"
+        description="No hay productos registrados en esta categoría o que coincidan con tu búsqueda."
+        actionText="Agregar Nuevo Producto"
+        @action="abrirModalCrear"
+      />
+
       <!-- Tabla de Productos -->
-      <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <div v-else class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs">
             <thead class="bg-gray-50 text-gray-500 dark:bg-gray-800/50 dark:text-gray-400 uppercase font-semibold">
@@ -62,12 +74,6 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-              <tr v-if="loading" class="text-center">
-                <td colspan="6" class="py-8 text-gray-500">Cargando catálogo de productos...</td>
-              </tr>
-              <tr v-else-if="productosFiltrados.length === 0" class="text-center">
-                <td colspan="6" class="py-8 text-gray-500">No se encontraron productos en el catálogo.</td>
-              </tr>
               <tr v-for="prod in productosFiltrados" :key="prod.id" class="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
                 <td class="px-4 py-3.5">
                   <div class="flex items-center gap-3">
@@ -240,6 +246,8 @@
 import { ref, computed, onMounted } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import Modal from '@/components/ui/Modal.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { productosApi, categoriasApi } from '@/api/index.js'
 import { BoxIcon, PlusIcon, TrashIcon } from '@/icons'
 
