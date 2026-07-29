@@ -140,3 +140,13 @@ export const iaApi = {
   sintetizarNotas: (body) => request('POST', '/ia/sintetizar-notas', body),
   chatAsistente:   (body) => request('POST', '/ia/chat-asistente', body),
 }
+
+// --- Órdenes de Compra y Envíos ---
+export const ordenesApi = {
+  getAll:            ()         => request('GET',    '/ordenes'),
+  getById:           (id)       => request('GET',    `/ordenes/${id}`),
+  create:            (body)     => request('POST',   '/ordenes', body),
+  updateEstadoOrden: (id, body) => request('PUT',    `/ordenes/${id}/estado-orden`, body),
+  updateEstadoEnvio: (id, body) => request('PUT',    `/ordenes/${id}/estado-envio`, body),
+  delete:            (id)       => request('DELETE', `/ordenes/${id}`),
+}

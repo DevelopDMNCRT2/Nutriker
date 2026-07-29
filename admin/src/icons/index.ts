@@ -46,8 +46,10 @@ import UserGroupIcon from "./UserGroupIcon.vue";
 import BellIcon from "./BellIcon.vue";
 import BarChartIcon from "./BarChartIcon.vue";
 import TruckIcon from "./TruckIcon.vue";
+import ShoppingBagIcon from "./ShoppingBagIcon.vue";
 
 export {
+  ShoppingBagIcon,
   BellIcon,
   BarChartIcon,
   LayoutDashboardIcon,
