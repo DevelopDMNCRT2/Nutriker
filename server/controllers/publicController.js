@@ -1,0 +1,176 @@
+import pool from '../db/pool.js'
+import { generarIdUnico } from '../utils/generarId.js'
+
+// 1. Obtener catálogo de productos públicos
+export const getProductosPublicos = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        p.id,
+        p.nombre,
+        p.descripcion,
+        p.descripcion_detallada,
+        p.precio,
+        p.descuento,
+        p.precio_final,
+        p.stock,
+        p.imagen_principal,
+        p.galeria,
+        c.nombre AS categoria_nombre
+      FROM productos p
+      LEFT JOIN categorias c ON p.categoria_id = c.id
+      WHERE p.deleted_at IS NULL AND p.stock > 0
+      ORDER BY p.nombre ASC
+    `
+    const { rows } = await pool.query(query)
+    res.json(rows)
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener el catálogo de productos', detalle: error.message })
+  }
+}
+
+// 2. Obtener zonas de envío públicas
+export const getZonasEnvioPublicas = async (req, res) => {
+  try {
+    const query = `
+      SELECT id, nombre, tipo_region, costo, tiempo_entrega
+      FROM zonas_envio
+      WHERE deleted_at IS NULL AND activa = TRUE
+      ORDER BY costo ASC
+    `
+    const { rows } = await pool.query(query)
+    res.json(rows)
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener zonas de envío', detalle: error.message })
+  }
+}
+
+// 3. Procesar checkout público del cliente
+export const procesarCheckoutPublico = async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const {
+      cliente_nombre,
+      cliente_email,
+      cliente_telefono,
+      direccion_entrega,
+      ciudad,
+      zona_envio_id,
+      metodo_pago,
+      items
+    } = req.body
+
+    if (!cliente_nombre || !direccion_entrega || !items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ 
+        error: 'Datos incompletos. Se requiere nombre del cliente, dirección de entrega y al menos un producto en el carrito.' 
+      })
+    }
+
+    await client.query('BEGIN')
+
+    const total = items.reduce((acc, item) => acc + (item.cantidad * item.precio_unitario), 0)
+    const newOrdenId = await generarIdUnico('ordenes')
+
+    const insertOrdenSQL = `
+      INSERT INTO ordenes (
+        id, cliente_nombre, cliente_email, cliente_telefono,
+        total, direccion_entrega, ciudad, estado_orden, estado_envio,
+        zona_envio_id, metodo_pago
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'Pagado', 'En preparación', $8, $9)
+      RETURNING *
+    `
+    const ordenValues = [
+      newOrdenId, cliente_nombre, cliente_email || null, cliente_telefono || null,
+      total, direccion_entrega, ciudad || 'Ciudad de México',
+      zona_envio_id || null, metodo_pago || 'Tarjeta de Crédito/Débito'
+    ]
+
+    const { rows: ordenRows } = await client.query(insertOrdenSQL, ordenValues)
+    const ordenCreada = ordenRows[0]
+
+    for (const item of items) {
+      const detalleId = await generarIdUnico('detalles_orden')
+      const insertDetalleSQL = `
+        INSERT INTO detalles_orden (
+          id, orden_id, producto_id, producto_nombre, cantidad, precio_unitario
+        )
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `
+      await client.query(insertDetalleSQL, [
+        detalleId,
+        newOrdenId,
+        item.producto_id || null,
+        item.producto_nombre,
+        item.cantidad || 1,
+        item.precio_unitario
+      ])
+    }
+
+    await client.query('COMMIT')
+    res.status(201).json({
+      mensaje: 'Orden registrada y procesada exitosamente',
+      orden: ordenCreada
+    })
+  } catch (error) {
+    await client.query('ROLLBACK')
+    res.status(500).json({ error: 'Error al procesar la compra', detalle: error.message })
+  } finally {
+    client.release()
+  }
+}
+
+// 4. Agendar cita pública desde el portal cliente
+export const agendarCitaPublica = async (req, res) => {
+  try {
+    const { 
+      cliente_nombre, cliente_telefono, fecha, horario,
+      atencion_previa, peso, estatura 
+    } = req.body
+
+    if (!cliente_nombre || !cliente_telefono || !fecha || !horario) {
+      return res.status(400).json({ 
+        error: 'Todos los campos obligatorios deben estar completos (nombre, teléfono, fecha y horario).' 
+      })
+    }
+
+    // Verificar si el horario ya está ocupado para esa fecha
+    const conflictoQuery = `
+      SELECT id FROM citas
+      WHERE fecha = $1 AND horario = $2 AND deleted_at IS NULL
+    `
+    const conflicto = await pool.query(conflictoQuery, [fecha, horario])
+
+    if (conflicto.rows.length > 0) {
+      return res.status(409).json({
+        error: `Lo sentimos, el horario ${horario} del ${fecha} ya se encuentra reservado. Por favor selecciona otro horario.`,
+        codigo: 'HORARIO_OCUPADO'
+      })
+    }
+
+    const newId = await generarIdUnico('citas')
+
+    const query = `
+      INSERT INTO citas (
+        id, cliente_nombre, cliente_telefono, fecha, horario,
+        atencion_previa, peso, estatura
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `
+    const values = [
+      newId, cliente_nombre, cliente_telefono, fecha, horario,
+      atencion_previa || 'no', 
+      peso ? parseFloat(peso) : null, 
+      estatura ? parseFloat(estatura) : null
+    ]
+
+    const { rows } = await pool.query(query, values)
+    res.status(201).json({
+      mensaje: 'Cita agendada con éxito',
+      cita: rows[0]
+    })
+  } catch (error) {
+    res.status(500).json({ error: 'Error al agendar la cita', detalle: error.message })
+  }
+}
