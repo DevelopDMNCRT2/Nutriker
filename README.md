@@ -153,3 +153,15 @@ Nutriker/
     npm install
     npm run dev
     ```
+
+---
+
+## 📌 Historial de Issues e Implementaciones
+
+| Issue | Descripción / Módulo | Estado | PR / Rama |
+| :--- | :--- | :--- | :--- |
+| **#27** | `[Client-API/Back]` API Gateway Público para Cliente (`/api/public/*`) | Completado | PR #42 |
+| **#36** | `[Admin/Front]` Cambiar Favicon por Apple Icon Institucional (`icon_apple.png`) | Completado | PR #43 |
+| **#37** | `[Admin/Front]` Refactor de Interfaz: Nomenclatura Clínica (Pacientes) y Limpieza de Header | Completado | PR #44 |
+| **#38** | `[Admin/Front]` Estandarización de Formularios (Migración de Modales a Vistas Dedicadas Ruteadas) | En Proceso | `feature/issue-38-estandarizacion-formularios` |
+

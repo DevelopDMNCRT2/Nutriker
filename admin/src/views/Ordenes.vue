@@ -354,10 +354,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import Modal from '@/components/ui/Modal.vue'
 import { ordenesApi, zonasEnvioApi, productosApi, clientesApi } from '@/api/index.js'
 import { PlusIcon, TrashIcon } from '@/icons'
+
+const router = useRouter()
 
 const loading = ref(true)
 const guardando = ref(false)
@@ -467,17 +470,7 @@ const cerrarDetalles = () => {
 }
 
 const abrirModalCrear = () => {
-  formCrear.value = {
-    cliente_nombre: '',
-    cliente_telefono: '',
-    cliente_email: '',
-    direccion_entrega: '',
-    ciudad: 'Ciudad de México',
-    zona_envio_id: '',
-    metodo_pago: 'Tarjeta de Crédito/Débito'
-  }
-  nuevoItem.value = { producto_id: '', producto_nombre: '', cantidad: 1, precio_unitario: 0 }
-  modalCrearVisible.value = true
+  router.push('/ordenes/nuevo')
 }
 
 const cerrarModalCrear = () => {

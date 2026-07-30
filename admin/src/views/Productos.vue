@@ -243,11 +243,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import Modal from '@/components/ui/Modal.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { productosApi, categoriasApi } from '@/api/index.js'
+
+const router = useRouter()
 import { BoxIcon, PlusIcon, TrashIcon } from '@/icons'
 
 const loading = ref(true)
@@ -302,19 +305,11 @@ async function cargarDatos() {
 }
 
 function abrirModalCrear() {
-  form.value = defaultForm()
-  archivoImagen.value = null
-  isEditing.value = false
-  errorForm.value = ''
-  modalProductoVisible.value = true
+  router.push('/productos/nuevo')
 }
 
 function abrirEditar(prod: any) {
-  form.value = { ...prod }
-  archivoImagen.value = null
-  isEditing.value = true
-  errorForm.value = ''
-  modalProductoVisible.value = true
+  router.push(`/productos/editar/${prod.id}`)
 }
 
 function cerrarModalProducto() {
@@ -322,8 +317,7 @@ function cerrarModalProducto() {
 }
 
 function abrirModalCategoria() {
-  formCategoria.value = { nombre: '', descripcion: '' }
-  modalCategoriaVisible.value = true
+  router.push('/categorias/nuevo')
 }
 
 function cerrarModalCategoria() {

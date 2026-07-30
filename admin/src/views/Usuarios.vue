@@ -96,79 +96,7 @@
       </div>
     </div>
 
-    <!-- ── Modal Formulario (Agregar / Editar) ── -->
-    <Modal v-if="modalFormVisible" :fullScreenBackdrop="true" @close="cerrarFormulario">
-      <template #body>
-        <div class="relative w-full max-w-lg rounded-xl bg-white p-6 shadow-theme-lg dark:bg-gray-800 m-4 mx-auto mt-20">
-          <h3 class="mb-5 text-xl font-bold text-gray-900 dark:text-white border-b pb-3 dark:border-gray-700">
-            {{ isEditing ? 'Editar Usuario' : 'Agregar Nuevo Usuario' }}
-          </h3>
 
-          <!-- Error de formulario -->
-          <div v-if="formError" class="mb-4 rounded-lg bg-error-50 px-3 py-2 text-sm text-error-700 dark:bg-error-500/15 dark:text-error-400">
-            {{ formError }}
-          </div>
-
-          <form @submit.prevent="guardarUsuario" class="space-y-4">
-            <div>
-              <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Nombre</label>
-              <input v-model="form.nombre" type="text" required
-                class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
-                placeholder="Nombre completo" />
-            </div>
-            <div>
-              <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Usuario</label>
-              <input v-model="form.usuario" type="text" required
-                class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
-                placeholder="Nombre de usuario" />
-            </div>
-            <div>
-              <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Correo</label>
-              <input v-model="form.correo" type="email" required
-                class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
-                placeholder="correo@ejemplo.com" />
-            </div>
-            <div>
-              <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                Contraseña
-                <span v-if="isEditing" class="text-xs text-gray-400 font-normal ml-1">(dejar en blanco para no cambiar)</span>
-              </label>
-              <input v-model="form.contrasena" type="password" :required="!isEditing"
-                class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
-                placeholder="••••••••" />
-            </div>
-            <div>
-              <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                Confirmar Contraseña
-              </label>
-              <input v-model="form.confirmarContrasena" type="password" :required="!isEditing || !!form.contrasena"
-                class="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:text-white/90"
-                placeholder="••••••••" />
-            </div>
-            <div>
-              <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Rol</label>
-              <select v-model="form.rol" required
-                class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90">
-                <option value="Administrador">Administrador</option>
-                <option value="Asistente">Asistente</option>
-              </select>
-            </div>
-
-            <div class="mt-6 flex justify-end gap-3 border-t border-gray-200 pt-4 dark:border-gray-700">
-              <button type="button" @click="cerrarFormulario"
-                class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700">
-                Cancelar
-              </button>
-              <button type="submit" :disabled="saving"
-                class="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-60 flex items-center gap-2">
-                <span v-if="saving" class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
-                Guardar
-              </button>
-            </div>
-          </form>
-        </div>
-      </template>
-    </Modal>
 
     <!-- ── Modal Detalles ── -->
     <Modal v-if="modalDetallesVisible" :fullScreenBackdrop="true" @close="cerrarDetalles">
@@ -226,29 +154,24 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import Modal from '@/components/ui/Modal.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { usuariosApi } from '@/api/index.js'
 
+const router = useRouter()
+
 // ── Estado ────────────────────────────────────────────────────────────────────
 const usuarios    = ref<any[]>([])
 const loading     = ref(false)
-const saving      = ref(false)
 const errorGlobal = ref('')
-const formError   = ref('')
 const userRole    = ref('')
 
 // ── Modales ───────────────────────────────────────────────────────────────────
-const modalFormVisible     = ref(false)
 const modalDetallesVisible = ref(false)
-const isEditing            = ref(false)
 const usuarioSeleccionado  = ref<any>(null)
-
-// ── Formulario ────────────────────────────────────────────────────────────────
-const initForm = () => ({ id: null as string | null, nombre: '', usuario: '', correo: '', contrasena: '', confirmarContrasena: '', rol: 'Asistente' })
-const form = reactive({ ...initForm() })
 
 // ── Cargar datos desde la API ─────────────────────────────────────────────────
 async function cargarUsuarios() {
@@ -266,63 +189,13 @@ async function cargarUsuarios() {
 
 onMounted(cargarUsuarios)
 
-// ── Formulario ────────────────────────────────────────────────────────────────
+// ── Navegación a Formularios ─────────────────────────────────────────────
 function abrirAgregar() {
-  isEditing.value = false
-  Object.assign(form, initForm())
-  formError.value = ''
-  modalFormVisible.value = true
+  router.push('/usuarios/nuevo')
 }
 
 function abrirEditar(user: any) {
-  isEditing.value = true
-  Object.assign(form, { ...user, contrasena: '', confirmarContrasena: '' })
-  formError.value = ''
-  modalFormVisible.value = true
-}
-
-function cerrarFormulario() {
-  modalFormVisible.value = false
-}
-
-async function guardarUsuario() {
-  formError.value = ''
-
-  // Validación de coincidencia de contraseñas
-  if (!isEditing.value && !form.contrasena) {
-    formError.value = 'La contraseña es obligatoria'
-    return
-  }
-
-  if (form.contrasena || form.confirmarContrasena) {
-    if (form.contrasena !== form.confirmarContrasena) {
-      formError.value = 'Las contraseñas no coinciden. Por favor verifícalas e intenta de nuevo.'
-      return
-    }
-  }
-
-  saving.value = true
-  try {
-    const payload: any = {
-      nombre:     form.nombre,
-      usuario:    form.usuario,
-      correo:     form.correo,
-      rol:        form.rol,
-    }
-    if (form.contrasena) payload.contrasena = form.contrasena
-
-    if (isEditing.value && form.id) {
-      await usuariosApi.update(form.id, payload)
-    } else {
-      await usuariosApi.create({ ...payload, contrasena: form.contrasena })
-    }
-    await cargarUsuarios()
-    cerrarFormulario()
-  } catch (e: any) {
-    formError.value = e.message || 'Error al guardar el usuario'
-  } finally {
-    saving.value = false
-  }
+  router.push(`/usuarios/editar/${user.id}`)
 }
 
 // ── Detalles ──────────────────────────────────────────────────────────────────

@@ -418,11 +418,14 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import Modal from '@/components/ui/Modal.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { citasApi, clientesApi } from '@/api/index.js'
+
+const router = useRouter()
 
 // Horarios disponibles de la clínica (mismo set que el servidor)
 const HORARIOS = [
@@ -491,15 +494,11 @@ onMounted(cargarClientes)
 
 // Lógica operativa
 const abrirAgregar = () => {
-  isEditing.value = false
-  Object.assign(form, initForm())
-  modalFormVisible.value = true
+  router.push('/clientes/nuevo')
 }
 
 const abrirEditar = (cliente: any) => {
-  isEditing.value = true
-  Object.assign(form, { ...initForm(), ...cliente })
-  modalFormVisible.value = true
+  router.push(`/clientes/editar/${cliente.id}`)
 }
 
 const cerrarFormulario = () => {
