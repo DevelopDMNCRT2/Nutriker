@@ -153,11 +153,11 @@ onMounted(async () => {
     try {
       const data = await citasApi.getById(citaId.value)
       if (data) {
-        form.value.cliente_nombre = data.cliente_nombre || ''
-        form.value.cliente_telefono = data.cliente_telefono || ''
+        form.value.cliente_nombre = data.nombre || data.cliente_nombre || ''
+        form.value.cliente_telefono = data.telefono || data.cliente_telefono || ''
         form.value.fecha = data.fecha ? data.fecha.split('T')[0] : ''
         form.value.horario = data.horario || '10:00'
-        form.value.atencion_previa = data.atencion_previa || 'no'
+        form.value.atencion_previa = data.atencion_previa || (data.tipo === 'Subsecuente' ? 'si' : 'no')
       }
     } catch (e: any) {
       errorMsg.value = 'Error al cargar los datos de la cita'
