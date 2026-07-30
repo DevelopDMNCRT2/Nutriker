@@ -92,7 +92,7 @@ const { isExpanded, isMobileOpen, isHovered } = useSidebar()
 const menuItems = [
   { name: 'Inicio',         path: '/dashboard',     icon: GridIcon },
   { name: 'Usuarios',       path: '/usuarios',      icon: UserCircleIcon },
-  { name: 'Clientes',       path: '/clientes',      icon: ListIcon },
+  { name: 'Pacientes',      path: '/clientes',      icon: ListIcon },
   { name: 'Citas',          path: '/citas',         icon: CalenderIcon },
   { name: 'Productos',      path: '/productos',     icon: BoxCubeIcon },
   { name: 'Órdenes',        path: '/ordenes',       icon: ShoppingBagIcon },

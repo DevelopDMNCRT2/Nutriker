@@ -1,12 +1,12 @@
 <template>
   <AdminLayout>
     <div class="flex items-center justify-between mb-6">
-      <h2 class="text-2xl font-bold text-gray-800 dark:text-white/90">Clientes (Expedientes)</h2>
+      <h2 class="text-2xl font-bold text-gray-800 dark:text-white/90">Pacientes (Expedientes)</h2>
       <button
         @click="abrirAgregar"
         class="rounded-lg bg-brand-500 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-brand-600 focus:outline-none focus:ring-4 focus:ring-brand-300 transition-colors"
       >
-        Agregar Nuevo
+        Agregar Nuevo Paciente
       </button>
     </div>
 
