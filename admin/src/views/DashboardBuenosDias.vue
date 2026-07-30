@@ -59,7 +59,7 @@
         <!-- Total Expedientes -->
         <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 transition-all hover:shadow-md">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Expedientes Clientes</span>
+            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Expedientes Pacientes</span>
             <div class="rounded-lg bg-teal-50 p-2.5 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400">
               <ListIcon class="w-5 h-5" />
             </div>
