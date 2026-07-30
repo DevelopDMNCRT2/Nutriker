@@ -18,10 +18,10 @@ export const getCitas = async (req, res) => {
   try {
     const query = `
       SELECT id, 
-             COALESCE(cliente_nombre, nombre, '') AS "cliente_nombre",
-             COALESCE(cliente_nombre, nombre, '') AS "nombre",
-             COALESCE(cliente_telefono, telefono, '') AS "cliente_telefono",
-             COALESCE(cliente_telefono, telefono, '') AS "telefono",
+             COALESCE(cliente_nombre, '') AS "cliente_nombre",
+             COALESCE(cliente_nombre, '') AS "nombre",
+             COALESCE(cliente_telefono, '') AS "cliente_telefono",
+             COALESCE(cliente_telefono, '') AS "telefono",
              COALESCE(correo, '') AS "correo",
              TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha",
              horario,
@@ -50,10 +50,10 @@ export const getCitaById = async (req, res) => {
     const { id } = req.params
     const query = `
       SELECT id, 
-             COALESCE(cliente_nombre, nombre, '') AS "cliente_nombre",
-             COALESCE(cliente_nombre, nombre, '') AS "nombre",
-             COALESCE(cliente_telefono, telefono, '') AS "cliente_telefono",
-             COALESCE(cliente_telefono, telefono, '') AS "telefono",
+             COALESCE(cliente_nombre, '') AS "cliente_nombre",
+             COALESCE(cliente_nombre, '') AS "nombre",
+             COALESCE(cliente_telefono, '') AS "cliente_telefono",
+             COALESCE(cliente_telefono, '') AS "telefono",
              COALESCE(correo, '') AS "correo",
              TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha",
              horario,
