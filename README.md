@@ -13,14 +13,14 @@ El proyecto está construido con la siguiente arquitectura:
 *   **Base de Datos:** PostgreSQL alojado en **Neon** (Serverless Postgres).
 *   **Integración Continua (CI):** GitHub Actions (`.github/workflows/ci.yml`) para verificación de tipos TypeScript y build automatizado.
 *   **Servicios Externos:** Cloudinary para almacenamiento de archivos e imágenes.
-*   **Identidad Visual:** La paleta de colores corporativos debe enfocarse en **Verde y Rojo** (basado en los colores oficiales del logotipo, reemplazando la paleta teal previa).
+*   **Identidad Visual:** La paleta de colores corporativos se enfoca en **Verde y Rojo** (basado en los colores oficiales del logotipo), e icono institucional Apple (`icon_apple.png`).
 
 ---
 
-## 📋 Especificaciones de Funcionalidades (Para Desarrolladores)
+## 📋 Especificaciones de Funcionalidades
 
-### 🟢 1. Cliente Público (`client/`)
-El frontend del cliente debe estructurarse y enfocarse en los siguientes tres pilares, listados en **orden estricto de importancia**:
+### 🟢 1. Cliente Público y API Gateway (`client/` & `server/routes/public.js`)
+El frontend del cliente y la capa de servicios públicos integran:
 
 1.  **Trayectoria, Trabajo y Resultados de la Dra. Karla:**
     *   Landing page principal de alto impacto visual orientada al branding personal.
@@ -32,37 +32,41 @@ El frontend del cliente debe estructurarse y enfocarse en los siguientes tres pi
 3.  **Punto de Venta E-commerce:**
     *   Catálogo de productos de salud y suplementos recomendados por la doctora.
     *   Carrito de compras y pasarela de pago para facilitar la venta directa en línea.
+4.  **API Gateway Público:**
+    *   Endpoints no autenticados (`GET /api/public/productos`, `GET /api/public/zonas-envio`, `POST /api/public/checkout`, `POST /api/public/citas`) para la consulta y creación directa desde la interfaz pública.
 
 ---
 
 ### 🔵 2. Panel de Administración (`admin/`)
-El panel privado de gestión de la Dra. Karla y su equipo debe implementar las siguientes capacidades:
+El panel privado de gestión de la Dra. Karla y su equipo implementa las siguientes capacidades estandarizadas:
 
-*   **Gestión de Usuarios (CRUD):** Control de acceso para administradores, personal de apoyo y cuentas de pacientes.
+*   **Estandarización de Formularios (Vistas Dedicadas Ruteadas):**
+    *   Captura y edición de datos integrada en páginas completas de ancho adaptable (`FormSection.vue`) con navegación limpia ruteada en Vue Router, eliminando modales emergentes encimados (*pop-ups*).
+*   **Nomenclatura Clínica:**
+    *   Interfaz configurada con terminología clínica ("Pacientes" y "Expedientes Clínicos").
+*   **Gestión de Usuarios:**
+    *   Control de acceso ruteado (`/usuarios/nuevo`, `/usuarios/editar/:id`) para administradores y personal asistencial.
 *   **Calendario & Gestión de Citas:**
-    *   Visualización interactiva de citas (por día/semana/mes).
-    *   Prevención automática de traslapes en horarios de citas.
-*   **Sistema de Notificaciones:** Alertas de citas cercanas para el administrador.
+    *   Visualización interactiva de citas (por día/semana/mes) y gestión dedicada (`/citas/nuevo`, `/citas/editar/:id`) con prevención automática de traslapes en horarios.
 *   **Dashboard "Buenos Días":**
-    *   Al iniciar sesión, la doctora debe ver un resumen ejecutivo diario.
-    *   Incluye tareas del día, citas programadas para las próximas horas y estadísticas rápidas.
+    *   Resumen ejecutivo diario con citas programadas para las próximas horas, acceso a expedientes y KPIs.
 *   **E-commerce & Logística:**
-    *   Administrador de catálogo de productos (CRUD de productos, precios, categorías, stock).
-    *   Administrador de **Zonas de Envío** y costos de entrega.
-*   **Expediente Clínico Digital:**
-    *   Historial clínico completo por paciente (antecedentes médicos, notas de consulta, evolución).
+    *   Catálogo de productos (`/productos/nuevo`, `/productos/editar/:id`) y gestión independiente de categorías (`/categorias/nuevo`, `/categorias/editar/:id`).
+    *   Administrador de **Zonas de Envío** y costos de entrega (`/zonas-envio/nuevo`, `/zonas-envio/editar/:id`).
+    *   Gestión de **Órdenes de Compra** (`/ordenes/nuevo`) con autocompletado de pacientes registrados.
+*   **Expediente Clínico Digital (Pacientes):**
+    *   Historial clínico completo por paciente (antecedentes médicos, notas de consulta, evolución) y registro (`/clientes/nuevo`, `/clientes/editar/:id`).
     *   Seguimiento de mediciones antropométricas (peso, grasa, estatura, etc.) con histórico visual.
-*   **Chat Agencial (Asistente de Consulta):**
-    *   Chat interactivo en tiempo real con un agente inteligente para tomar notas durante la consulta.
-    *   Capacidad de estructurar y sintetizar la conversación para guardarla directamente en el expediente del paciente.
+*   **Chat Agencial (Asistente de Consulta IA):**
+    *   Chat interactivo en tiempo real con agente inteligente para tomar notas durante la consulta y guardarlas en el expediente.
 *   **Generador de Menús Semanales:**
     *   Herramienta para diseñar y asignar planes alimenticios y menús semanales a pacientes específicos.
 
 ---
 
 ### 🔄 3. Flujo de Gestión de Pacientes (Flujo Estricto)
-El ciclo de vida y manejo del paciente dentro de la plataforma debe seguir un flujo lineal y estructurado:
-1.  **Primera Cita (Registro):** Captura de datos personales, historial clínico inicial y antecedentes generales de interés nutricional. Se sincroniza y aprovecha la base de datos robusta de pacientes existente.
+El ciclo de vida y manejo del paciente dentro de la plataforma sigue un flujo lineal y estructurado:
+1.  **Primera Cita (Registro):** Captura de datos personales, historial clínico inicial y antecedentes generales de interés nutricional. Se sincroniza y aprovecha la base de datos de pacientes existente.
 2.  **Generación del Expediente:** Creación formal de su expediente clínico digital para el registro de mediciones antropométricas, evolución física y notas de consulta subsecuentes.
 3.  **Generación de Menús:** Creación de menús semanales personalizados y planes alimenticios adaptados a la información registrada en el expediente.
 
@@ -105,13 +109,13 @@ Nutriker/
 │   ├── controllers/    # Lógica de controladores por módulo
 │   ├── db/             # Conexión Neon y scripts de migración
 │   ├── middleware/     # Middlewares de auth y carga de archivos
-│   ├── routes/         # Rutas de la API
+│   ├── routes/         # Rutas de la API (incluyendo /api/public)
 │   └── vercel.json     # Configuración para despliegue serverless
 │
 ├── admin/              # Dashboard de Administración (Vue 3 + TS)
 │   ├── src/
-│   │   ├── views/      # Dashboard, Citas, Clientes, Zonas de Envío, Menús, etc.
-│   │   ├── components/ # Componentes de UI, tablas y gráficos
+│   │   ├── views/      # Dashboard, Citas, Pacientes, Productos, Ordenes, FormSection views, etc.
+│   │   ├── components/ # Componentes de UI, FormSection, tablas y gráficos
 │   │   └── api/        # Servicios de integración HTTP
 │   └── vite.config.ts
 │
@@ -153,15 +157,3 @@ Nutriker/
     npm install
     npm run dev
     ```
-
----
-
-## 📌 Historial de Issues e Implementaciones
-
-| Issue | Descripción / Módulo | Estado | PR / Rama |
-| :--- | :--- | :--- | :--- |
-| **#27** | `[Client-API/Back]` API Gateway Público para Cliente (`/api/public/*`) | Completado | PR #42 |
-| **#36** | `[Admin/Front]` Cambiar Favicon por Apple Icon Institucional (`icon_apple.png`) | Completado | PR #43 |
-| **#37** | `[Admin/Front]` Refactor de Interfaz: Nomenclatura Clínica (Pacientes) y Limpieza de Header | Completado | PR #44 |
-| **#38** | `[Admin/Front]` Estandarización de Formularios (Migración de Modales a Vistas Dedicadas Ruteadas) | En Proceso | `feature/issue-38-estandarizacion-formularios` |
-
