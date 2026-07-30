@@ -17,13 +17,29 @@ const HORARIOS_DISPONIBLES = [
 export const getCitas = async (req, res) => {
   try {
     const query = `
-      SELECT * FROM citas 
+      SELECT id, 
+             COALESCE(cliente_nombre, nombre, '') AS "cliente_nombre",
+             COALESCE(cliente_nombre, nombre, '') AS "nombre",
+             COALESCE(cliente_telefono, telefono, '') AS "cliente_telefono",
+             COALESCE(cliente_telefono, telefono, '') AS "telefono",
+             COALESCE(correo, '') AS "correo",
+             TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha",
+             horario,
+             COALESCE(atencion_previa, 'no') AS "atencion_previa",
+             COALESCE(estado, 'Confirmada') AS "estado",
+             COALESCE(servicio, 'Consulta Nutricional') AS "servicio",
+             COALESCE(tipo, 'Presencial') AS "tipo",
+             notas,
+             created_at,
+             updated_at
+      FROM citas 
       WHERE deleted_at IS NULL 
       ORDER BY fecha ASC, horario ASC
     `
     const { rows } = await pool.query(query)
     res.json(rows)
   } catch (error) {
+    console.error('getCitas error:', error.message)
     res.status(500).json({ error: 'Error al obtener citas', detalle: error.message })
   }
 }
@@ -33,7 +49,22 @@ export const getCitaById = async (req, res) => {
   try {
     const { id } = req.params
     const query = `
-      SELECT * FROM citas 
+      SELECT id, 
+             COALESCE(cliente_nombre, nombre, '') AS "cliente_nombre",
+             COALESCE(cliente_nombre, nombre, '') AS "nombre",
+             COALESCE(cliente_telefono, telefono, '') AS "cliente_telefono",
+             COALESCE(cliente_telefono, telefono, '') AS "telefono",
+             COALESCE(correo, '') AS "correo",
+             TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha",
+             horario,
+             COALESCE(atencion_previa, 'no') AS "atencion_previa",
+             COALESCE(estado, 'Confirmada') AS "estado",
+             COALESCE(servicio, 'Consulta Nutricional') AS "servicio",
+             COALESCE(tipo, 'Presencial') AS "tipo",
+             notas,
+             created_at,
+             updated_at
+      FROM citas 
       WHERE id = $1 AND deleted_at IS NULL
     `
     const { rows } = await pool.query(query, [id])
@@ -42,6 +73,7 @@ export const getCitaById = async (req, res) => {
     }
     res.json(rows[0])
   } catch (error) {
+    console.error('getCitaById error:', error.message)
     res.status(500).json({ error: 'Error al obtener la cita', detalle: error.message })
   }
 }
@@ -55,12 +87,13 @@ export const getHorariosOcupados = async (req, res) => {
     }
     const query = `
       SELECT horario FROM citas 
-      WHERE fecha = $1 AND deleted_at IS NULL AND estado != 'Cancelada'
+      WHERE fecha = $1 AND deleted_at IS NULL AND COALESCE(estado, 'Confirmada') != 'Cancelada'
     `
     const { rows } = await pool.query(query, [fecha])
     const ocupados = rows.map(r => r.horario)
     res.json({ ocupados, disponibles: HORARIOS_DISPONIBLES.filter(h => !ocupados.includes(h)) })
   } catch (error) {
+    console.error('getHorariosOcupados error:', error.message)
     res.status(500).json({ error: 'Error al obtener horarios ocupados', detalle: error.message })
   }
 }
@@ -68,11 +101,11 @@ export const getHorariosOcupados = async (req, res) => {
 // ─── POST /api/citas ───────────────────────────────────────────────────────
 export const createCita = async (req, res) => {
   try {
-    const { nombre, cliente_nombre, correo, cliente_correo, telefono, cliente_telefono, fecha, horario, notas, servicio, tipo } = req.body
+    const { nombre, cliente_nombre, correo, cliente_correo, telefono, cliente_telefono, fecha, horario, notas, servicio, tipo, atencion_previa } = req.body
 
-    const patientName = nombre || cliente_nombre
-    const patientPhone = telefono || cliente_telefono
-    const patientEmail = correo || cliente_correo || ''
+    const patientName = cliente_nombre || nombre
+    const patientPhone = cliente_telefono || telefono
+    const patientEmail = cliente_correo || correo || ''
 
     if (!patientName || !patientPhone || !fecha || !horario) {
       return res.status(400).json({
@@ -83,7 +116,7 @@ export const createCita = async (req, res) => {
     // Verificar traslape en el mismo horario y fecha
     const conflictoQuery = `
       SELECT id FROM citas 
-      WHERE fecha = $1 AND horario = $2 AND deleted_at IS NULL AND estado != 'Cancelada'
+      WHERE fecha = $1 AND horario = $2 AND deleted_at IS NULL AND COALESCE(estado, 'Confirmada') != 'Cancelada'
     `
     const conflicto = await pool.query(conflictoQuery, [fecha, horario])
     if (conflicto.rows.length > 0) {
@@ -94,17 +127,18 @@ export const createCita = async (req, res) => {
 
     const newId = await generarIdUnico('citas')
     const insertQuery = `
-      INSERT INTO citas (id, nombre, correo, telefono, fecha, horario, notas, servicio, tipo, estado)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Confirmada')
-      RETURNING *
+      INSERT INTO citas (id, cliente_nombre, cliente_telefono, correo, fecha, horario, atencion_previa, notas, servicio, tipo, estado)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'Confirmada')
+      RETURNING *, cliente_nombre AS "nombre", cliente_telefono AS "telefono", TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha"
     `
     const { rows } = await pool.query(insertQuery, [
-      newId, patientName, patientEmail, patientPhone, fecha, horario,
-      notas || null, servicio || 'Consulta Nutricional', tipo || 'Presencial'
+      newId, patientName, patientPhone, patientEmail, fecha, horario,
+      atencion_previa || 'no', notas || null, servicio || 'Consulta Nutricional', tipo || (atencion_previa === 'si' ? 'Subsecuente' : 'Primera Vez')
     ])
 
     res.status(201).json(rows[0])
   } catch (error) {
+    console.error('createCita error:', error.message)
     res.status(500).json({ error: 'Error al registrar la cita', detalle: error.message })
   }
 }
@@ -113,7 +147,7 @@ export const createCita = async (req, res) => {
 export const updateCita = async (req, res) => {
   try {
     const { id } = req.params
-    const { nombre, cliente_nombre, correo, cliente_correo, telefono, cliente_telefono, fecha, horario, estado, notas, servicio, tipo } = req.body
+    const { nombre, cliente_nombre, correo, cliente_correo, telefono, cliente_telefono, fecha, horario, estado, notas, servicio, tipo, atencion_previa } = req.body
 
     const existing = await pool.query('SELECT * FROM citas WHERE id = $1 AND deleted_at IS NULL', [id])
     if (existing.rows.length === 0) {
@@ -123,7 +157,7 @@ export const updateCita = async (req, res) => {
     if (fecha && horario) {
       const conflictoQuery = `
         SELECT id FROM citas 
-        WHERE fecha = $1 AND horario = $2 AND id != $3 AND deleted_at IS NULL AND estado != 'Cancelada'
+        WHERE fecha = $1 AND horario = $2 AND id != $3 AND deleted_at IS NULL AND COALESCE(estado, 'Confirmada') != 'Cancelada'
       `
       const conflicto = await pool.query(conflictoQuery, [fecha, horario, id])
       if (conflicto.rows.length > 0) {
@@ -136,26 +170,28 @@ export const updateCita = async (req, res) => {
     const current = existing.rows[0]
     const updateQuery = `
       UPDATE citas 
-      SET nombre = $1, correo = $2, telefono = $3, fecha = $4, horario = $5,
-          estado = $6, notas = $7, servicio = $8, tipo = $9, updated_at = NOW()
-      WHERE id = $10 AND deleted_at IS NULL
-      RETURNING *
+      SET cliente_nombre = $1, cliente_telefono = $2, correo = $3, fecha = $4, horario = $5,
+          atencion_previa = $6, estado = $7, notas = $8, servicio = $9, tipo = $10, updated_at = NOW()
+      WHERE id = $11 AND deleted_at IS NULL
+      RETURNING *, cliente_nombre AS "nombre", cliente_telefono AS "telefono", TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha"
     `
     const { rows } = await pool.query(updateQuery, [
-      nombre || cliente_nombre || current.nombre,
-      correo || cliente_correo || current.correo,
-      telefono || cliente_telefono || current.telefono,
+      cliente_nombre || nombre || current.cliente_nombre,
+      cliente_telefono || telefono || current.cliente_telefono,
+      cliente_correo || correo || current.correo || '',
       fecha || current.fecha,
       horario || current.horario,
-      estado || current.estado,
+      atencion_previa || current.atencion_previa || 'no',
+      estado || current.estado || 'Confirmada',
       notas !== undefined ? notas : current.notas,
-      servicio || current.servicio,
-      tipo || current.tipo,
+      servicio || current.servicio || 'Consulta Nutricional',
+      tipo || current.tipo || 'Presencial',
       id
     ])
 
     res.json(rows[0])
   } catch (error) {
+    console.error('updateCita error:', error.message)
     res.status(500).json({ error: 'Error al actualizar la cita', detalle: error.message })
   }
 }
@@ -176,6 +212,7 @@ export const deleteCita = async (req, res) => {
     }
     res.json({ message: 'Cita eliminada correctamente', id: rows[0].id })
   } catch (error) {
+    console.error('deleteCita error:', error.message)
     res.status(500).json({ error: 'Error al eliminar la cita', detalle: error.message })
   }
 }
