@@ -16,6 +16,7 @@ import expedientesRouter from './routes/expedientes.js'
 import zonasEnvioRouter from './routes/zonasEnvio.js'
 import iaRouter from './routes/ia.js'
 import ordenesRouter from './routes/ordenes.js'
+import publicRouter from './routes/public.js'
 
 dotenv.config()
 
@@ -59,6 +60,7 @@ app.use('/api/expedientes', expedientesRouter)
 app.use('/api/zonas-envio', zonasEnvioRouter)
 app.use('/api/ia', iaRouter)
 app.use('/api/ordenes', ordenesRouter)
+app.use('/api/public', publicRouter)
 
 // ── 404 ────────────────────────────────────────────────
 app.use((req, res) => {
