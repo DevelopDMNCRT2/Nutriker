@@ -178,11 +178,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { zonasEnvioApi } from '@/api/index.js'
 import { PlugInIcon, PlusIcon, TrashIcon } from '@/icons'
+
+const router = useRouter()
 
 const loading = ref(true)
 const saving = ref(false)
@@ -226,17 +229,11 @@ async function cargarZonas() {
 }
 
 function abrirModalCrear() {
-  form.value = defaultForm()
-  isEditing.value = false
-  errorForm.value = ''
-  modalVisible.value = true
+  router.push('/zonas-envio/nuevo')
 }
 
 function abrirEditar(zona: any) {
-  form.value = { ...zona }
-  isEditing.value = true
-  errorForm.value = ''
-  modalVisible.value = true
+  router.push(`/zonas-envio/editar/${zona.id}`)
 }
 
 function cerrarModal() {

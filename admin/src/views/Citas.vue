@@ -176,15 +176,18 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import AdminLayout from '@/components/layout/AdminLayout.vue'
-import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
+import { useRouter } from 'vue-router'
 import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
-import listPlugin from '@fullcalendar/list'
 import interactionPlugin from '@fullcalendar/interaction'
+import listPlugin from '@fullcalendar/list'
 import esLocale from '@fullcalendar/core/locales/es'
+import AdminLayout from '@/components/layout/AdminLayout.vue'
+import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { citasApi, clientesApi } from '@/api/index.js'
+
+const router = useRouter()
 
 // --- State ---
 const loading = ref(true)
@@ -440,27 +443,11 @@ function handleDateSelect(selectInfo: any) {
 }
 
 function handleEventClick(clickInfo: any) {
-  const props = clickInfo.event.extendedProps
-  isEditing.value = true
-  form.value = {
-    id: clickInfo.event.id,
-    cliente_nombre: props.cliente_nombre || '',
-    cliente_telefono: props.cliente_telefono || '',
-    fecha: props.fecha?.split('T')[0] || '',
-    horario: props.horario || '',
-    atencion_previa: props.atencion_previa || 'no',
-    peso: props.peso || '',
-    estatura: props.estatura || '',
-  }
-  showModal.value = true
-  loadHorariosOcupados(form.value.fecha)
+  router.push(`/citas/editar/${clickInfo.event.id}`)
 }
 
 function openCreateModal() {
-  resetForm()
-  isEditing.value = false
-  showModal.value = true
-  horariosOcupados.value = []
+  router.push('/citas/nuevo')
 }
 
 function closeModal() {
