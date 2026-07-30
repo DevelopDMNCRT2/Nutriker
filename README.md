@@ -63,6 +63,7 @@ El panel privado de gestión de la Dra. Karla y su equipo implementa las siguien
     *   Validación integral de persistencia y respuesta libre de errores en la base de datos PostgreSQL Neon para los módulos de Pacientes, Citas, Productos, Categorías, Usuarios, Órdenes y Zonas de Envío.
 *   **Generador de Menús Semanales:**
     *   Herramienta para diseñar y asignar planes alimenticios y menús semanales a pacientes específicos.
+    *   **Video Tutorial Demostrativo:** [tutorial_generador_menus.mov](file:///Users/yaywiin/Desktop/DEVELOP/Nutriker_Pruebas/docs/media/tutorial_generador_menus.mov) (demostración interactiva del flujo de configuración y asignación de menús por paciente).
 
 ---
 
