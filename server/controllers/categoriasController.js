@@ -5,7 +5,7 @@ import { generarIdUnico } from '../utils/generarId.js'
 export async function getCategorias(req, res) {
   try {
     const result = await pool.query(
-      `SELECT id, nombre,
+      `SELECT id, nombre, COALESCE(descripcion, '') AS descripcion,
               TO_CHAR(fecha_creacion, 'YYYY-MM-DD') AS "fechaAlta"
        FROM categorias
        WHERE deleted_at IS NULL
@@ -23,7 +23,7 @@ export async function getCategoriaById(req, res) {
   const { id } = req.params
   try {
     const result = await pool.query(
-      `SELECT id, nombre,
+      `SELECT id, nombre, COALESCE(descripcion, '') AS descripcion,
               TO_CHAR(fecha_creacion, 'YYYY-MM-DD') AS "fechaAlta"
        FROM categorias
        WHERE id = $1 AND deleted_at IS NULL`,
@@ -40,7 +40,7 @@ export async function getCategoriaById(req, res) {
 
 // ─── POST /api/categorias ──────────────────────────────────────────────────
 export async function createCategoria(req, res) {
-  const { nombre } = req.body
+  const { nombre, descripcion } = req.body
 
   if (!nombre) {
     return res.status(400).json({ error: 'El nombre es obligatorio' })
@@ -50,10 +50,10 @@ export async function createCategoria(req, res) {
     const newId = await generarIdUnico('categorias')
 
     const result = await pool.query(
-      `INSERT INTO categorias (id, nombre)
-       VALUES ($1, $2)
-       RETURNING id, nombre, TO_CHAR(fecha_creacion, 'YYYY-MM-DD') AS "fechaAlta"`,
-      [newId, nombre]
+      `INSERT INTO categorias (id, nombre, descripcion)
+       VALUES ($1, $2, $3)
+       RETURNING id, nombre, COALESCE(descripcion, '') AS descripcion, TO_CHAR(fecha_creacion, 'YYYY-MM-DD') AS "fechaAlta"`,
+      [newId, nombre, descripcion || '']
     )
     res.status(201).json(result.rows[0])
   } catch (err) {
@@ -68,7 +68,7 @@ export async function createCategoria(req, res) {
 // ─── PUT /api/categorias/:id ───────────────────────────────────────────────
 export async function updateCategoria(req, res) {
   const { id } = req.params
-  const { nombre } = req.body
+  const { nombre, descripcion } = req.body
 
   if (!nombre) {
     return res.status(400).json({ error: 'El nombre es obligatorio' })
@@ -77,10 +77,10 @@ export async function updateCategoria(req, res) {
   try {
     const result = await pool.query(
       `UPDATE categorias
-       SET nombre=$1, updated_at=NOW()
-       WHERE id=$2 AND deleted_at IS NULL
-       RETURNING id, nombre, TO_CHAR(fecha_creacion, 'YYYY-MM-DD') AS "fechaAlta"`,
-      [nombre, id]
+       SET nombre=$1, descripcion=$2, updated_at=NOW()
+       WHERE id=$3 AND deleted_at IS NULL
+       RETURNING id, nombre, COALESCE(descripcion, '') AS descripcion, TO_CHAR(fecha_creacion, 'YYYY-MM-DD') AS "fechaAlta"`,
+      [nombre, descripcion || '', id]
     )
     if (!result.rows.length)
       return res.status(404).json({ error: 'Categoría no encontrada' })
