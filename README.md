@@ -59,6 +59,8 @@ El panel privado de gestión de la Dra. Karla y su equipo implementa las siguien
     *   Seguimiento de mediciones antropométricas (peso, grasa, estatura, etc.) con histórico visual.
 *   **Chat Agencial (Asistente de Consulta IA):**
     *   Chat interactivo en tiempo real con agente inteligente para tomar notas durante la consulta y guardarlas en el expediente.
+*   **Aseguramiento de Calidad & QA de Flujos CRUD:**
+    *   Validación integral de persistencia y respuesta libre de errores en la base de datos PostgreSQL Neon para los módulos de Pacientes, Citas, Productos, Categorías, Usuarios, Órdenes y Zonas de Envío.
 *   **Generador de Menús Semanales:**
     *   Herramienta para diseñar y asignar planes alimenticios y menús semanales a pacientes específicos.
 
