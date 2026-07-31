@@ -17,7 +17,10 @@ router.get('/zonas-envio', getZonasEnvioPublicas)
 // Endpoint público para procesar compras / checkout
 router.post('/checkout', procesarCheckoutPublico)
 
-// Endpoint público para agendar citas en línea
-router.post('/citas', agendarCitaPublica)
+import { getPublicPosts, getPostBySlug } from '../controllers/blogController.js'
+
+// Endpoints públicos para Blog / Noticias de Salud
+router.get('/blog', getPublicPosts)
+router.get('/blog/:slug', getPostBySlug)
 
 export default router

@@ -205,6 +205,22 @@ const resetTablesSQL = `
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at      TIMESTAMPTZ DEFAULT NULL
   );
+
+  -- 14. Posts del Blog
+  CREATE TABLE IF NOT EXISTS posts_blog (
+    id                VARCHAR(8) PRIMARY KEY,
+    titulo            VARCHAR(255) NOT NULL,
+    slug              VARCHAR(255) NOT NULL UNIQUE,
+    resumen           TEXT DEFAULT NULL,
+    contenido_html    TEXT NOT NULL,
+    imagen_url        TEXT DEFAULT NULL,
+    autor             VARCHAR(150) NOT NULL DEFAULT 'Dra. Alexa Lora',
+    fecha_publicacion DATE NOT NULL DEFAULT CURRENT_DATE,
+    estado            VARCHAR(20) NOT NULL DEFAULT 'Publicado' CHECK (estado IN ('Borrador', 'Publicado', 'Archivado')),
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at        TIMESTAMPTZ DEFAULT NULL
+  );
 `
 
 async function migrateAll() {

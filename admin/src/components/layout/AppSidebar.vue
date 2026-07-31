@@ -96,8 +96,9 @@ const menuItems = [
   { name: 'Citas',          path: '/citas',         icon: CalenderIcon },
   { name: 'Productos',      path: '/productos',     icon: BoxCubeIcon },
   { name: 'Órdenes',        path: '/ordenes',       icon: ShoppingBagIcon },
-  { name: 'Zonas de Envío', path: '/zonas-envio',   icon: TruckIcon },
-  { name: 'Asistente IA',   path: '/chat-agencial', icon: UserCircleIcon },
+  { name: 'Finanzas / Ingresos', path: '/ingresos',    icon: ShoppingBagIcon },
+  { name: 'Blog / CMS',        path: '/blog',        icon: ListIcon },
+  { name: 'Asistente IA',      path: '/chat-agencial', icon: UserCircleIcon },
 ]
 
 const isActive = (path: string) => route.path === path
