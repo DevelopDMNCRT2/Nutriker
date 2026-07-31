@@ -1,18 +1,18 @@
 <template>
-  <div class="layout-app">
-    <Navbar />
-    <main class="layout-main">
-      <RouterView />
-    </main>
-    <Footer />
-    <CitasModal />
-    <ChatWidget />
-  </div>
+  <Navbar />
+  <main class="main-content">
+    <router-view />
+  </main>
+  <Footer />
 </template>
 
 <script setup>
-import Navbar from './components/common/Navbar.vue'
-import Footer from './components/common/Footer.vue'
-import CitasModal from './components/common/CitasModal.vue'
-import ChatWidget from './components/common/ChatWidget.vue'
+import Navbar from './components/ui/Navbar.vue'
+import Footer from './components/ui/Footer.vue'
 </script>
+
+<style scoped>
+.main-content {
+  min-height: calc(100vh - 70px - 200px); /* Ajuste dinámico entre navbar y footer */
+}
+</style>

@@ -1,23 +1,35 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import Home from '../views/Home.vue'
 
 const routes = [
-  { path: '/', name: 'Home', component: () => import('../views/HomeView.vue') },
-  { path: '/portal', name: 'PortalPaciente', component: () => import('../views/PortalPacienteView.vue') },
-  { path: '/mi-portal', redirect: '/portal' },
+  {
+    path: '/',
+    name: 'Home',
+    component: Home
+  },
+  {
+    path: '/tienda',
+    name: 'Tienda',
+    component: () => import('../views/Tienda.vue') // Placeholder
+  },
+  {
+    path: '/portal',
+    name: 'Portal',
+    component: () => import('../views/Portal.vue') // Placeholder
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('../views/Login.vue') // Placeholder
+  }
 ]
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHistory(),
   routes,
-  scrollBehavior(to, from, savedPosition) {
-    if (to.hash) {
-      return {
-        el: to.hash,
-        behavior: 'smooth',
-      }
-    }
-    return savedPosition || { top: 0 }
-  },
+  scrollBehavior() {
+    return { top: 0 }
+  }
 })
 
 export default router
