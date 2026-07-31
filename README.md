@@ -52,6 +52,7 @@ El panel privado de gestión de la Dra. Karla y su equipo implementa las siguien
     *   Resumen ejecutivo diario con citas programadas para las próximas horas, acceso a expedientes y KPIs.
 *   **E-commerce & Logística:**
     *   Catálogo de productos (`/productos/nuevo`, `/productos/editar/:id`) y gestión independiente de categorías (`/categorias/nuevo`, `/categorias/editar/:id`).
+    *   Asignación de una o múltiples categorías por producto mediante **Buscador Dinámico de Etiquetas Removibles (*tags*)** optimizado para catálogos extensos y respaldado por PostgreSQL Neon.
     *   Administrador de **Zonas de Envío** y costos de entrega (`/zonas-envio/nuevo`, `/zonas-envio/editar/:id`).
     *   Gestión de **Órdenes de Compra** (`/ordenes/nuevo`) con autocompletado de pacientes registrados.
 *   **Expediente Clínico Digital (Pacientes):**

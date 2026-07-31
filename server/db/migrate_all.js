@@ -35,7 +35,7 @@ const resetTablesSQL = `
   -- 3. Productos
   CREATE TABLE productos (
     id                     VARCHAR(8) PRIMARY KEY,
-    categoria_id           VARCHAR(8) REFERENCES categorias(id) ON DELETE SET NULL,
+    categoria_id           TEXT DEFAULT NULL,
     nombre                 VARCHAR(150) NOT NULL,
     descripcion            TEXT NOT NULL,
     descripcion_detallada  TEXT NOT NULL,

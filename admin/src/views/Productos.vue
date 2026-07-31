@@ -148,12 +148,51 @@
                     <input v-model="form.nombre" type="text" placeholder="Ej. Proteína Whey NutriKer 1kg" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                   </div>
 
-                  <div>
-                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Categoría *</label>
-                    <select v-model="form.categoria_id" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
-                      <option value="">Selecciona Categoría</option>
-                      <option v-for="cat in categorias" :key="cat.id" :value="cat.id">{{ cat.nombre }}</option>
-                    </select>
+                  <div class="sm:col-span-2 relative">
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1.5">Categorías *</label>
+
+                    <!-- Contenedor de Etiquetas Seleccionadas e Input de Búsqueda -->
+                    <div class="flex flex-wrap items-center gap-1.5 w-full rounded-xl border border-gray-300 bg-transparent p-2 dark:border-gray-700 dark:bg-gray-800 min-h-[42px] focus-within:border-emerald-500 transition-colors">
+                      <span
+                        v-for="catId in form.categorias_ids"
+                        :key="catId"
+                        class="inline-flex items-center gap-1 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 px-2.5 py-1 rounded-lg text-xs font-semibold"
+                      >
+                        {{ getNombreCategoria(catId) }}
+                        <button
+                          type="button"
+                          @click="removerCategoria(catId)"
+                          class="hover:text-emerald-950 dark:hover:text-white font-bold ml-0.5"
+                        >
+                          ✕
+                        </button>
+                      </span>
+
+                      <input
+                        v-model="busquedaCategoria"
+                        type="text"
+                        placeholder="Buscar y agregar categorías..."
+                        class="flex-1 bg-transparent border-0 outline-none text-xs text-gray-800 dark:text-white min-w-[140px] px-1 py-0.5"
+                        @focus="mostrarDropdownCat = true"
+                        @input="mostrarDropdownCat = true"
+                      />
+                    </div>
+
+                    <!-- Dropdown de Sugerencias Filtradas -->
+                    <div
+                      v-if="mostrarDropdownCat && sugerenciasCategorias.length > 0"
+                      class="absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 max-h-48 overflow-y-auto"
+                    >
+                      <div
+                        v-for="cat in sugerenciasCategorias"
+                        :key="cat.id"
+                        @mousedown.prevent="agregarCategoria(cat.id)"
+                        class="cursor-pointer px-3.5 py-2 hover:bg-emerald-50 dark:hover:bg-gray-700/60 text-xs font-medium text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-gray-700/50 last:border-0 flex items-center justify-between transition-colors"
+                      >
+                        <span>{{ cat.nombre }}</span>
+                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">+ Agregar</span>
+                      </div>
+                    </div>
                   </div>
 
                   <div>
@@ -275,15 +314,47 @@ const defaultForm = () => ({
   descuento: 0,
   stock: 0,
   categoria_id: '',
+  categorias_ids: [] as string[],
 })
 
 const form = ref(defaultForm())
 const formCategoria = ref({ nombre: '', descripcion: '' })
 
+const busquedaCategoria = ref('')
+const mostrarDropdownCat = ref(false)
+
+function getNombreCategoria(id: string | number) {
+  const c = categorias.value.find(cat => String(cat.id) === String(id))
+  return c ? c.nombre : String(id)
+}
+
+const sugerenciasCategorias = computed(() => {
+  const query = busquedaCategoria.value.toLowerCase().trim()
+  return categorias.value.filter(cat => {
+    const yaSeleccionada = form.value.categorias_ids.includes(String(cat.id))
+    const coincide = !query || cat.nombre.toLowerCase().includes(query)
+    return !yaSeleccionada && coincide
+  })
+})
+
+function agregarCategoria(id: string | number) {
+  const strId = String(id)
+  if (!form.value.categorias_ids.includes(strId)) {
+    form.value.categorias_ids.push(strId)
+  }
+  busquedaCategoria.value = ''
+  mostrarDropdownCat.value = false
+}
+
+function removerCategoria(id: string | number) {
+  const strId = String(id)
+  form.value.categorias_ids = form.value.categorias_ids.filter(c => c !== strId)
+}
+
 const productosFiltrados = computed(() => {
   return productos.value.filter(p => {
     const coincideNombre = p.nombre.toLowerCase().includes(searchQuery.value.toLowerCase())
-    const coincideCategoria = !filtroCategoria.value || String(p.categoria_id) === String(filtroCategoria.value)
+    const coincideCategoria = !filtroCategoria.value || String(p.categoria_id).split(',').includes(String(filtroCategoria.value))
     return coincideNombre && coincideCategoria
   })
 })
@@ -337,6 +408,10 @@ async function guardarProducto() {
     errorForm.value = 'Por favor completa los campos obligatorios.'
     return
   }
+  if (form.value.categorias_ids.length === 0) {
+    errorForm.value = 'Por favor selecciona al menos una categoría.'
+    return
+  }
 
   saving.value = true
   try {
@@ -347,7 +422,7 @@ async function guardarProducto() {
     formData.append('precio', String(form.value.precio))
     formData.append('descuento', String(form.value.descuento || 0))
     formData.append('stock', String(form.value.stock || 0))
-    formData.append('categoria_id', form.value.categoria_id || '')
+    formData.append('categoria_id', form.value.categorias_ids.join(','))
 
     if (archivoImagen.value) {
       formData.append('imagen_principal', archivoImagen.value)

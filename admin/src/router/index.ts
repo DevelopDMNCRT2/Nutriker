@@ -134,7 +134,6 @@ const router = createRouter({
       path: '/zonas-envio/editar/:id',
       name: 'ZonaEnvioEditar',
       component: () => import('../views/ZonaEnvioForm.vue'),
-      meta: { title: 'Editar Zona de Envío' },
     },
     {
       path: '/menus/:clienteId?',

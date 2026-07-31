@@ -21,11 +21,15 @@ export async function getProductos(req, res) {
     const result = await pool.query(
       `SELECT p.id, p.nombre, p.descripcion, p.descripcion_detallada, p.precio, p.descuento, p.stock,
               p.imagen_principal, p.galeria, p.categoria_id,
-              c.nombre AS "categoriaNombre",
+              (
+                SELECT STRING_AGG(c.nombre, ', ')
+                FROM categorias c
+                WHERE c.id::text = ANY(STRING_TO_ARRAY(p.categoria_id, ','))
+                  AND c.deleted_at IS NULL
+              ) AS "categoriaNombre",
               TO_CHAR(p.creado_en, 'YYYY-MM-DD') AS "fechaAlta",
               p.updated_at AS "updatedAt"
        FROM productos p
-       LEFT JOIN categorias c ON p.categoria_id = c.id
        WHERE p.deleted_at IS NULL
        ORDER BY p.id ASC`
     )
@@ -43,11 +47,15 @@ export async function getProductoById(req, res) {
     const result = await pool.query(
       `SELECT p.id, p.nombre, p.descripcion, p.descripcion_detallada, p.precio, p.descuento, p.stock,
               p.imagen_principal, p.galeria, p.categoria_id,
-              c.nombre AS "categoriaNombre",
+              (
+                SELECT STRING_AGG(c.nombre, ', ')
+                FROM categorias c
+                WHERE c.id::text = ANY(STRING_TO_ARRAY(p.categoria_id, ','))
+                  AND c.deleted_at IS NULL
+              ) AS "categoriaNombre",
               TO_CHAR(p.creado_en, 'YYYY-MM-DD') AS "fechaAlta",
               p.updated_at AS "updatedAt"
        FROM productos p
-       LEFT JOIN categorias c ON p.categoria_id = c.id
        WHERE p.id = $1 AND p.deleted_at IS NULL`,
       [id]
     )
@@ -62,19 +70,25 @@ export async function getProductoById(req, res) {
 
 // ─── POST /api/productos ───────────────────────────────────────────────────
 export async function createProducto(req, res) {
-  const { nombre, descripcion, descripcion_detallada, precio, descuento = 0, stock = 0, categoria_id } = req.body
+  const { nombre, descripcion, descripcion_detallada, precio, descuento = 0, stock = 0, categoria_id, categorias_ids } = req.body
 
   if (!nombre || !descripcion || !descripcion_detallada || precio === undefined) {
     return res.status(400).json({ error: 'Nombre, descripciones y precio son obligatorios' })
   }
 
-  // Archivos subidos a Cloudinary (la URL viene en req.file(s)[].path)
+  // Archivos subidos a Cloudinary
   const files = req.files || {}
   const principal = files.imagen_principal?.[0]?.path ?? null
   const galeriaFiles = (files.galeria || []).slice(0, 5).map((f) => f.path)
 
-  let catId = categoria_id && categoria_id !== 'null' && categoria_id !== '' 
-              ? categoria_id.toString() : null
+  let catIdStr = null
+  if (Array.isArray(categorias_ids) && categorias_ids.length > 0) {
+    catIdStr = categorias_ids.join(',')
+  } else if (Array.isArray(categoria_id) && categoria_id.length > 0) {
+    catIdStr = categoria_id.join(',')
+  } else if (categoria_id && categoria_id !== 'null' && categoria_id !== '') {
+    catIdStr = categoria_id.toString()
+  }
 
   try {
     const newId = await generarIdUnico('productos')
@@ -85,11 +99,9 @@ export async function createProducto(req, res) {
        RETURNING id, nombre, descripcion, descripcion_detallada, precio, descuento, stock,
                  imagen_principal, galeria, categoria_id,
                  TO_CHAR(creado_en, 'YYYY-MM-DD') AS "fechaAlta"`,
-      [newId, nombre, descripcion, descripcion_detallada, precio, descuento, stock, principal, JSON.stringify(galeriaFiles), catId]
+      [newId, nombre, descripcion, descripcion_detallada, precio, descuento, stock, principal, JSON.stringify(galeriaFiles), catIdStr]
     )
 
-    // Opcionalmente podemos tratar de devolver el nombre de la categoría inmediatamente
-    // o el frontend simplemente usará el categoria_id para machear. Retornaremos la fila.
     res.status(201).json(result.rows[0])
   } catch (err) {
     console.error('createProducto:', err.message)
@@ -100,7 +112,7 @@ export async function createProducto(req, res) {
 // ─── PUT /api/productos/:id ────────────────────────────────────────────────
 export async function updateProducto(req, res) {
   const { id } = req.params
-  const { nombre, descripcion, descripcion_detallada, precio, descuento = 0, stock = 0, categoria_id } = req.body
+  const { nombre, descripcion, descripcion_detallada, precio, descuento = 0, stock = 0, categoria_id, categorias_ids } = req.body
 
   if (!nombre || !descripcion || !descripcion_detallada || precio === undefined) {
     return res.status(400).json({ error: 'Nombre, descripciones y precio son obligatorios' })
@@ -130,8 +142,14 @@ export async function updateProducto(req, res) {
       newGaleria = files.galeria.slice(0, 5).map((f) => f.path)
     }
 
-    let catId = categoria_id && categoria_id !== 'null' && categoria_id !== '' 
-              ? categoria_id.toString() : null
+    let catIdStr = null
+    if (Array.isArray(categorias_ids) && categorias_ids.length > 0) {
+      catIdStr = categorias_ids.join(',')
+    } else if (Array.isArray(categoria_id) && categoria_id.length > 0) {
+      catIdStr = categoria_id.join(',')
+    } else if (categoria_id && categoria_id !== 'null' && categoria_id !== '') {
+      catIdStr = categoria_id.toString()
+    }
 
     const result = await pool.query(
       `UPDATE productos
@@ -141,7 +159,7 @@ export async function updateProducto(req, res) {
        RETURNING id, nombre, descripcion, descripcion_detallada, precio, descuento, stock,
                  imagen_principal, galeria, categoria_id,
                  TO_CHAR(creado_en, 'YYYY-MM-DD') AS "fechaAlta"`,
-      [nombre, descripcion, descripcion_detallada, precio, descuento, stock, newPrincipal, JSON.stringify(newGaleria), catId, id]
+      [nombre, descripcion, descripcion_detallada, precio, descuento, stock, newPrincipal, JSON.stringify(newGaleria), catIdStr, id]
     )
     res.json(result.rows[0])
   } catch (err) {
