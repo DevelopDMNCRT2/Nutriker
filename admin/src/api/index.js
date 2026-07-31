@@ -140,6 +140,7 @@ export const zonasEnvioApi = {
 export const iaApi = {
   sintetizarNotas: (body) => request('POST', '/ia/sintetizar-notas', body),
   chatAsistente:   (body) => request('POST', '/ia/chat-asistente', body),
+  generarMenu:     (body) => request('POST', '/ia/generar-menu', body),
 }
 
 // --- Órdenes de Compra y Envíos ---

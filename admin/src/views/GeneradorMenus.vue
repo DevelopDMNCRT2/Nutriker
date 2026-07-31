@@ -61,10 +61,16 @@
               </div>
             </div>
             <div class="flex items-center gap-2">
-              <button @click.stop="editarMenu(menu)" class="p-2 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-500/10 transition-colors">
+              <button @click.stop="enviarPorWhatsapp(menu)" class="p-2 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors" title="Enviar por WhatsApp">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+              </button>
+              <button @click.stop="enviarPorCorreo(menu)" class="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors" title="Enviar por Correo">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              </button>
+              <button @click.stop="editarMenu(menu)" class="p-2 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-500/10 transition-colors" title="Editar">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
               </button>
-              <button @click.stop="eliminarMenu(menu.id)" class="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
+              <button @click.stop="eliminarMenu(menu.id)" class="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title="Eliminar">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
               </button>
               <svg class="w-4 h-4 text-gray-400 transition-transform duration-200" :class="{ 'rotate-180': menuAbierto === menu.id }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -125,8 +131,46 @@
             </div>
 
             <!-- Cuerpo modal -->
-            <div class="p-6 space-y-6">
-              <!-- Datos generales -->
+            <div class="p-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
+              
+              <!-- Columna Izquierda: Asistente IA -->
+              <div class="col-span-1 border-r border-gray-200 dark:border-gray-800 pr-6 flex flex-col h-full max-h-[60vh]">
+                <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
+                  <svg class="w-4 h-4 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                  Asistente IA
+                </h3>
+                
+                <div class="flex-1 overflow-y-auto space-y-3 mb-4 text-xs bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-700">
+                  <div class="flex gap-2">
+                    <div class="w-6 h-6 rounded-full bg-brand-100 flex-shrink-0 flex items-center justify-center text-brand-600 text-[10px]">🤖</div>
+                    <div class="bg-white dark:bg-gray-800 p-2 rounded-lg rounded-tl-none border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+                      Hola Dra. Escribe instrucciones para generar el menú en base al expediente del paciente (ej. "Dieta de 1500 kcal sin lácteos").
+                    </div>
+                  </div>
+                  <div v-for="(msg, idx) in mensajesIA" :key="idx" class="flex gap-2" :class="msg.rol === 'ia' ? '' : 'flex-row-reverse'">
+                    <div class="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px]" :class="msg.rol === 'ia' ? 'bg-brand-100 text-brand-600' : 'bg-blue-100 text-blue-600'">{{ msg.rol === 'ia' ? '🤖' : '👩‍⚕️' }}</div>
+                    <div class="p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 whitespace-pre-wrap" :class="msg.rol === 'ia' ? 'bg-white dark:bg-gray-800 rounded-tl-none' : 'bg-blue-50 dark:bg-blue-900/20 rounded-tr-none'">
+                      {{ msg.texto }}
+                    </div>
+                  </div>
+                  
+                  <div v-if="generandoIA" class="flex gap-2 animate-pulse">
+                    <div class="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 text-[10px]">🤖</div>
+                    <div class="bg-white p-2 rounded-lg text-gray-400">Pensando el menú...</div>
+                  </div>
+                </div>
+
+                <div class="mt-auto relative">
+                  <textarea v-model="instruccionIA" @keydown.enter.prevent="generarMenuIA" placeholder="Instrucciones para el menú..." rows="2" class="w-full text-xs rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-2.5 pr-10 outline-none focus:ring-2 focus:ring-brand-500/50 resize-none"></textarea>
+                  <button @click="generarMenuIA" :disabled="generandoIA || !instruccionIA.trim()" class="absolute right-2 bottom-2 p-1.5 rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Columna Derecha: Formulario y Tabla -->
+              <div class="col-span-1 lg:col-span-3 space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+                <!-- Datos generales -->
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">Nombre del Menú *</label>
@@ -151,12 +195,12 @@
                     <tr v-for="tiempo in tiempos" :key="tiempo.key" class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
                       <td class="px-4 py-2 font-semibold text-gray-700 dark:text-gray-300">{{ tiempo.label }}</td>
                       <td v-for="dia in dias" :key="dia.key" class="px-2 py-2">
-                        <input
+                        <textarea
                           v-model="form[`${dia.key}_${tiempo.key}`]"
-                          type="text"
                           :placeholder="tiempo.label"
-                          class="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors"
-                        />
+                          rows="2"
+                          class="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors resize-none"
+                        ></textarea>
                       </td>
                     </tr>
                   </tbody>
@@ -189,7 +233,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
-import { clientesApi, menusApi } from '@/api/index.js'
+import { clientesApi, menusApi, iaApi } from '@/api/index.js'
 
 const route = useRoute()
 const clienteId = ref<string>(route.params.clienteId as string || '')
@@ -199,6 +243,10 @@ const saving = ref(false)
 const modalVisible = ref(false)
 const modoEdicion = ref(false)
 const menuAbierto = ref<string | null>(null)
+
+const generandoIA = ref(false)
+const instruccionIA = ref('')
+const mensajesIA = ref<{rol: string, texto: string}[]>([])
 
 const cliente = ref<any>(null)
 const menus = ref<any[]>([])
@@ -244,6 +292,8 @@ function toggleMenu(id: string) {
 function abrirModalNuevoMenu() {
   modoEdicion.value = false
   form.value = formVacio()
+  mensajesIA.value = []
+  instruccionIA.value = ''
   modalVisible.value = true
 }
 
@@ -256,6 +306,8 @@ function editarMenu(menu: any) {
   f.notas        = menu.notas || ''
   camposMenú.forEach(c => { f[c] = menu[c] || '' })
   form.value = f
+  mensajesIA.value = []
+  instruccionIA.value = ''
   modalVisible.value = true
 }
 
@@ -317,6 +369,51 @@ async function eliminarMenu(id: string) {
   } catch (err: any) {
     alert(err.message || 'Error al eliminar el menú')
   }
+}
+
+async function generarMenuIA() {
+  if (!instruccionIA.value.trim() || generandoIA.value) return
+  
+  const instruccion = instruccionIA.value
+  mensajesIA.value.push({ rol: 'user', texto: instruccion })
+  instruccionIA.value = ''
+  generandoIA.value = true
+  
+  try {
+    const res = await iaApi.generarMenu({
+      clienteId: clienteId.value,
+      instrucciones: instruccion
+    })
+    
+    // Auto-fill form
+    if (res.menu) {
+      Object.keys(res.menu).forEach(k => {
+        if (form.value[k] !== undefined) form.value[k] = res.menu[k]
+      })
+      if (res.menu.notas_ia) form.value.notas = res.menu.notas_ia
+    }
+    
+    mensajesIA.value.push({ rol: 'ia', texto: res.respuesta || 'He generado una propuesta basada en tu indicación. Revísala a la derecha.' })
+    if (!form.value.nombre) form.value.nombre = 'Dieta IA ' + formatFecha(new Date().toISOString().split('T')[0])
+    if (!form.value.semanaInicio) form.value.semanaInicio = new Date().toISOString().split('T')[0]
+
+  } catch (err: any) {
+    mensajesIA.value.push({ rol: 'ia', texto: 'Hubo un error al generar el menú: ' + err.message })
+  } finally {
+    generandoIA.value = false
+  }
+}
+
+function enviarPorWhatsapp(menu: any) {
+  const texto = `Hola! Aquí tienes tu menú "${menu.nombre}" para la semana del ${formatFecha(menu.semanaInicio)}.\nRevísalo y cuéntame si tienes dudas. 😊`
+  const url = `https://wa.me/?text=${encodeURIComponent(texto)}`
+  window.open(url, '_blank')
+}
+
+function enviarPorCorreo(menu: any) {
+  const texto = `Hola!\n\nAdjunto tu menú "${menu.nombre}" para la semana del ${formatFecha(menu.semanaInicio)}.\n\nSaludos,\nNutriKer`
+  const url = `mailto:?subject=Tu Menú Semanal NutriKer&body=${encodeURIComponent(texto)}`
+  window.open(url, '_blank')
 }
 
 onMounted(() => {

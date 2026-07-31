@@ -117,7 +117,6 @@ const resetTablesSQL = `
     deleted_at              TIMESTAMPTZ DEFAULT NULL
   );
 
-<<<<<<< HEAD
   -- 10. Menus Semanales
   CREATE TABLE IF NOT EXISTS menus_semanales (
     id                  VARCHAR(8) PRIMARY KEY,
