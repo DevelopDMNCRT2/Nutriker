@@ -2,16 +2,17 @@ import pool from './pool.js'
 
 const createCitasSQL = `
   CREATE TABLE IF NOT EXISTS citas (
-    id SERIAL PRIMARY KEY,
-    cliente_nombre VARCHAR(150) NOT NULL,
-    cliente_telefono VARCHAR(20) NOT NULL,
-    fecha DATE NOT NULL,
-    atencion_previa VARCHAR(10) DEFAULT 'no',
-    peso DECIMAL(5,2),
-    estatura DECIMAL(5,2),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    deleted_at TIMESTAMPTZ DEFAULT NULL
+    id                VARCHAR(8) PRIMARY KEY,
+    cliente_nombre    VARCHAR(150) NOT NULL,
+    cliente_telefono  VARCHAR(20) NOT NULL,
+    fecha             DATE NOT NULL,
+    horario           VARCHAR(10),
+    atencion_previa   VARCHAR(10) DEFAULT 'no',
+    peso              DECIMAL(5,2),
+    estatura          DECIMAL(5,2),
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at        TIMESTAMPTZ DEFAULT NULL
   );
 `
 
