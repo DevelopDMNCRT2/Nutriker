@@ -34,6 +34,8 @@ El frontend del cliente y la capa de servicios públicos integran:
     *   Carrito de compras y pasarela de pago para facilitar la venta directa en línea.
 4.  **API Gateway Público:**
     *   Endpoints no autenticados (`GET /api/public/productos`, `GET /api/public/zonas-envio`, `POST /api/public/checkout`, `POST /api/public/citas`) para la consulta y creación directa desde la interfaz pública.
+5.  **Navegación Global y Estructura de Rutas del Sitio (`client/`):**
+    *   Barra de navegación principal (`Navbar.vue`) conectada a Vue Router con enrutamiento dinámico a las 5 secciones oficiales: Inicio (`/`), Acerca de (`/nosotros`), Tienda (`/tienda`), Blog (`/blog`) y Agendar (`/agendar`), con resaltado de la página activa.
 
 ---
 
