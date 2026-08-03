@@ -86,19 +86,21 @@
           <p class="mt-1 text-xs text-indigo-600 font-medium dark:text-indigo-400">Histórico en plataforma</p>
         </div>
 
-        <!-- Estado del Día -->
-        <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 transition-all hover:shadow-md">
+        <!-- Ingresos del Mes -->
+        <router-link to="/ingresos" class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 transition-all hover:shadow-md block">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Estado Agenda</span>
+            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Ingresos del Mes</span>
             <div class="rounded-lg bg-emerald-50 p-2.5 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-              <SuccessIcon class="w-5 h-5" />
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </div>
           </div>
           <div class="mt-3 flex items-baseline gap-2">
-            <span class="text-lg font-bold text-emerald-600 dark:text-emerald-400">Al Día</span>
+            <span class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">${{ totalIngresosMes.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
           </div>
-          <p class="mt-1 text-xs text-gray-500">Servidor y DB PostgreSQL activos</p>
-        </div>
+          <p class="mt-1 text-xs text-gray-500">Tesorería y ventas en línea</p>
+        </router-link>
       </div>
 
       <!-- ── 3. Cronograma del Día + Pendientes ────────────────────────── -->
@@ -217,7 +219,7 @@ import { ref, computed, onMounted } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
-import { dashboardApi } from '@/api/index.js'
+import { dashboardApi, ingresosApi } from '@/api/index.js'
 import { CalenderIcon, ListIcon, TaskIcon, InfoCircleIcon, BarChartIcon, SuccessIcon } from '@/icons'
 
 const loading = ref(true)
@@ -231,6 +233,14 @@ const datosDashboard = ref<any>({
 })
 
 const tareasLocales = ref<any[]>([])
+const listaIngresos = ref<any[]>([])
+
+const totalIngresosMes = computed(() => {
+  const currentMonth = new Date().toISOString().slice(0, 7)
+  return listaIngresos.value
+    .filter(item => item.fecha && item.fecha.startsWith(currentMonth))
+    .reduce((acc, curr) => acc + Number(curr.cantidad || 0), 0)
+})
 
 const fechaFormateada = computed(() => {
   const hoy = new Date()
@@ -247,11 +257,17 @@ async function cargarDashboard() {
   try {
     const res = await dashboardApi.getResumenDiario()
     datosDashboard.value = res
-    // Limpiar emojis residuales si vienen en el saludo del backend
     if (datosDashboard.value.saludo) {
       datosDashboard.value.saludo = datosDashboard.value.saludo.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim()
     }
     tareasLocales.value = res.tareas || []
+
+    // Cargar ingresos para la tarjeta del mes
+    try {
+      listaIngresos.value = await ingresosApi.getAll()
+    } catch (e) {
+      console.error('Error al cargar ingresos:', e)
+    }
   } catch (error) {
     console.error('Error al cargar datos del dashboard:', error)
   } finally {
