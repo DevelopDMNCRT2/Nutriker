@@ -23,6 +23,11 @@ const routes = [
     component: () => import('../views/Blog.vue')
   },
   {
+    path: '/blog/:slug',
+    name: 'BlogPostDetail',
+    component: () => import('../views/BlogPostDetail.vue')
+  },
+  {
     path: '/agendar',
     name: 'Agendar',
     component: () => import('../views/CitasView.vue')
