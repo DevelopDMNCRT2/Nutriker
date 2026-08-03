@@ -17,7 +17,11 @@ import zonasEnvioRouter from './routes/zonasEnvio.js'
 import iaRouter from './routes/ia.js'
 import ordenesRouter from './routes/ordenes.js'
 import publicRouter from './routes/public.js'
+<<<<<<< HEAD
 import blogRouter from './routes/blog.js'
+=======
+import ingresosRouter from './routes/ingresos.js'
+>>>>>>> main
 
 dotenv.config()
 
@@ -61,6 +65,7 @@ app.use('/api/expedientes', expedientesRouter)
 app.use('/api/zonas-envio', zonasEnvioRouter)
 app.use('/api/ia', iaRouter)
 app.use('/api/ordenes', ordenesRouter)
+app.use('/api/ingresos', ingresosRouter)
 app.use('/api/blog', blogRouter)
 app.use('/api/public', publicRouter)
 

@@ -134,6 +134,25 @@ const router = createRouter({
       path: '/zonas-envio/editar/:id',
       name: 'ZonaEnvioEditar',
       component: () => import('../views/ZonaEnvioForm.vue'),
+      meta: { title: 'Editar Zona de Envío' },
+    },
+    {
+      path: '/ingresos',
+      name: 'Ingresos',
+      component: () => import('../views/Ingresos.vue'),
+      meta: { title: 'Finanzas y Tesorería' },
+    },
+    {
+      path: '/ingresos/nuevo',
+      name: 'IngresoCrear',
+      component: () => import('../views/IngresoForm.vue'),
+      meta: { title: 'Nuevo Ingreso' },
+    },
+    {
+      path: '/ingresos/editar/:id',
+      name: 'IngresoEditar',
+      component: () => import('../views/IngresoForm.vue'),
+      meta: { title: 'Editar Ingreso' },
     },
     {
       path: '/menus/:clienteId?',
