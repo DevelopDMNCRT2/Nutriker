@@ -8,19 +8,34 @@ const routes = [
     component: Home
   },
   {
+    path: '/nosotros',
+    name: 'Nosotros',
+    component: () => import('../views/NosotrosView.vue')
+  },
+  {
     path: '/tienda',
     name: 'Tienda',
-    component: () => import('../views/Tienda.vue') // Placeholder
+    component: () => import('../views/Tienda.vue')
+  },
+  {
+    path: '/blog',
+    name: 'Blog',
+    component: () => import('../views/Blog.vue')
+  },
+  {
+    path: '/agendar',
+    name: 'Agendar',
+    component: () => import('../views/CitasView.vue')
   },
   {
     path: '/portal',
     name: 'Portal',
-    component: () => import('../views/Portal.vue') // Placeholder
+    component: () => import('../views/Portal.vue')
   },
   {
     path: '/login',
     name: 'Login',
-    component: () => import('../views/Login.vue') // Placeholder
+    component: () => import('../views/Login.vue')
   }
 ]
 
