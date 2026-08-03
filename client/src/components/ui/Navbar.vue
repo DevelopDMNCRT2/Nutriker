@@ -2,12 +2,16 @@
   <header class="ui-navbar">
     <div class="ui-navbar-container">
       <div class="ui-brand">
-        <span class="brand-text">NutriKer</span>
+        <router-link to="/" class="brand-link">
+          <span class="brand-text">NutriKer</span>
+        </router-link>
       </div>
       <nav class="ui-nav-links">
         <router-link to="/">Inicio</router-link>
+        <router-link to="/nosotros">Acerca de</router-link>
         <router-link to="/tienda">Tienda</router-link>
-        <router-link to="/portal">Portal Paciente</router-link>
+        <router-link to="/blog">Blog</router-link>
+        <router-link to="/agendar">Agendar</router-link>
       </nav>
       <div class="ui-nav-actions">
         <slot name="actions"></slot>
@@ -36,6 +40,10 @@
   justify-content: space-between;
 }
 
+.ui-brand .brand-link {
+  text-decoration: none;
+}
+
 .ui-brand .brand-text {
   font-size: 1.5rem;
   font-weight: 700;
@@ -50,6 +58,8 @@
 .ui-nav-links a {
   color: var(--text-main);
   font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s ease;
 }
 
 .ui-nav-links a:hover,
