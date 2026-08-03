@@ -29,9 +29,10 @@ El frontend del cliente y la capa de servicios públicos integran:
 2.  **Agendamiento de Citas:**
     *   Flujo intuitivo para que pacientes nuevos o recurrentes reserven citas.
     *   Integración de horarios disponibles en tiempo real sincronizados con el calendario de la doctora.
-3.  **Punto de Venta E-commerce:**
-    *   Catálogo de productos de salud y suplementos recomendados por la doctora.
-    *   Carrito de compras y pasarela de pago para facilitar la venta directa en línea.
+3.  **Punto de Venta E-commerce (`client/src/views/Tienda.vue` & `client/src/stores/cart.js`):**
+    *   Catálogo dinámico de suplementos y productos recomendados por la doctora con buscador en tiempo real.
+    *   Carrito de compras reactivo (Pinia) persistido en `localStorage` con badge de conteo de ítems.
+    *   Flujo completo de Checkout con selección de zonas de envío y creación de ordenes sincronizadas con el panel de administración.
 4.  **API Gateway Público:**
     *   Endpoints no autenticados (`GET /api/public/productos`, `GET /api/public/zonas-envio`, `POST /api/public/checkout`, `POST /api/public/citas`) para la consulta y creación directa desde la interfaz pública.
 5.  **Navegación Global y Estructura de Rutas del Sitio (`client/`):**
