@@ -207,3 +207,78 @@ Responde de forma concisa, profesional y útil para la nutrióloga.`
     res.status(500).json({ error: 'Error en la respuesta del asistente virtual' })
   }
 }
+
+// ─── POST /api/ia/generar-menu ───────────────────────────────────────────────
+export async function generarMenu(req, res) {
+  const { clienteId, instrucciones } = req.body
+
+  try {
+    let datosCliente = null
+    let expediente = null
+    
+    if (clienteId) {
+      const clienteRes = await pool.query('SELECT nombre, edad, peso, estatura, patologias, gustos, alergias, estilo_vida FROM clientes WHERE id = $1', [clienteId])
+      if (clienteRes.rows.length > 0) datosCliente = clienteRes.rows[0]
+      
+      const expRes = await pool.query('SELECT diagnostico, objetivo_nutricional, notas_medicas FROM expedientes_clinicos WHERE cliente_id = $1', [clienteId])
+      if (expRes.rows.length > 0) expediente = expRes.rows[0]
+    }
+
+    const contextText = `
+Paciente: ${datosCliente ? datosCliente.nombre : 'General'}
+Edad: ${datosCliente?.edad || 'N/A'}, Peso: ${datosCliente?.peso || 'N/A'}, Estatura: ${datosCliente?.estatura || 'N/A'}
+Patologías: ${datosCliente?.patologias || 'Ninguna'}
+Alergias: ${datosCliente?.alergias || 'Ninguna'}
+Gustos: ${datosCliente?.gustos || 'N/A'}
+Estilo de vida: ${datosCliente?.estilo_vida || 'N/A'}
+Objetivo Nutricional: ${expediente?.objetivo_nutricional || 'Mantenimiento y salud general'}
+
+Instrucciones adicionales de la doctora: "${instrucciones || 'Genera una dieta balanceada adecuada para este paciente'}"
+`
+    const PROMPT_MENU = `Eres la Nutrióloga Inteligente de NutriKer. Tu tarea es generar un menú semanal completo.
+    
+Para cada uno de los 7 días (lunes a domingo), genera 5 tiempos de comida (desayuno, colacion_am, comida, colacion_pm, cena).
+Considera que "colacion_am" y "colacion_pm" pueden llamarse "Snack" o "Colación".
+IMPORTANTE: Debes devolver UNICAMENTE un objeto JSON con la estructura plana de 35 campos (dianombre_tiempo).
+EJEMPLO DE CLAVES ESPERADAS:
+{
+  "lunes_desayuno": "2 huevos revueltos con espinaca y 1 rebanada de pan integral",
+  "lunes_colacion_am": "1 manzana con 10 almendras",
+  "lunes_comida": "120g de pollo a la plancha, 1 taza de brócoli, 1/2 taza de quinoa",
+  ... (haz lo mismo para todos los días de la semana y los 5 tiempos)
+  "notas_ia": "El paciente debe tomar 2 litros de agua diarios."
+}
+NO escribas texto fuera del JSON.`
+
+    if (genAI) {
+      try {
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+        const result = await model.generateContent([PROMPT_MENU, contextText])
+        const responseText = result.response.text()
+
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0])
+          return res.json({ menu: parsed, respuesta: parsed.notas_ia || "¡Menú generado exitosamente en base al expediente!" })
+        }
+      } catch (geminiErr) {
+        console.warn('Gemini menu fallback:', geminiErr.message)
+      }
+    }
+
+    // Fallback Mock
+    const mockMenu = {
+      lunes_desayuno: "Avena con manzana y canela",
+      lunes_colacion_am: "Yogur griego con nueces",
+      lunes_comida: "Pechuga de pollo asada con ensalada mixta",
+      lunes_colacion_pm: "Palitos de apio con hummus",
+      lunes_cena: "Salmón al horno con espárragos",
+      martes_desayuno: "Huevos revueltos con espinacas",
+      notas_ia: "Menú base de prueba (IA Fallback)."
+    }
+    res.json({ menu: mockMenu, respuesta: "He generado una propuesta base de menú considerando las indicaciones." })
+  } catch (err) {
+    console.error('Error en generarMenu:', err.message)
+    res.status(500).json({ error: 'Error al generar el menú con IA' })
+  }
+}

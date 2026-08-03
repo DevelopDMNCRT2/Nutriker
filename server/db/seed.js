@@ -141,6 +141,38 @@ async function seed() {
       ON CONFLICT (id) DO NOTHING;
     `, [zona3Id, 'Envío Nacional Estándar (República Mexicana)', 'Nacional', 160.00, '3 a 5 días hábiles', true])
 
+    // 8. Menú Semanal (Generador IA)
+    const menu1Id = await generarIdUnico('menus_semanales')
+    await client.query(`
+      INSERT INTO menus_semanales (id, cliente_id, nombre, semana_inicio, lunes_desayuno, lunes_comida, lunes_cena)
+      VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6)
+      ON CONFLICT (id) DO NOTHING;
+    `, [menu1Id, cliente1Id, 'Plan Low-Carb Energía', 'Huevo revuelto con espinaca', 'Pechuga asada con ensalada', 'Salmón con espárragos'])
+
+    // 9. Pedidos (Órdenes E-Commerce)
+    const pedido1Id = await generarIdUnico('pedidos')
+    await client.query(`
+      INSERT INTO pedidos (id, cliente_nombre, cliente_email, cliente_telefono, total, direccion_entrega, ciudad, estado, codigo_postal, estado_pedido, metodo_pago)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ON CONFLICT (id) DO NOTHING;
+    `, [pedido1Id, 'Ana Sofía Montenegro', 'ana_montenegro@gmail.com', '5544221100', 1249.00, 'Av. Siempre Viva 123', 'Guadalajara', 'Jalisco', '45000', 'En proceso', 'Tarjeta de Crédito'])
+
+    // 10. Expediente Clínico Formal
+    const exp1Id = await generarIdUnico('expedientes_clinicos')
+    await client.query(`
+      INSERT INTO expedientes_clinicos (id, cliente_id, diagnostico, objetivo_nutricional, notas_medicas)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (id) DO NOTHING;
+    `, [exp1Id, cliente1Id, 'Resistencia a la insulina leve', 'Mejorar sensibilidad a la insulina y bajar grasa', 'Paciente muy motivada. Requiere dieta baja en índice glucémico.'])
+
+    // 11. Mediciones
+    const med1Id = await generarIdUnico('mediciones_antropometricas')
+    await client.query(`
+      INSERT INTO mediciones_antropometricas (id, cliente_id, peso, porcentaje_grasa, masa_muscular)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (id) DO NOTHING;
+    `, [med1Id, cliente1Id, 72.5, 35.0, 45.0])
+
     console.log('✅ Datos iniciales sembrados correctamente en la base de datos de Neon.')
   } catch (err) {
     console.error('❌ Error sembrando datos:', err.message)
