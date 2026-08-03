@@ -17,6 +17,13 @@ router.get('/zonas-envio', getZonasEnvioPublicas)
 // Endpoint público para procesar compras / checkout
 router.post('/checkout', procesarCheckoutPublico)
 
+// Endpoint público para agendar citas
+router.post('/citas', agendarCitaPublica)
+
+import { getHorariosOcupados } from '../controllers/citasController.js'
+// Endpoint público para consultar horarios ocupados por fecha
+router.get('/horarios-ocupados', getHorariosOcupados)
+
 import { getPublicPosts, getPostBySlug } from '../controllers/blogController.js'
 
 // Endpoints públicos para Blog / Noticias de Salud

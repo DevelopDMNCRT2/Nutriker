@@ -26,9 +26,10 @@ El frontend del cliente y la capa de servicios públicos integran:
     *   Landing page principal de alto impacto visual orientada al branding personal.
     *   Sección de "Nosotros" y "Trayectoria" detallando su experiencia y metodología.
     *   Casos de éxito, testimonios de pacientes y galería de resultados (antes/después) administrables.
-2.  **Agendamiento de Citas:**
-    *   Flujo intuitivo para que pacientes nuevos o recurrentes reserven citas.
-    *   Integración de horarios disponibles en tiempo real sincronizados con el calendario de la doctora.
+2.  **Agendamiento de Citas — Wizard Interactivo (`client/src/views/CitasView.vue`):**
+    *   Proceso guiado de 3 pasos (Tus Datos -> Fecha y Horario -> Resumen y Confirmación).
+    *   Validaciones de correo y teléfono de 10 dígitos, selector de fecha/horario en tiempo real y folio de confirmación.
+    *   Sincronización instantánea con el backend (`POST /api/public/citas`) guardando citas en la base de datos Neon para el Panel Admin.
 3.  **Punto de Venta E-commerce (`client/src/views/Tienda.vue` & `client/src/stores/cart.js`):**
     *   Catálogo dinámico de suplementos y productos recomendados por la doctora con buscador en tiempo real.
     *   Carrito de compras reactivo (Pinia) persistido en `localStorage` con badge de conteo de ítems.
