@@ -210,8 +210,9 @@
               <!-- Notas -->
               <div>
                 <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">Notas adicionales</label>
-                <textarea v-model="form.notas" rows="2" placeholder="Indicaciones especiales, restricciones, sustituciones..." class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors resize-none"/>
+                <textarea v-model="form.notas" rows="2" placeholder="Indicaciones especiales, restricciones, sustituciones..." class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors resize-none"></textarea>
               </div>
+            </div>
             </div>
 
             <!-- Footer modal -->
