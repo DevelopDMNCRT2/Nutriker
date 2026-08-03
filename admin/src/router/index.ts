@@ -172,6 +172,24 @@ const router = createRouter({
       component: () => import('../views/ChatAgencial.vue'),
       meta: { title: 'Asistente Clínico IA' },
     },
+    {
+      path: '/blog',
+      name: 'BlogAdmin',
+      component: () => import('../views/BlogAdmin.vue'),
+      meta: { title: 'Gestor de Blog CMS' },
+    },
+    {
+      path: '/blog/nuevo',
+      name: 'BlogPostCrear',
+      component: () => import('../views/BlogPostForm.vue'),
+      meta: { title: 'Nuevo Artículo de Blog' },
+    },
+    {
+      path: '/blog/editar/:id',
+      name: 'BlogPostEditar',
+      component: () => import('../views/BlogPostForm.vue'),
+      meta: { title: 'Editar Artículo de Blog' },
+    },
   ],
 })
 

@@ -49,6 +49,27 @@ export const authApi = {
   login: (credentials) => request('POST', '/auth/login', credentials),
 }
 
+// --- Ingresos y Tesorería ---
+export const ingresosApi = {
+  getAll:  ()         => request('GET',    '/ingresos'),
+  getById: (id)       => request('GET',    `/ingresos/${id}`),
+  create:  (body)     => request('POST',   '/ingresos', body),
+  update:  (id, body) => request('PUT',    `/ingresos/${id}`, body),
+  delete:  (id)       => request('DELETE', `/ingresos/${id}`),
+}
+
+// --- Blog Gestor CMS ---
+export const blogApi = {
+  getPublic:    ()         => request('GET',       '/blog'),
+  getBySlug:   (slug)     => request('GET',       `/blog/post/${slug}`),
+  getAllAdmin:  ()         => request('GET',       '/blog/admin/all'),
+  getById:     (id)        => request('GET',       `/blog/admin/${id}`),
+  create:      (body)      => request('POST',      '/blog', body),
+  update:      (id, body)  => request('PUT',       `/blog/${id}`, body),
+  delete:      (id)        => request('DELETE',    `/blog/${id}`),
+  uploadImagen: (formData) => requestForm('POST',  '/blog/upload-imagen', formData),
+}
+
 // --- Usuarios ---
 export const usuariosApi = {
   getAll:  ()         => request('GET',    '/usuarios'),
@@ -151,13 +172,4 @@ export const ordenesApi = {
   updateEstadoOrden: (id, body) => request('PUT',    `/ordenes/${id}/estado-orden`, body),
   updateEstadoEnvio: (id, body) => request('PUT',    `/ordenes/${id}/estado-envio`, body),
   delete:            (id)       => request('DELETE', `/ordenes/${id}`),
-}
-
-// --- Ingresos y Tesorería ---
-export const ingresosApi = {
-  getAll:  ()         => request('GET',    '/ingresos'),
-  getById: (id)       => request('GET',    `/ingresos/${id}`),
-  create:  (body)     => request('POST',   '/ingresos', body),
-  update:  (id, body) => request('PUT',    `/ingresos/${id}`, body),
-  delete:  (id)       => request('DELETE', `/ingresos/${id}`),
 }

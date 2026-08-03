@@ -65,6 +65,10 @@ El panel privado de gestión de la Dra. Karla y su equipo implementa las siguien
 *   **Generador de Menús Semanales:**
     *   Herramienta para diseñar y asignar planes alimenticios y menús semanales a pacientes específicos.
     *   **Video Tutorial Demostrativo:** [tutorial_generador_menus.mov](file:///Users/yaywiin/Desktop/DEVELOP/Nutriker_Pruebas/docs/media/tutorial_generador_menus.mov) (demostración interactiva del flujo de configuración y asignación de menús por paciente).
+*   **Finanzas y Tesorería (Control de Ingresos):**
+    *   Control e historial de ingresos del consultorio (`/ingresos`, `/ingresos/nuevo`, `/ingresos/editar/:id`) con métricas KPI (Ingresos Totales, del Mes, Ticket Promedio y Transacciones), autocompletado inteligente de pacientes y generación automática al completar órdenes de venta.
+*   **Gestor de Blog y Noticias de Salud (CMS):**
+    *   Administración y redacción de artículos clínicos y noticias de salud (`/blog`, `/blog/nuevo`, `/blog/editar/:id`) con editor visual WYSIWYG (estilo Word / Google Docs), botones de formato alternables, generación automática de URLs amigables (slugs) para SEO, subida directa de imágenes desde la computadora a **Cloudinary** y exposición en la API pública (`GET /api/public/blog`).
 
 ---
 
