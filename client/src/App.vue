@@ -1,49 +1,24 @@
 <template>
   <Navbar />
-  
   <main class="main-content">
-    <div class="container">
-      <h1 class="page-title">Sistema de Diseño Base</h1>
-      <p class="page-subtitle">Demostración de los componentes principales para NutriKer.</p>
-      
-      <section class="demo-section">
-        <h2>Tarjetas y Botones</h2>
-        <div class="card-grid">
-          <Card>
-            <h3>Nutrición Clínica</h3>
-            <p style="color: var(--text-muted); margin: 1rem 0;">
-              Planes personalizados diseñados para alcanzar tus objetivos de salud y rendimiento.
-            </p>
-            <div style="display: flex; gap: 1rem;">
-              <Button variant="primary">Agendar Cita</Button>
-              <Button variant="secondary">Saber más</Button>
-            </div>
-          </Card>
-          
-          <Card>
-            <h3>Alerta Importante</h3>
-            <p style="color: var(--text-muted); margin: 1rem 0;">
-              Este es un ejemplo de un componente con variante de peligro o alerta para el usuario.
-            </p>
-            <Button variant="danger" block>Eliminar Registro</Button>
-          </Card>
-        </div>
-      </section>
-    </div>
+    <router-view />
   </main>
-  
   <Footer />
 </template>
 
 <script setup>
 import Navbar from './components/ui/Navbar.vue'
 import Footer from './components/ui/Footer.vue'
+<<<<<<< HEAD
 import Button from './components/ui/Button.vue'
 import Card from './components/ui/Card.vue'
+=======
+>>>>>>> main
 </script>
 
 <style scoped>
 .main-content {
+<<<<<<< HEAD
   min-height: calc(100vh - 70px - 200px); /* Restando navbar y footer aprox */
   padding: 4rem 2rem;
 }
@@ -74,5 +49,8 @@ import Card from './components/ui/Card.vue'
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 2rem;
+=======
+  min-height: calc(100vh - 70px - 200px); /* Ajuste dinámico entre navbar y footer */
+>>>>>>> main
 }
 </style>

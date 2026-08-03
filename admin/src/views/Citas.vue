@@ -390,13 +390,20 @@ const calendarOptions = computed(() => ({
       html: `<div class="fc-custom-event-content"><span>${horario} · ${nombre}</span></div>`
     }
   },
-  editable: false,
+  editable: true,
+  droppable: true,
+  dragRevertDuration: 100,
+  dragScroll: true,
+  eventStartEditable: true,
+  eventDurationEditable: true,
   selectable: true,
   selectMirror: true,
   dayMaxEvents: 3,
   nowIndicator: true,
   select: handleDateSelect,
   eventClick: handleEventClick,
+  eventDrop: handleEventDrop,
+  eventResize: handleEventDrop,
   eventDidMount: (info: any) => {
     info.el.title = `${info.event.extendedProps.cliente_nombre}\n${info.event.extendedProps.cliente_telefono}\n${info.event.extendedProps.horario}`
   },
@@ -444,6 +451,56 @@ function handleDateSelect(selectInfo: any) {
 
 function handleEventClick(clickInfo: any) {
   router.push(`/citas/editar/${clickInfo.event.id}`)
+}
+
+async function handleEventDrop(dropInfo: any) {
+  const event = dropInfo.event
+  const props = event.extendedProps
+
+  // Las citas demo de muestra no se persisten en base de datos
+  if (props._demo || String(event.id).startsWith('demo-')) {
+    alert('Las citas de muestra no pueden ser reagendadas.')
+    dropInfo.revert()
+    return
+  }
+
+  const startDate = event.start
+  if (!startDate) {
+    dropInfo.revert()
+    return
+  }
+
+  const year = startDate.getFullYear()
+  const month = String(startDate.getMonth() + 1).padStart(2, '0')
+  const day = String(startDate.getDate()).padStart(2, '0')
+  const newFecha = `${year}-${month}-${day}`
+
+  const hours = String(startDate.getHours()).padStart(2, '0')
+  const minutes = String(startDate.getMinutes()).padStart(2, '0')
+  let newHorario = `${hours}:${minutes}`
+
+  // Si se mueve en la vista mensual, mantener el horario original si el nuevo es 00:00
+  if (newHorario === '00:00' && props.horario) {
+    newHorario = props.horario
+  }
+
+  const payload = {
+    cliente_nombre: props.cliente_nombre,
+    cliente_telefono: props.cliente_telefono,
+    fecha: newFecha,
+    horario: newHorario,
+    atencion_previa: props.atencion_previa || 'no',
+    peso: props.peso || null,
+    estatura: props.estatura || null,
+  }
+
+  try {
+    await citasApi.update(event.id, payload)
+    await loadCitas()
+  } catch (e: any) {
+    alert(e.message || 'El horario seleccionado ya se encuentra reservado.')
+    dropInfo.revert()
+  }
 }
 
 function openCreateModal() {
@@ -777,6 +834,15 @@ onMounted(loadCitas)
   transform: translateY(-1px) !important;
   box-shadow: 0 4px 12px rgba(74, 140, 91, 0.4) !important;
   opacity: 0.95 !important;
+}
+.calendar-wrapper :deep(.fc-event-dragging),
+.calendar-wrapper :deep(.fc-event-resizing) {
+  transition: none !important;
+  cursor: grabbing !important;
+  opacity: 0.92 !important;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.3) !important;
+  z-index: 9999 !important;
+  transform: scale(1.03) !important;
 }
 .calendar-wrapper :deep(.fc-timegrid-event-harness) {
   margin: 1px 2px !important;

@@ -163,6 +163,21 @@ export const updateEstadoOrden = async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Orden no encontrada' })
     }
+
+    // Inyección automática en Tesorería al marcar la orden como Pagado o Completado
+    if (['Pagado', 'Completado'].includes(estado_orden)) {
+      const orden = rows[0]
+      const checkIngreso = await pool.query('SELECT id FROM ingresos WHERE concepto LIKE $1 AND deleted_at IS NULL', [`%Orden #${orden.id}%`])
+      if (checkIngreso.rows.length === 0) {
+        const ingId = await generarIdUnico('ingresos')
+        await pool.query(
+          `INSERT INTO ingresos (id, fecha, concepto, a_nombre_de, recibe, cantidad, metodo_pago, notas)
+           VALUES ($1, CURRENT_DATE, $2, $3, 'Dra. Alexa Lora', $4, 'Tarjeta / En línea', $5)`,
+          [ingId, `Venta en línea - Orden #${orden.id}`, orden.cliente_nombre || 'Cliente Tienda', orden.total || 0, `Generado automáticamente por la Orden #${orden.id}`]
+        )
+      }
+    }
+
     res.json(rows[0])
   } catch (error) {
     res.status(500).json({ error: 'Error al actualizar el estado de pago de la orden', detalle: error.message })
