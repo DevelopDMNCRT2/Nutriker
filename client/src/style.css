@@ -1,152 +1,65 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Nunito:wght@300;400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 :root {
-  /* Brand Colors (NutriKer) */
-  --color-primary: #4A8C5B; /* Verde Oscuro Principal */
-  --color-primary-dark: #3a7048;
-  --color-primary-light: #7ABB89; /* Verde claro de la hoja */
-  --color-secondary: #A84A54; /* Rojo/Marrón de corazón */
-  --color-bg: #F8F6F0; /* Cream editorial background */
-  --color-white: #ffffff;
+  /* Colors */
+  --color-primary: #2F855A;
+  --color-primary-hover: #276749;
+  --color-accent: #E53E3E;
+  --color-accent-hover: #C53030;
   
-  /* Text Colors */
-  --color-text: #2f2e2c; /* Softer, richer dark text */
-  --color-text-light: #7a7672;
+  --color-bg: #F7FAFC;
+  --color-surface: #FFFFFF;
   
+  --text-main: #2D3748;
+  --text-muted: #718096;
+  --text-inverse: #FFFFFF;
+  
+  --border-color: #E2E8F0;
+
   /* Typography */
-  --font-main: 'Nunito', sans-serif;
-  --font-serif: 'Playfair Display', serif;
+  --font-base: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   
-  /* Border Radius (Roundness) */
-  --radius-full: 9999px;
-  --radius-xl: 2rem;
-  --radius-lg: 1.5rem;
-  --radius-md: 1rem;
+  /* Metrics & Styling */
+  --radius-md: 8px;
+  --radius-sm: 4px;
+  --radius-lg: 12px;
   
   /* Shadows */
-  --shadow-sm: 0 4px 6px rgba(13, 58, 60, 0.06);
-  --shadow-md: 0 10px 25px rgba(13, 58, 60, 0.12);
-  --shadow-lg: 0 20px 40px rgba(51, 170, 174, 0.18);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+  --shadow-hover: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+  
+  /* Transitions */
+  --transition-fast: 0.15s ease-in-out;
+  --transition-base: 0.3s ease-in-out;
 }
 
-html, body {
-  background-color: var(--color-bg);
-  scroll-behavior: smooth;
-  /* Removed scroll-snap for asymmetric free-flow */
-}
-
-/* Smooth scrolling rule added above */
-
-* {
+/* Base Reset */
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-body {
-  font-family: var(--font-main);
+html, body {
+  font-family: var(--font-base);
   background-color: var(--color-bg);
-  color: var(--color-text);
+  color: var(--text-main);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 a {
+  color: var(--color-primary);
   text-decoration: none;
-  color: inherit;
-  transition: color 0.3s ease;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-primary-hover);
 }
 
 ul {
   list-style: none;
 }
-
-img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-}
-
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-serif);
-  color: var(--color-secondary);
-  font-weight: 700;
-}
-
-/* Base Layout Classes */
-.container {
-  width: 100%;
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
-}
-
-.layout-app {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  position: relative;
-}
-
-.layout-main {
-  flex: 1;
-  width: 100%;
-}
-
-/* Global Button Styles */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.875rem 2rem;
-  border-radius: var(--radius-full);
-  font-weight: 700;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: none;
-  text-align: center;
-}
-
-.btn-primary {
-  background-color: var(--color-primary);
-  color: var(--color-white);
-  box-shadow: var(--shadow-md);
-}
-
-.btn-primary:hover {
-  background-color: var(--color-primary-dark);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-}
-
-.btn-secondary {
-  background-color: var(--color-secondary);
-  color: var(--color-white);
-}
-
-.btn-secondary:hover {
-  background-color: #03102c;
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
-
-.btn-outline {
-  background-color: transparent;
-  color: var(--color-primary);
-  border: 2px solid var(--color-primary);
-}
-
-.btn-outline:hover {
-  background-color: var(--color-primary);
-  color: var(--color-white);
-}
-
-/* Utility classes */
-.text-center { text-align: center; }
-.mt-4 { margin-top: 1rem; }
-.mb-4 { margin-bottom: 1rem; }
-.mt-8 { margin-top: 2rem; }
-.mb-8 { margin-bottom: 2rem; }
-
-/* Las clases .fashion-layout se trasladan a diseños asimétricos específicos en cada componente. */
