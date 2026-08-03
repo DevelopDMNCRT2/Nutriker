@@ -172,12 +172,3 @@ export const ordenesApi = {
   updateEstadoEnvio: (id, body) => request('PUT',    `/ordenes/${id}/estado-envio`, body),
   delete:            (id)       => request('DELETE', `/ordenes/${id}`),
 }
-
-// --- Ingresos y Tesorería ---
-export const ingresosApi = {
-  getAll:  ()         => request('GET',    '/ingresos'),
-  getById: (id)       => request('GET',    `/ingresos/${id}`),
-  create:  (body)     => request('POST',   '/ingresos', body),
-  update:  (id, body) => request('PUT',    `/ingresos/${id}`, body),
-  delete:  (id)       => request('DELETE', `/ingresos/${id}`),
-}
