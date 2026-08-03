@@ -174,3 +174,100 @@ export const agendarCitaPublica = async (req, res) => {
     res.status(500).json({ error: 'Error al agendar la cita', detalle: error.message })
   }
 }
+
+// 5. Login de Paciente
+export const loginPaciente = async (req, res) => {
+  try {
+    const { identificador } = req.body
+    if (!identificador || !identificador.trim()) {
+      return res.status(400).json({ error: 'Por favor ingresa tu número de teléfono de 10 dígitos o correo electrónico.' })
+    }
+
+    const rawVal = identificador.trim()
+    const cleanPhone = rawVal.replace(/\D/g, '')
+
+    // 1. Buscar en la tabla clientes
+    const queryClientes = `
+      SELECT *
+      FROM clientes
+      WHERE (telefono = $1 OR (length($2) = 10 AND REPLACE(telefono, '-', '') = $2) OR LOWER(correo) = LOWER($1)) AND deleted_at IS NULL
+      LIMIT 1
+    `
+    const { rows: clientesRows } = await pool.query(queryClientes, [rawVal, cleanPhone])
+
+    if (clientesRows.length > 0) {
+      return res.json({
+        mensaje: 'Autenticación exitosa',
+        paciente: clientesRows[0]
+      })
+    }
+
+    // 2. Si no está en clientes, buscar en la tabla citas
+    const queryCitas = `
+      SELECT *, cliente_nombre AS nombre, cliente_telefono AS telefono
+      FROM citas
+      WHERE (cliente_telefono = $1 OR (length($2) = 10 AND REPLACE(cliente_telefono, '-', '') = $2) OR LOWER(correo) = LOWER($1)) AND deleted_at IS NULL
+      ORDER BY created_at DESC
+      LIMIT 1
+    `
+    const { rows: citasRows } = await pool.query(queryCitas, [rawVal, cleanPhone])
+
+    if (citasRows.length > 0) {
+      return res.json({
+        mensaje: 'Autenticación exitosa',
+        paciente: citasRows[0]
+      })
+    }
+
+    return res.status(404).json({
+      error: 'No se encontró ningún expediente ni cita registrada con esos datos. Por favor agenda tu primera cita en la pestaña Agendar.'
+    })
+  } catch (error) {
+    res.status(500).json({ error: 'Error al iniciar sesión', detalle: error.message })
+  }
+}
+
+// 6. Portal del Paciente (Historial, Citas y Menú Semanal)
+export const getPortalPaciente = async (req, res) => {
+  try {
+    const { paciente_id, telefono } = req.query
+    if (!paciente_id && !telefono) {
+      return res.status(400).json({ error: 'Se requiere el ID o teléfono del paciente' })
+    }
+
+    let clienteRes
+    if (paciente_id) {
+      clienteRes = await pool.query('SELECT * FROM clientes WHERE id = $1 AND deleted_at IS NULL', [paciente_id])
+    } else {
+      clienteRes = await pool.query('SELECT * FROM clientes WHERE telefono = $1 AND deleted_at IS NULL', [telefono])
+    }
+
+    if (clienteRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Expediente de paciente no encontrado' })
+    }
+
+    const paciente = clienteRes.rows[0]
+
+    // Obtener menú semanal asignado al paciente
+    const menuRes = await pool.query(`
+      SELECT * FROM menus_semanales 
+      WHERE cliente_id = $1 AND deleted_at IS NULL
+      ORDER BY created_at DESC LIMIT 1
+    `, [paciente.id])
+
+    // Obtener citas del paciente
+    const citasRes = await pool.query(`
+      SELECT * FROM citas 
+      WHERE (cliente_telefono = $1 OR cliente_nombre = $2) AND deleted_at IS NULL
+      ORDER BY fecha DESC, horario DESC
+    `, [paciente.telefono, paciente.nombre])
+
+    res.json({
+      paciente,
+      menuSemanal: menuRes.rows[0] || null,
+      citas: citasRes.rows
+    })
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener el portal del paciente', detalle: error.message })
+  }
+}
