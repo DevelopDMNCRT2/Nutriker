@@ -3,8 +3,12 @@ import {
   getProductosPublicos,
   getZonasEnvioPublicas,
   procesarCheckoutPublico,
-  agendarCitaPublica
+  agendarCitaPublica,
+  loginPaciente,
+  getPortalPaciente
 } from '../controllers/publicController.js'
+import { getHorariosOcupados } from '../controllers/citasController.js'
+import { getPublicPosts, getPostBySlug } from '../controllers/blogController.js'
 
 const router = express.Router()
 
@@ -20,11 +24,12 @@ router.post('/checkout', procesarCheckoutPublico)
 // Endpoint público para agendar citas
 router.post('/citas', agendarCitaPublica)
 
-import { getHorariosOcupados } from '../controllers/citasController.js'
 // Endpoint público para consultar horarios ocupados por fecha
 router.get('/horarios-ocupados', getHorariosOcupados)
 
-import { getPublicPosts, getPostBySlug } from '../controllers/blogController.js'
+// Endpoints públicos para autenticación y portal del paciente
+router.post('/paciente/login', loginPaciente)
+router.get('/paciente/portal', getPortalPaciente)
 
 // Endpoints públicos para Blog / Noticias de Salud
 router.get('/blog', getPublicPosts)

@@ -41,6 +41,10 @@ El frontend del cliente y la capa de servicios públicos integran:
 6.  **Lector de Blog Público (`client/src/views/Blog.vue` & `BlogPostDetail.vue`):**
     *   Feed dinámico de noticias de salud y nutrición (`/blog`) consumiendo `GET /api/public/blog` con buscador en tiempo real.
     *   Vista detallada de lectura por enlace amigable (`/blog/:slug`) consumiendo `GET /api/public/blog/:slug` con renderizado de contenido enriquecido.
+7.  **Portal del Paciente (`client/src/views/Login.vue` & `Portal.vue`):**
+    *   Autenticación de pacientes mediante número de teléfono a 10 dígitos o correo electrónico registrado.
+    *   Dashboard personalizado con métricas antropométricas (peso, estatura, cálculo de IMC), notas clínicas de la doctora e historial de citas.
+    *   Consulta interactiva de la dieta / menú semanal asignado (Lunes a Viernes) con opción de impresión y descarga directa en PDF.
 
 ---
 
