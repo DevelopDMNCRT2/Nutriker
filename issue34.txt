@@ -1,0 +1,22 @@
+title:	[Client/Front] Flujo de Carrito y Checkout
+state:	OPEN
+author:	DmnCrtSWL (DmnCrt88)
+labels:	
+comments:	0
+assignees:	DmnCrtSWL (DmnCrt88)
+projects:	
+milestone:	
+issue-type:	
+parent:	
+sub-issues:	
+sub-issues-completed:	
+blocked-by:	
+blocking:	
+number:	34
+--
+El flujo de compra y selección de envíos.
+
+**Criterios de Aceptación:**
+- [ ] **Instrucción para el Agente:** Ejecutar `/grill-me` preguntando por: ¿Carrito tipo sidebar (drawer) o página completa? ¿Cómo se mostrará el resumen de cobro y formulario de envío?
+- [ ] Implementar el estado global del carrito (Vuex / Pinia o LocalStorage).
+- [ ] Maquetar el formulario de pago y envío conectado al endpoint `POST /api/public/checkout`.

@@ -13,6 +13,16 @@ export function verificarToken(req, res, next) {
   try {
     const decodificado = jwt.verify(token, JWT_SECRET)
     req.usuario = decodificado // { id, correo, rol }
+
+    // BLINDAJE DE SEGURIDAD PARA ROL "RRHH"
+    // Si es RRHH, solo puede acceder a /api/citas y /api/auth
+    if (req.usuario.rol === 'RRHH') {
+      const isAllowed = req.originalUrl.startsWith('/api/citas') || req.originalUrl.startsWith('/api/auth')
+      if (!isAllowed) {
+        return res.status(403).json({ error: 'Acceso denegado: El rol de RRHH solo tiene permisos para acceder a la Agenda (Citas).' })
+      }
+    }
+
     next()
   } catch (err) {
     return res.status(401).json({ error: 'Acceso denegado: Token inválido o expirado' })

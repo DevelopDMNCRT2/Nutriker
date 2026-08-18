@@ -1,0 +1,23 @@
+title:	[Client/Front] Desarrollo de la Landing Page (Inicio)
+state:	OPEN
+author:	DmnCrtSWL (DmnCrt88)
+labels:	
+comments:	0
+assignees:	DmnCrtSWL (DmnCrt88)
+projects:	
+milestone:	
+issue-type:	
+parent:	
+sub-issues:	
+sub-issues-completed:	
+blocked-by:	
+blocking:	
+number:	32
+--
+La cara pública de NutriKer. Debe ser atractiva y comunicar claramente los servicios.
+
+**Criterios de Aceptación:**
+- [ ] **Instrucción para el Agente:** Ejecutar `/grill-me` preguntando al usuario por: Secciones deseadas (Hero, Testimonios, Servicios), copys (textos principales) y distribución de imágenes.
+- [ ] Maquetar la sección Hero (banner principal con Call to Action).
+- [ ] Maquetar la sección de Servicios (Nutrición Clínica, Tienda, etc.).
+- [ ] Asegurar responsividad completa en móviles y tablets.

@@ -3,7 +3,7 @@
     <div class="ui-navbar-container">
       <div class="ui-brand">
         <router-link to="/" class="brand-link">
-          <span class="brand-text">NutriKer</span>
+          <img src="/logo_full.png" alt="Nutriker Logo" class="brand-logo" />
         </router-link>
       </div>
       <nav class="ui-nav-links">
@@ -44,10 +44,10 @@
   text-decoration: none;
 }
 
-.ui-brand .brand-text {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-primary);
+.ui-brand .brand-logo {
+  height: 40px;
+  width: auto;
+  display: block;
 }
 
 .ui-nav-links {

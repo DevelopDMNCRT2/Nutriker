@@ -55,6 +55,7 @@
             >
               <option value="Administrador">Administrador</option>
               <option value="Asistente">Asistente</option>
+              <option value="RRHH">Recursos Humanos (RRHH)</option>
             </select>
           </div>
 

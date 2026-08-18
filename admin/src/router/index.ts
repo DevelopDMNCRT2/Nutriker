@@ -199,12 +199,31 @@ router.beforeEach((to, from, next) => {
   document.title = `NutriKer Admin | ${to.meta.title ?? ''}`
   
   const isAuthenticated = localStorage.getItem('admin_logged') === 'true'
+  const userStr = localStorage.getItem('admin_user')
+  let userRol = ''
+  if (userStr) {
+    try {
+      userRol = JSON.parse(userStr).rol
+    } catch(e) {}
+  }
+  
+  // BLINDAJE FRONTEND PARA RRHH
+  if (isAuthenticated && userRol === 'RRHH') {
+    const allowedForRRHH = to.path.startsWith('/citas') || to.path === '/login'
+    if (!allowedForRRHH) {
+      return next('/citas')
+    }
+  }
   
   if (to.path !== '/login' && !isAuthenticated) {
     // next('/login') // TEMPORALMENTE DESACTIVADO PARA DESARROLLO RÁPIDO
     next()
   } else if (to.path === '/login' && isAuthenticated) {
-    next('/usuarios')
+    if (userRol === 'RRHH') {
+      next('/citas')
+    } else {
+      next('/usuarios')
+    }
   } else {
     next()
   }

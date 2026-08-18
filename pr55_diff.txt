@@ -1,0 +1,997 @@
+diff --git a/admin/src/api/index.js b/admin/src/api/index.js
+index d3968bc..6c246a3 100644
+--- a/admin/src/api/index.js
++++ b/admin/src/api/index.js
+@@ -151,3 +151,12 @@ export const ordenesApi = {
+   updateEstadoEnvio: (id, body) => request('PUT',    `/ordenes/${id}/estado-envio`, body),
+   delete:            (id)       => request('DELETE', `/ordenes/${id}`),
+ }
++
++// --- Ingresos y Tesorería ---
++export const ingresosApi = {
++  getAll:  ()         => request('GET',    '/ingresos'),
++  getById: (id)       => request('GET',    `/ingresos/${id}`),
++  create:  (body)     => request('POST',   '/ingresos', body),
++  update:  (id, body) => request('PUT',    `/ingresos/${id}`, body),
++  delete:  (id)       => request('DELETE', `/ingresos/${id}`),
++}
+diff --git a/admin/src/components/layout/AppSidebar.vue b/admin/src/components/layout/AppSidebar.vue
+index 2cea0ea..80bda00 100644
+--- a/admin/src/components/layout/AppSidebar.vue
++++ b/admin/src/components/layout/AppSidebar.vue
+@@ -96,8 +96,9 @@ const menuItems = [
+   { name: 'Citas',          path: '/citas',         icon: CalenderIcon },
+   { name: 'Productos',      path: '/productos',     icon: BoxCubeIcon },
+   { name: 'Órdenes',        path: '/ordenes',       icon: ShoppingBagIcon },
+-  { name: 'Zonas de Envío', path: '/zonas-envio',   icon: TruckIcon },
+-  { name: 'Asistente IA',   path: '/chat-agencial', icon: UserCircleIcon },
++  { name: 'Zonas de Envío',    path: '/zonas-envio',   icon: TruckIcon },
++  { name: 'Finanzas / Ingresos', path: '/ingresos',    icon: ShoppingBagIcon },
++  { name: 'Asistente IA',      path: '/chat-agencial', icon: UserCircleIcon },
+ ]
+ 
+ const isActive = (path: string) => route.path === path
+diff --git a/admin/src/router/index.ts b/admin/src/router/index.ts
+index 55692ac..7bba072 100644
+--- a/admin/src/router/index.ts
++++ b/admin/src/router/index.ts
+@@ -134,6 +134,25 @@ const router = createRouter({
+       path: '/zonas-envio/editar/:id',
+       name: 'ZonaEnvioEditar',
+       component: () => import('../views/ZonaEnvioForm.vue'),
++      meta: { title: 'Editar Zona de Envío' },
++    },
++    {
++      path: '/ingresos',
++      name: 'Ingresos',
++      component: () => import('../views/Ingresos.vue'),
++      meta: { title: 'Finanzas y Tesorería' },
++    },
++    {
++      path: '/ingresos/nuevo',
++      name: 'IngresoCrear',
++      component: () => import('../views/IngresoForm.vue'),
++      meta: { title: 'Nuevo Ingreso' },
++    },
++    {
++      path: '/ingresos/editar/:id',
++      name: 'IngresoEditar',
++      component: () => import('../views/IngresoForm.vue'),
++      meta: { title: 'Editar Ingreso' },
+     },
+     {
+       path: '/menus/:clienteId?',
+diff --git a/admin/src/views/DashboardBuenosDias.vue b/admin/src/views/DashboardBuenosDias.vue
+index 0a4a294..ae7e545 100644
+--- a/admin/src/views/DashboardBuenosDias.vue
++++ b/admin/src/views/DashboardBuenosDias.vue
+@@ -86,19 +86,21 @@
+           <p class="mt-1 text-xs text-indigo-600 font-medium dark:text-indigo-400">Histórico en plataforma</p>
+         </div>
+ 
+-        <!-- Estado del Día -->
+-        <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 transition-all hover:shadow-md">
++        <!-- Ingresos del Mes -->
++        <router-link to="/ingresos" class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 transition-all hover:shadow-md block">
+           <div class="flex items-center justify-between">
+-            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Estado Agenda</span>
++            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">Ingresos del Mes</span>
+             <div class="rounded-lg bg-emerald-50 p-2.5 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+-              <SuccessIcon class="w-5 h-5" />
++              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
++                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
++              </svg>
+             </div>
+           </div>
+           <div class="mt-3 flex items-baseline gap-2">
+-            <span class="text-lg font-bold text-emerald-600 dark:text-emerald-400">Al Día</span>
++            <span class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">${{ totalIngresosMes.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+           </div>
+-          <p class="mt-1 text-xs text-gray-500">Servidor y DB PostgreSQL activos</p>
+-        </div>
++          <p class="mt-1 text-xs text-gray-500">Tesorería y ventas en línea</p>
++        </router-link>
+       </div>
+ 
+       <!-- ── 3. Cronograma del Día + Pendientes ────────────────────────── -->
+@@ -217,7 +219,7 @@ import { ref, computed, onMounted } from 'vue'
+ import AdminLayout from '@/components/layout/AdminLayout.vue'
+ import EmptyState from '@/components/common/EmptyState.vue'
+ import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
+-import { dashboardApi } from '@/api/index.js'
++import { dashboardApi, ingresosApi } from '@/api/index.js'
+ import { CalenderIcon, ListIcon, TaskIcon, InfoCircleIcon, BarChartIcon, SuccessIcon } from '@/icons'
+ 
+ const loading = ref(true)
+@@ -231,6 +233,14 @@ const datosDashboard = ref<any>({
+ })
+ 
+ const tareasLocales = ref<any[]>([])
++const listaIngresos = ref<any[]>([])
++
++const totalIngresosMes = computed(() => {
++  const currentMonth = new Date().toISOString().slice(0, 7)
++  return listaIngresos.value
++    .filter(item => item.fecha && item.fecha.startsWith(currentMonth))
++    .reduce((acc, curr) => acc + Number(curr.cantidad || 0), 0)
++})
+ 
+ const fechaFormateada = computed(() => {
+   const hoy = new Date()
+@@ -247,11 +257,17 @@ async function cargarDashboard() {
+   try {
+     const res = await dashboardApi.getResumenDiario()
+     datosDashboard.value = res
+-    // Limpiar emojis residuales si vienen en el saludo del backend
+     if (datosDashboard.value.saludo) {
+       datosDashboard.value.saludo = datosDashboard.value.saludo.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim()
+     }
+     tareasLocales.value = res.tareas || []
++
++    // Cargar ingresos para la tarjeta del mes
++    try {
++      listaIngresos.value = await ingresosApi.getAll()
++    } catch (e) {
++      console.error('Error al cargar ingresos:', e)
++    }
+   } catch (error) {
+     console.error('Error al cargar datos del dashboard:', error)
+   } finally {
+diff --git a/admin/src/views/IngresoForm.vue b/admin/src/views/IngresoForm.vue
+new file mode 100644
+index 0000000..f9fded2
+--- /dev/null
++++ b/admin/src/views/IngresoForm.vue
+@@ -0,0 +1,238 @@
++<template>
++  <AdminLayout>
++    <div class="w-full">
++      <FormSection
++        :title="isEditing ? 'Editar Registro de Ingreso' : 'Registrar Nuevo Pago / Ingreso'"
++        :loading="saving"
++        :submitText="isEditing ? 'Actualizar Ingreso' : 'Registrar Ingreso'"
++        @submit="guardar"
++        @cancel="cancelar"
++      >
++        <div v-if="errorMsg" class="rounded-xl bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 mb-4">
++          {{ errorMsg }}
++        </div>
++
++        <div class="space-y-4 text-xs">
++          <!-- Fecha y Método de Pago -->
++          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
++            <div>
++              <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Fecha del Registro *</label>
++              <input
++                v-model="form.fecha"
++                type="date"
++                required
++                class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
++              />
++            </div>
++
++            <div>
++              <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Método de Pago *</label>
++              <select
++                v-model="form.metodo_pago"
++                required
++                class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
++              >
++                <option value="Efectivo">Efectivo</option>
++                <option value="Tarjeta / En línea">Tarjeta / En línea</option>
++                <option value="Transferencia">Transferencia bancaria</option>
++                <option value="Cheque">Cheque</option>
++              </select>
++            </div>
++          </div>
++
++          <!-- Concepto -->
++          <div>
++            <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Concepto del Pago *</label>
++            <input
++              v-model="form.concepto"
++              type="text"
++              required
++              placeholder="Ej. Consulta nutricional presencial, Conferencia de nutrición clínica..."
++              class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
++            />
++          </div>
++
++          <!-- A Nombre De (con Autocompletado de Clientes) y Recibe -->
++          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
++            <div class="relative">
++              <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">A Nombre De (Paciente / Cliente) *</label>
++              <input
++                v-model="form.a_nombre_de"
++                type="text"
++                required
++                placeholder="Escribe para buscar paciente o ingresar entidad..."
++                @focus="mostrarSugerencias = true"
++                @input="mostrarSugerencias = true"
++                class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
++              />
++
++              <!-- Dropdown de Sugerencias de Pacientes Registrados -->
++              <div
++                v-if="mostrarSugerencias && sugerenciasClientes.length > 0"
++                class="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-800 dark:bg-gray-900"
++              >
++                <div
++                  v-for="cliente in sugerenciasClientes"
++                  :key="cliente.id"
++                  @mousedown.prevent="seleccionarCliente(cliente)"
++                  class="cursor-pointer rounded-lg px-3 py-2 text-xs hover:bg-brand-50 dark:hover:bg-brand-950/40 transition-colors flex items-center justify-between"
++                >
++                  <span class="font-medium text-gray-900 dark:text-white">{{ cliente.nombre }}</span>
++                  <span class="text-[10px] text-gray-400 font-mono">{{ cliente.telefono }}</span>
++                </div>
++              </div>
++            </div>
++
++            <div>
++              <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Recibe (Atendido por) *</label>
++              <input
++                v-model="form.recibe"
++                type="text"
++                required
++                placeholder="Dra. Alexa Lora"
++                class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
++              />
++            </div>
++          </div>
++
++          <!-- Cantidad ($ MXN) -->
++          <div>
++            <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Monto del Ingreso ($ MXN) *</label>
++            <div class="relative">
++              <span class="absolute left-3.5 top-2.5 text-xs font-semibold text-gray-500 dark:text-gray-400">$</span>
++              <input
++                v-model.number="form.cantidad"
++                type="number"
++                step="0.01"
++                min="0"
++                required
++                placeholder="0.00"
++                class="w-full rounded-xl border border-gray-300 bg-transparent pl-8 pr-3.5 py-2.5 text-xs font-bold text-emerald-600 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-emerald-400"
++              />
++            </div>
++          </div>
++
++          <!-- Notas Adicionales -->
++          <div>
++            <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Notas u Observaciones</label>
++            <textarea
++              v-model="form.notas"
++              rows="3"
++              placeholder="Detalles adicionales del pago o recibo..."
++              class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
++            ></textarea>
++          </div>
++        </div>
++      </FormSection>
++    </div>
++  </AdminLayout>
++</template>
++
++<script setup>
++import { ref, computed, onMounted, onUnmounted } from 'vue'
++import { useRoute, useRouter } from 'vue-router'
++import AdminLayout from '../components/layout/AdminLayout.vue'
++import FormSection from '../components/common/FormSection.vue'
++import { ingresosApi, clientesApi } from '../api'
++
++const route = useRoute()
++const router = useRouter()
++
++const isEditing = computed(() => !!route.params.id)
++const saving = ref(false)
++const errorMsg = ref('')
++
++const clientesList = ref([])
++const mostrarSugerencias = ref(false)
++
++const form = ref({
++  fecha: new Date().toISOString().split('T')[0],
++  concepto: '',
++  a_nombre_de: '',
++  recibe: 'Dra. Alexa Lora',
++  cantidad: null,
++  metodo_pago: 'Efectivo',
++  notas: ''
++})
++
++const sugerenciasClientes = computed(() => {
++  if (!form.value.a_nombre_de || form.value.a_nombre_de.trim() === '') return []
++  const query = form.value.a_nombre_de.toLowerCase().trim()
++  return clientesList.value.filter(c =>
++    c.nombre && c.nombre.toLowerCase().includes(query)
++  ).slice(0, 5)
++})
++
++const seleccionarCliente = (cliente) => {
++  form.value.a_nombre_de = cliente.nombre
++  mostrarSugerencias.value = false
++}
++
++const handleClickOutside = (event) => {
++  if (!event.target.closest('.relative')) {
++    mostrarSugerencias.value = false
++  }
++}
++
++onMounted(async () => {
++  window.addEventListener('click', handleClickOutside)
++
++  // Cargar lista de clientes para autocompletado sugerido
++  try {
++    clientesList.value = await clientesApi.getAll()
++  } catch (err) {
++    console.error('Error al cargar lista de clientes sugeridos:', err)
++  }
++
++  if (isEditing.value) {
++    try {
++      const data = await ingresosApi.getById(route.params.id)
++      if (data) {
++        form.value = {
++          fecha: data.fecha || new Date().toISOString().split('T')[0],
++          concepto: data.concepto || '',
++          a_nombre_de: data.a_nombre_de || '',
++          recibe: data.recibe || 'Dra. Alexa Lora',
++          cantidad: Number(data.cantidad) || 0,
++          metodo_pago: data.metodo_pago || 'Efectivo',
++          notas: data.notas || ''
++        }
++      }
++    } catch (err) {
++      errorMsg.value = 'Error al cargar los datos del ingreso.'
++    }
++  }
++})
++
++onUnmounted(() => {
++  window.removeEventListener('click', handleClickOutside)
++})
++
++const guardar = async () => {
++  try {
++    saving.value = true
++    errorMsg.value = ''
++
++    if (!form.value.concepto || !form.value.a_nombre_de || form.value.cantidad === null || form.value.cantidad === undefined) {
++      errorMsg.value = 'Por favor completa todos los campos obligatorios (*).'
++      return
++    }
++
++    if (isEditing.value) {
++      await ingresosApi.update(route.params.id, form.value)
++    } else {
++      await ingresosApi.create(form.value)
++    }
++
++    router.push('/ingresos')
++  } catch (err) {
++    errorMsg.value = err.message || 'Error al guardar el ingreso.'
++  } finally {
++    saving.value = false
++  }
++}
++
++const cancelar = () => {
++  router.push('/ingresos')
++}
++</script>
+diff --git a/admin/src/views/Ingresos.vue b/admin/src/views/Ingresos.vue
+new file mode 100644
+index 0000000..afb0389
+--- /dev/null
++++ b/admin/src/views/Ingresos.vue
+@@ -0,0 +1,290 @@
++<template>
++  <AdminLayout>
++    <div class="space-y-6">
++      <!-- Encabezado Principal -->
++      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
++        <div>
++          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
++            Finanzas y Tesorería
++          </h1>
++          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
++            Control de ingresos por consultas, honorarios, conferencias y ventas en línea de la clínica NutriKer.
++          </p>
++        </div>
++
++        <button
++          @click="$router.push('/ingresos/nuevo')"
++          class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-brand-700 transition-colors"
++        >
++          <PlusIcon class="w-4 h-4" />
++          <span>Registrar Nuevo Ingreso</span>
++        </button>
++      </div>
++
++      <!-- Tarjetas de Métricas KPIs -->
++      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
++        <!-- Ingresos Totales -->
++        <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-xs dark:border-gray-800 dark:bg-gray-900">
++          <div class="flex items-center justify-between">
++            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Ingresos Totales</span>
++            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
++              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
++                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
++              </svg>
++            </div>
++          </div>
++          <p class="mt-3 text-2xl font-bold text-gray-900 dark:text-white">
++            ${{ totalIngresos.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
++          </p>
++          <span class="text-[11px] text-gray-400">Acumulado histórico</span>
++        </div>
++
++        <!-- Ingresos del Mes -->
++        <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-xs dark:border-gray-800 dark:bg-gray-900">
++          <div class="flex items-center justify-between">
++            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Ingresos del Mes</span>
++            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-950/40 dark:text-brand-400">
++              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
++                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
++              </svg>
++            </div>
++          </div>
++          <p class="mt-3 text-2xl font-bold text-brand-600 dark:text-brand-400">
++            ${{ ingresosMes.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
++          </p>
++          <span class="text-[11px] text-gray-400">Mes en curso</span>
++        </div>
++
++        <!-- Promedio por Pago -->
++        <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-xs dark:border-gray-800 dark:bg-gray-900">
++          <div class="flex items-center justify-between">
++            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Ticket Promedio</span>
++            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
++              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
++                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
++              </svg>
++            </div>
++          </div>
++          <p class="mt-3 text-2xl font-bold text-gray-900 dark:text-white">
++            ${{ promedioIngreso.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
++          </p>
++          <span class="text-[11px] text-gray-400">Por transacción</span>
++        </div>
++
++        <!-- Total de Registros -->
++        <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-xs dark:border-gray-800 dark:bg-gray-900">
++          <div class="flex items-center justify-between">
++            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Total Transacciones</span>
++            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
++              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
++                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
++              </svg>
++            </div>
++          </div>
++          <p class="mt-3 text-2xl font-bold text-gray-900 dark:text-white">
++            {{ ingresos.length }}
++          </p>
++          <span class="text-[11px] text-gray-400">Registros de pago</span>
++        </div>
++      </div>
++
++      <!-- Filtro y Búsqueda -->
++      <div class="flex flex-col sm:flex-row gap-3 justify-end items-center rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
++        <select
++          v-model="filtroMetodo"
++          class="w-full sm:w-56 rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
++        >
++          <option value="">Todos los Métodos de Pago</option>
++          <option value="Efectivo">Efectivo</option>
++          <option value="Tarjeta / En línea">Tarjeta / En línea</option>
++          <option value="Transferencia">Transferencia bancaria</option>
++          <option value="Cheque">Cheque</option>
++        </select>
++        <div class="w-full sm:w-72">
++          <input
++            v-model="searchQuery"
++            type="text"
++            placeholder="Buscar por concepto o a nombre de..."
++            class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
++          />
++        </div>
++      </div>
++
++      <!-- Cargador Skeleton -->
++      <LoadingSkeleton v-if="loading" :rows="5" type="table" />
++
++      <!-- Estado Vacío -->
++      <EmptyState
++        v-else-if="ingresosFiltrados.length === 0"
++        title="No se encontraron registros de ingresos"
++        description="No hay transacciones que coincidan con los criterios de búsqueda seleccionados."
++        actionText="Registrar Nuevo Ingreso"
++        @action="$router.push('/ingresos/nuevo')"
++      />
++
++      <!-- Tabla Histórica de Ingresos -->
++      <div v-else class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs dark:border-gray-800 dark:bg-gray-900">
++        <div class="overflow-x-auto">
++          <table class="w-full text-left text-xs text-gray-500 dark:text-gray-400">
++            <thead class="bg-gray-50 text-[11px] uppercase tracking-wider text-gray-700 dark:bg-gray-800/50 dark:text-gray-300">
++              <tr>
++                <th scope="col" class="px-5 py-3.5 font-semibold">ID</th>
++                <th scope="col" class="px-5 py-3.5 font-semibold">Fecha</th>
++                <th scope="col" class="px-5 py-3.5 font-semibold">Concepto</th>
++                <th scope="col" class="px-5 py-3.5 font-semibold">A Nombre De</th>
++                <th scope="col" class="px-5 py-3.5 font-semibold">Método de Pago</th>
++                <th scope="col" class="px-5 py-3.5 font-semibold">Recibe</th>
++                <th scope="col" class="px-5 py-3.5 font-semibold text-right">Cantidad</th>
++                <th scope="col" class="px-5 py-3.5 font-semibold text-right">Acciones</th>
++              </tr>
++            </thead>
++            <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
++              <tr
++                v-for="item in ingresosFiltrados"
++                :key="item.id"
++                class="hover:bg-gray-50/50 transition-colors dark:hover:bg-gray-800/50"
++              >
++                <!-- ID -->
++                <td class="px-5 py-4 font-mono font-medium text-brand-600 dark:text-brand-400">
++                  #{{ item.id }}
++                </td>
++
++                <!-- Fecha -->
++                <td class="px-5 py-4 text-gray-900 dark:text-white font-medium whitespace-nowrap">
++                  {{ item.fecha }}
++                </td>
++
++                <!-- Concepto -->
++                <td class="px-5 py-4 font-medium text-gray-900 dark:text-white max-w-xs truncate">
++                  {{ item.concepto }}
++                </td>
++
++                <!-- A Nombre De -->
++                <td class="px-5 py-4 text-gray-700 dark:text-gray-300">
++                  {{ item.a_nombre_de }}
++                </td>
++
++                <!-- Método de Pago -->
++                <td class="px-5 py-4">
++                  <span
++                    class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold"
++                    :class="{
++                      'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300': item.metodo_pago === 'Efectivo',
++                      'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300': item.metodo_pago.includes('Tarjeta') || item.metodo_pago.includes('línea'),
++                      'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300': item.metodo_pago === 'Transferencia',
++                      'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300': !['Efectivo', 'Transferencia'].includes(item.metodo_pago)
++                    }"
++                  >
++                    <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
++                    {{ item.metodo_pago }}
++                  </span>
++                </td>
++
++                <!-- Recibe -->
++                <td class="px-5 py-4 text-gray-600 dark:text-gray-400">
++                  {{ item.recibe }}
++                </td>
++
++                <!-- Cantidad -->
++                <td class="px-5 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400 font-mono text-sm whitespace-nowrap">
++                  +${{ Number(item.cantidad).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
++                </td>
++
++                <!-- Acciones -->
++                <td class="px-5 py-4 text-right">
++                  <div class="flex justify-end gap-2">
++                    <button
++                      @click="$router.push(`/ingresos/editar/${item.id}`)"
++                      title="Editar registro"
++                      class="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-brand-600 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-brand-400 transition-colors"
++                    >
++                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
++                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
++                      </svg>
++                    </button>
++                    <button
++                      @click="confirmarEliminar(item)"
++                      title="Eliminar registro"
++                      class="rounded-lg p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition-colors"
++                    >
++                      <TrashIcon class="w-4 h-4" />
++                    </button>
++                  </div>
++                </td>
++              </tr>
++            </tbody>
++          </table>
++        </div>
++      </div>
++    </div>
++  </AdminLayout>
++</template>
++
++<script setup>
++import { ref, computed, onMounted } from 'vue'
++import AdminLayout from '../components/layout/AdminLayout.vue'
++import LoadingSkeleton from '../components/common/LoadingSkeleton.vue'
++import EmptyState from '../components/common/EmptyState.vue'
++import { PlusIcon, TrashIcon } from '../icons'
++import { ingresosApi } from '../api'
++
++const ingresos = ref([])
++const loading = ref(true)
++const searchQuery = ref('')
++const filtroMetodo = ref('')
++
++const fetchIngresos = async () => {
++  try {
++    loading.value = true
++    ingresos.value = await ingresosApi.getAll()
++  } catch (error) {
++    console.error('Error al cargar ingresos:', error)
++  } finally {
++    loading.value = false
++  }
++}
++
++onMounted(() => {
++  fetchIngresos()
++})
++
++const totalIngresos = computed(() => {
++  return ingresos.value.reduce((acc, curr) => acc + Number(curr.cantidad || 0), 0)
++})
++
++const ingresosMes = computed(() => {
++  const currentMonth = new Date().toISOString().slice(0, 7) // YYYY-MM
++  return ingresos.value
++    .filter(item => item.fecha && item.fecha.startsWith(currentMonth))
++    .reduce((acc, curr) => acc + Number(curr.cantidad || 0), 0)
++})
++
++const promedioIngreso = computed(() => {
++  if (ingresos.value.length === 0) return 0
++  return totalIngresos.value / ingresos.value.length
++})
++
++const ingresosFiltrados = computed(() => {
++  return ingresos.value.filter(item => {
++    const coincideMetodo = !filtroMetodo.value || item.metodo_pago === filtroMetodo.value
++    const query = searchQuery.value.toLowerCase().trim()
++    const coincideBusqueda = !query ||
++      (item.concepto && item.concepto.toLowerCase().includes(query)) ||
++      (item.a_nombre_de && item.a_nombre_de.toLowerCase().includes(query)) ||
++      (item.id && item.id.toLowerCase().includes(query))
++
++    return coincideMetodo && coincideBusqueda
++  })
++})
++
++const confirmarEliminar = async (item) => {
++  if (confirm(`¿Estás seguro de eliminar el registro de ingreso #${item.id} por $${item.cantidad}?`)) {
++    try {
++      await ingresosApi.delete(item.id)
++      await fetchIngresos()
++    } catch (error) {
++      alert('Error al eliminar el ingreso: ' + error.message)
++    }
++  }
++}
++</script>
+diff --git a/server/controllers/ingresosController.js b/server/controllers/ingresosController.js
+new file mode 100644
+index 0000000..bf4d0e2
+--- /dev/null
++++ b/server/controllers/ingresosController.js
+@@ -0,0 +1,154 @@
++import pool from '../db/pool.js'
++import { generarIdUnico } from '../utils/generarId.js'
++
++/**
++ * Controlador de Ingresos y Tesorería
++ */
++
++// ─── GET /api/ingresos ───────────────────────────────────────────────────────
++export const getIngresos = async (req, res) => {
++  try {
++    const query = `
++      SELECT id,
++             TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha",
++             concepto,
++             a_nombre_de,
++             recibe,
++             cantidad,
++             metodo_pago,
++             notas,
++             created_at,
++             updated_at
++      FROM ingresos 
++      WHERE deleted_at IS NULL 
++      ORDER BY fecha DESC, created_at DESC
++    `
++    const { rows } = await pool.query(query)
++    res.json(rows)
++  } catch (error) {
++    console.error('getIngresos error:', error.message)
++    res.status(500).json({ error: 'Error al obtener ingresos', detalle: error.message })
++  }
++}
++
++// ─── GET /api/ingresos/:id ───────────────────────────────────────────────────
++export const getIngresoById = async (req, res) => {
++  try {
++    const { id } = req.params
++    const query = `
++      SELECT id,
++             TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha",
++             concepto,
++             a_nombre_de,
++             recibe,
++             cantidad,
++             metodo_pago,
++             notas,
++             created_at,
++             updated_at
++      FROM ingresos 
++      WHERE id = $1 AND deleted_at IS NULL
++    `
++    const { rows } = await pool.query(query, [id])
++    if (rows.length === 0) {
++      return res.status(404).json({ error: 'Registro de ingreso no encontrado' })
++    }
++    res.json(rows[0])
++  } catch (error) {
++    console.error('getIngresoById error:', error.message)
++    res.status(500).json({ error: 'Error al obtener el ingreso', detalle: error.message })
++  }
++}
++
++// ─── POST /api/ingresos ──────────────────────────────────────────────────────
++export const createIngreso = async (req, res) => {
++  try {
++    const { concepto, a_nombre_de, recibe, cantidad, metodo_pago, fecha, notas } = req.body
++
++    if (!concepto || !a_nombre_de || cantidad === undefined || cantidad === null) {
++      return res.status(400).json({
++        error: 'El concepto, a nombre de quién y la cantidad son obligatorios'
++      })
++    }
++
++    const newId = await generarIdUnico('ingresos')
++    const insertQuery = `
++      INSERT INTO ingresos (id, fecha, concepto, a_nombre_de, recibe, cantidad, metodo_pago, notas)
++      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
++      RETURNING *, TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha"
++    `
++    const { rows } = await pool.query(insertQuery, [
++      newId,
++      fecha || new Date().toISOString().split('T')[0],
++      concepto,
++      a_nombre_de,
++      recibe || 'Dra. Alexa Lora',
++      parseFloat(cantidad) || 0,
++      metodo_pago || 'Efectivo',
++      notas || null
++    ])
++
++    res.status(201).json(rows[0])
++  } catch (error) {
++    console.error('createIngreso error:', error.message)
++    res.status(500).json({ error: 'Error al registrar el ingreso', detalle: error.message })
++  }
++}
++
++// ─── PUT /api/ingresos/:id ───────────────────────────────────────────────────
++export const updateIngreso = async (req, res) => {
++  try {
++    const { id } = req.params
++    const { concepto, a_nombre_de, recibe, cantidad, metodo_pago, fecha, notas } = req.body
++
++    const existing = await pool.query('SELECT * FROM ingresos WHERE id = $1 AND deleted_at IS NULL', [id])
++    if (existing.rows.length === 0) {
++      return res.status(404).json({ error: 'Registro de ingreso no encontrado' })
++    }
++
++    const current = existing.rows[0]
++    const updateQuery = `
++      UPDATE ingresos 
++      SET concepto = $1, a_nombre_de = $2, recibe = $3, cantidad = $4,
++          metodo_pago = $5, fecha = $6, notas = $7, updated_at = NOW()
++      WHERE id = $8 AND deleted_at IS NULL
++      RETURNING *, TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha"
++    `
++    const { rows } = await pool.query(updateQuery, [
++      concepto || current.concepto,
++      a_nombre_de || current.a_nombre_de,
++      recibe || current.recibe,
++      cantidad !== undefined ? parseFloat(cantidad) : current.cantidad,
++      metodo_pago || current.metodo_pago,
++      fecha || current.fecha,
++      notas !== undefined ? notas : current.notas,
++      id
++    ])
++
++    res.json(rows[0])
++  } catch (error) {
++    console.error('updateIngreso error:', error.message)
++    res.status(500).json({ error: 'Error al actualizar el ingreso', detalle: error.message })
++  }
++}
++
++// ─── DELETE /api/ingresos/:id (Soft Delete) ──────────────────────────────────
++export const deleteIngreso = async (req, res) => {
++  try {
++    const { id } = req.params
++    const query = `
++      UPDATE ingresos 
++      SET deleted_at = NOW() 
++      WHERE id = $1 AND deleted_at IS NULL
++      RETURNING id
++    `
++    const { rows } = await pool.query(query, [id])
++    if (rows.length === 0) {
++      return res.status(404).json({ error: 'Registro de ingreso no encontrado' })
++    }
++    res.json({ message: 'Registro de ingreso eliminado correctamente', id: rows[0].id })
++  } catch (error) {
++    console.error('deleteIngreso error:', error.message)
++    res.status(500).json({ error: 'Error al eliminar el ingreso', detalle: error.message })
++  }
++}
+diff --git a/server/controllers/ordenesController.js b/server/controllers/ordenesController.js
+index c7525b0..5ba155d 100644
+--- a/server/controllers/ordenesController.js
++++ b/server/controllers/ordenesController.js
+@@ -163,6 +163,21 @@ export const updateEstadoOrden = async (req, res) => {
+     if (rows.length === 0) {
+       return res.status(404).json({ error: 'Orden no encontrada' })
+     }
++
++    // Inyección automática en Tesorería al marcar la orden como Pagado o Completado
++    if (['Pagado', 'Completado'].includes(estado_orden)) {
++      const orden = rows[0]
++      const checkIngreso = await pool.query('SELECT id FROM ingresos WHERE concepto LIKE $1 AND deleted_at IS NULL', [`%Orden #${orden.id}%`])
++      if (checkIngreso.rows.length === 0) {
++        const ingId = await generarIdUnico('ingresos')
++        await pool.query(
++          `INSERT INTO ingresos (id, fecha, concepto, a_nombre_de, recibe, cantidad, metodo_pago, notas)
++           VALUES ($1, CURRENT_DATE, $2, $3, 'Dra. Alexa Lora', $4, 'Tarjeta / En línea', $5)`,
++          [ingId, `Venta en línea - Orden #${orden.id}`, orden.cliente_nombre || 'Cliente Tienda', orden.total || 0, `Generado automáticamente por la Orden #${orden.id}`]
++        )
++      }
++    }
++
+     res.json(rows[0])
+   } catch (error) {
+     res.status(500).json({ error: 'Error al actualizar el estado de pago de la orden', detalle: error.message })
+diff --git a/server/db/migrate_all.js b/server/db/migrate_all.js
+index 3e06fa4..33a4b65 100644
+--- a/server/db/migrate_all.js
++++ b/server/db/migrate_all.js
+@@ -117,7 +117,6 @@ const resetTablesSQL = `
+     deleted_at              TIMESTAMPTZ DEFAULT NULL
+   );
+ 
+-<<<<<<< HEAD
+   -- 10. Menus Semanales
+   CREATE TABLE IF NOT EXISTS menus_semanales (
+     id                  VARCHAR(8) PRIMARY KEY,
+@@ -193,17 +192,19 @@ const resetTablesSQL = `
+     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   );
+ 
+-  -- 7. Zonas de Envío
+-  CREATE TABLE IF NOT EXISTS zonas_envio (
+-    id              VARCHAR(8) PRIMARY KEY,
+-    nombre          VARCHAR(150) NOT NULL,
+-    tipo_region     VARCHAR(50) NOT NULL DEFAULT 'Local',
+-    costo           DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+-    tiempo_entrega  VARCHAR(100) DEFAULT '24 a 48 horas',
+-    activa          BOOLEAN DEFAULT TRUE,
+-    creado_en       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+-    deleted_at      TIMESTAMPTZ DEFAULT NULL
++  -- 13. Ingresos y Tesorería
++  CREATE TABLE IF NOT EXISTS ingresos (
++    id            VARCHAR(8) PRIMARY KEY,
++    fecha         DATE NOT NULL DEFAULT CURRENT_DATE,
++    concepto      VARCHAR(200) NOT NULL,
++    a_nombre_de   VARCHAR(150) NOT NULL,
++    recibe        VARCHAR(150) NOT NULL DEFAULT 'Dra. Alexa Lora',
++    cantidad      DECIMAL(10,2) NOT NULL DEFAULT 0.00,
++    metodo_pago   VARCHAR(50) NOT NULL DEFAULT 'Efectivo',
++    notas         TEXT DEFAULT NULL,
++    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
++    updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
++    deleted_at    TIMESTAMPTZ DEFAULT NULL
+   );
+ `
+ 
+diff --git a/server/db/migrate_ingresos.js b/server/db/migrate_ingresos.js
+new file mode 100644
+index 0000000..14e69c1
+--- /dev/null
++++ b/server/db/migrate_ingresos.js
+@@ -0,0 +1,34 @@
++import pool from './pool.js'
++
++const createIngresosSQL = `
++  CREATE TABLE IF NOT EXISTS ingresos (
++    id            VARCHAR(8) PRIMARY KEY,
++    fecha         DATE NOT NULL DEFAULT CURRENT_DATE,
++    concepto      VARCHAR(200) NOT NULL,
++    a_nombre_de   VARCHAR(150) NOT NULL,
++    recibe        VARCHAR(150) NOT NULL DEFAULT 'Dra. Alexa Lora',
++    cantidad      DECIMAL(10,2) NOT NULL DEFAULT 0.00,
++    metodo_pago   VARCHAR(50) NOT NULL DEFAULT 'Efectivo',
++    notas         TEXT DEFAULT NULL,
++    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
++    updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
++    deleted_at    TIMESTAMPTZ DEFAULT NULL
++  );
++`
++
++async function migrate() {
++  const client = await pool.connect()
++  try {
++    console.log('🚀 Ejecutando migración de Ingresos y Tesorería...')
++    await client.query(createIngresosSQL)
++    console.log('✅ Tabla "ingresos" creada/verificada correctamente en Neon DB.')
++  } catch (err) {
++    console.error('❌ Error en la migración de ingresos:', err.message)
++    process.exit(1)
++  } finally {
++    client.release()
++    await pool.end()
++  }
++}
++
++migrate()
+diff --git a/server/index.js b/server/index.js
+index 7d0bf56..516945b 100644
+--- a/server/index.js
++++ b/server/index.js
+@@ -17,6 +17,7 @@ import zonasEnvioRouter from './routes/zonasEnvio.js'
+ import iaRouter from './routes/ia.js'
+ import ordenesRouter from './routes/ordenes.js'
+ import publicRouter from './routes/public.js'
++import ingresosRouter from './routes/ingresos.js'
+ 
+ dotenv.config()
+ 
+@@ -60,6 +61,7 @@ app.use('/api/expedientes', expedientesRouter)
+ app.use('/api/zonas-envio', zonasEnvioRouter)
+ app.use('/api/ia', iaRouter)
+ app.use('/api/ordenes', ordenesRouter)
++app.use('/api/ingresos', ingresosRouter)
+ app.use('/api/public', publicRouter)
+ 
+ // ── 404 ────────────────────────────────────────────────
+diff --git a/server/routes/ingresos.js b/server/routes/ingresos.js
+new file mode 100644
+index 0000000..71d2047
+--- /dev/null
++++ b/server/routes/ingresos.js
+@@ -0,0 +1,23 @@
++import express from 'express'
++import { verificarToken } from '../middleware/authMiddleware.js'
++import {
++  getIngresos,
++  getIngresoById,
++  createIngreso,
++  updateIngreso,
++  deleteIngreso
++} from '../controllers/ingresosController.js'
++
++/**
++ * Rutas de Gestión de Finanzas e Ingresos (Tesorería)
++ */
++const router = express.Router()
++
++// Todas las rutas de tesorería requieren token JWT de Admin
++router.get('/', verificarToken, getIngresos)
++router.get('/:id', verificarToken, getIngresoById)
++router.post('/', verificarToken, createIngreso)
++router.put('/:id', verificarToken, updateIngreso)
++router.delete('/:id', verificarToken, deleteIngreso)
++
++export default router

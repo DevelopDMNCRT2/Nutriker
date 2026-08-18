@@ -89,7 +89,7 @@ import { useSidebar } from '@/composables/useSidebar'
 const route = useRoute()
 const { isExpanded, isMobileOpen, isHovered } = useSidebar()
 
-const menuItems = [
+const allMenuItems = [
   { name: 'Inicio',         path: '/dashboard',     icon: GridIcon },
   { name: 'Usuarios',       path: '/usuarios',      icon: UserCircleIcon },
   { name: 'Pacientes',      path: '/clientes',      icon: ListIcon },
@@ -101,6 +101,18 @@ const menuItems = [
   { name: 'Blog / CMS',        path: '/blog',        icon: ListIcon },
   { name: 'Asistente IA',      path: '/chat-agencial', icon: UserCircleIcon },
 ]
+
+const userStr = localStorage.getItem('admin_user')
+let userRol = ''
+if (userStr) {
+  try {
+    userRol = JSON.parse(userStr).rol
+  } catch(e) {}
+}
+
+const menuItems = userRol === 'RRHH' 
+  ? allMenuItems.filter(item => item.path === '/citas')
+  : allMenuItems
 
 const isActive = (path: string) => route.path === path
 </script>

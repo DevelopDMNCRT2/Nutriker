@@ -1,0 +1,1160 @@
+diff --git a/README.md b/README.md
+index 7442484..a354b9a 100644
+--- a/README.md
++++ b/README.md
+@@ -65,6 +65,10 @@ El panel privado de gestión de la Dra. Karla y su equipo implementa las siguien
+ *   **Generador de Menús Semanales:**
+     *   Herramienta para diseñar y asignar planes alimenticios y menús semanales a pacientes específicos.
+     *   **Video Tutorial Demostrativo:** [tutorial_generador_menus.mov](file:///Users/yaywiin/Desktop/DEVELOP/Nutriker_Pruebas/docs/media/tutorial_generador_menus.mov) (demostración interactiva del flujo de configuración y asignación de menús por paciente).
++*   **Finanzas y Tesorería (Control de Ingresos):**
++    *   Control e historial de ingresos del consultorio (`/ingresos`, `/ingresos/nuevo`, `/ingresos/editar/:id`) con métricas KPI (Ingresos Totales, del Mes, Ticket Promedio y Transacciones), autocompletado inteligente de pacientes y generación automática al completar órdenes de venta.
++*   **Gestor de Blog y Noticias de Salud (CMS):**
++    *   Administración y redacción de artículos clínicos y noticias de salud (`/blog`, `/blog/nuevo`, `/blog/editar/:id`) con editor visual WYSIWYG (estilo Word / Google Docs), botones de formato alternables, generación automática de URLs amigables (slugs) para SEO, subida directa de imágenes desde la computadora a **Cloudinary** y exposición en la API pública (`GET /api/public/blog`).
+ 
+ ---
+ 
+diff --git a/admin/src/api/index.js b/admin/src/api/index.js
+index d3968bc..e38e30d 100644
+--- a/admin/src/api/index.js
++++ b/admin/src/api/index.js
+@@ -49,6 +49,27 @@ export const authApi = {
+   login: (credentials) => request('POST', '/auth/login', credentials),
+ }
+ 
++// --- Ingresos y Tesorería ---
++export const ingresosApi = {
++  getAll:  ()         => request('GET',    '/ingresos'),
++  getById: (id)       => request('GET',    `/ingresos/${id}`),
++  create:  (body)     => request('POST',   '/ingresos', body),
++  update:  (id, body) => request('PUT',    `/ingresos/${id}`, body),
++  delete:  (id)       => request('DELETE', `/ingresos/${id}`),
++}
++
++// --- Blog Gestor CMS ---
++export const blogApi = {
++  getPublic:    ()         => request('GET',       '/blog'),
++  getBySlug:   (slug)     => request('GET',       `/blog/post/${slug}`),
++  getAllAdmin:  ()         => request('GET',       '/blog/admin/all'),
++  getById:     (id)        => request('GET',       `/blog/admin/${id}`),
++  create:      (body)      => request('POST',      '/blog', body),
++  update:      (id, body)  => request('PUT',       `/blog/${id}`, body),
++  delete:      (id)        => request('DELETE',    `/blog/${id}`),
++  uploadImagen: (formData) => requestForm('POST',  '/blog/upload-imagen', formData),
++}
++
+ // --- Usuarios ---
+ export const usuariosApi = {
+   getAll:  ()         => request('GET',    '/usuarios'),
+diff --git a/admin/src/components/layout/AppSidebar.vue b/admin/src/components/layout/AppSidebar.vue
+index 2cea0ea..f33df4f 100644
+--- a/admin/src/components/layout/AppSidebar.vue
++++ b/admin/src/components/layout/AppSidebar.vue
+@@ -96,8 +96,9 @@ const menuItems = [
+   { name: 'Citas',          path: '/citas',         icon: CalenderIcon },
+   { name: 'Productos',      path: '/productos',     icon: BoxCubeIcon },
+   { name: 'Órdenes',        path: '/ordenes',       icon: ShoppingBagIcon },
+-  { name: 'Zonas de Envío', path: '/zonas-envio',   icon: TruckIcon },
+-  { name: 'Asistente IA',   path: '/chat-agencial', icon: UserCircleIcon },
++  { name: 'Finanzas / Ingresos', path: '/ingresos',    icon: ShoppingBagIcon },
++  { name: 'Blog / CMS',        path: '/blog',        icon: ListIcon },
++  { name: 'Asistente IA',      path: '/chat-agencial', icon: UserCircleIcon },
+ ]
+ 
+ const isActive = (path: string) => route.path === path
+diff --git a/admin/src/router/index.ts b/admin/src/router/index.ts
+index 55692ac..d6cb21d 100644
+--- a/admin/src/router/index.ts
++++ b/admin/src/router/index.ts
+@@ -153,6 +153,24 @@ const router = createRouter({
+       component: () => import('../views/ChatAgencial.vue'),
+       meta: { title: 'Asistente Clínico IA' },
+     },
++    {
++      path: '/blog',
++      name: 'BlogAdmin',
++      component: () => import('../views/BlogAdmin.vue'),
++      meta: { title: 'Gestor de Blog CMS' },
++    },
++    {
++      path: '/blog/nuevo',
++      name: 'BlogPostCrear',
++      component: () => import('../views/BlogPostForm.vue'),
++      meta: { title: 'Nuevo Artículo de Blog' },
++    },
++    {
++      path: '/blog/editar/:id',
++      name: 'BlogPostEditar',
++      component: () => import('../views/BlogPostForm.vue'),
++      meta: { title: 'Editar Artículo de Blog' },
++    },
+   ],
+ })
+ 
+diff --git a/admin/src/views/BlogAdmin.vue b/admin/src/views/BlogAdmin.vue
+new file mode 100644
+index 0000000..0b2c859
+--- /dev/null
++++ b/admin/src/views/BlogAdmin.vue
+@@ -0,0 +1,209 @@
++<template>
++  <AdminLayout>
++    <div class="space-y-6">
++      <!-- Header -->
++      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
++        <div>
++          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
++            Gestor de Blog y Noticias de Salud (CMS)
++          </h1>
++          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
++            Administra los artículos clínicos, noticias y consejos nutricionales publicados en la web.
++          </p>
++        </div>
++
++        <button
++          @click="$router.push('/blog/nuevo')"
++          class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-brand-700 transition-colors"
++        >
++          <PlusIcon class="w-4 h-4" />
++          <span>Redactar Nuevo Artículo</span>
++        </button>
++      </div>
++
++      <!-- Filtros y Búsqueda -->
++      <div class="flex flex-col sm:flex-row gap-3 justify-end items-center rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
++        <select
++          v-model="filtroEstado"
++          class="w-full sm:w-48 rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
++        >
++          <option value="">Todos los Estados</option>
++          <option value="Publicado">Publicados</option>
++          <option value="Borrador">Borradores</option>
++          <option value="Archivado">Archivados</option>
++        </select>
++        <div class="w-full sm:w-72">
++          <input
++            v-model="searchQuery"
++            type="text"
++            placeholder="Buscar por título o autor..."
++            class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
++          />
++        </div>
++      </div>
++
++      <!-- Loading Skeleton -->
++      <LoadingSkeleton v-if="loading" :rows="4" type="table" />
++
++      <!-- Estado Vacío -->
++      <EmptyState
++        v-else-if="postsFiltrados.length === 0"
++        title="No se encontraron artículos"
++        description="No hay publicaciones registradas que coincidan con la búsqueda."
++        actionText="Redactar Nuevo Artículo"
++        @action="$router.push('/blog/nuevo')"
++      />
++
++      <!-- Tabla de Artículos -->
++      <div v-else class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs dark:border-gray-800 dark:bg-gray-900">
++        <div class="overflow-x-auto">
++          <table class="w-full text-left text-xs text-gray-500 dark:text-gray-400">
++            <thead class="bg-gray-50 text-[11px] uppercase tracking-wider text-gray-700 dark:bg-gray-800/50 dark:text-gray-300">
++              <tr>
++                <th scope="col" class="px-5 py-3.5 font-semibold">Artículo</th>
++                <th scope="col" class="px-5 py-3.5 font-semibold">Slug (URL)</th>
++                <th scope="col" class="px-5 py-3.5 font-semibold">Autor</th>
++                <th scope="col" class="px-5 py-3.5 font-semibold">Fecha de Publicación</th>
++                <th scope="col" class="px-5 py-3.5 font-semibold">Estado</th>
++                <th scope="col" class="px-5 py-3.5 font-semibold text-right">Acciones</th>
++              </tr>
++            </thead>
++            <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
++              <tr
++                v-for="post in postsFiltrados"
++                :key="post.id"
++                class="hover:bg-gray-50/50 transition-colors dark:hover:bg-gray-800/50"
++              >
++                <!-- Título e Imagen -->
++                <td class="px-5 py-4">
++                  <div class="flex items-center gap-3">
++                    <img
++                      v-if="post.imagen_url"
++                      :src="post.imagen_url"
++                      alt="Miniatura"
++                      class="h-10 w-12 rounded-lg object-cover border border-gray-200 dark:border-gray-700"
++                    />
++                    <div v-else class="flex h-10 w-12 items-center justify-center rounded-lg bg-gray-100 text-gray-400 dark:bg-gray-800">
++                      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
++                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
++                      </svg>
++                    </div>
++                    <div>
++                      <span class="font-bold text-gray-900 dark:text-white block max-w-xs truncate">{{ post.titulo }}</span>
++                      <span class="text-[11px] text-gray-400 block max-w-xs truncate">{{ post.resumen || 'Sin resumen' }}</span>
++                    </div>
++                  </div>
++                </td>
++
++                <!-- Slug -->
++                <td class="px-5 py-4 font-mono text-[11px] text-brand-600 dark:text-brand-400 max-w-xs truncate">
++                  /blog/{{ post.slug }}
++                </td>
++
++                <!-- Autor -->
++                <td class="px-5 py-4 font-medium text-gray-800 dark:text-gray-200">
++                  {{ post.autor }}
++                </td>
++
++                <!-- Fecha -->
++                <td class="px-5 py-4 text-gray-700 dark:text-gray-300 font-medium whitespace-nowrap">
++                  {{ post.fecha_publicacion }}
++                </td>
++
++                <!-- Estado -->
++                <td class="px-5 py-4">
++                  <span
++                    class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold"
++                    :class="{
++                      'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300': post.estado === 'Publicado',
++                      'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300': post.estado === 'Borrador',
++                      'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300': post.estado === 'Archivado'
++                    }"
++                  >
++                    <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
++                    {{ post.estado }}
++                  </span>
++                </td>
++
++                <!-- Acciones -->
++                <td class="px-5 py-4 text-right">
++                  <div class="flex justify-end gap-2">
++                    <button
++                      @click="$router.push(`/blog/editar/${post.id}`)"
++                      title="Editar artículo"
++                      class="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-brand-600 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-brand-400 transition-colors"
++                    >
++                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
++                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
++                      </svg>
++                    </button>
++                    <button
++                      @click="confirmarEliminar(post)"
++                      title="Eliminar artículo"
++                      class="rounded-lg p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition-colors"
++                    >
++                      <TrashIcon class="w-4 h-4" />
++                    </button>
++                  </div>
++                </td>
++              </tr>
++            </tbody>
++          </table>
++        </div>
++      </div>
++    </div>
++  </AdminLayout>
++</template>
++
++<script setup>
++import { ref, computed, onMounted } from 'vue'
++import AdminLayout from '../components/layout/AdminLayout.vue'
++import LoadingSkeleton from '../components/common/LoadingSkeleton.vue'
++import EmptyState from '../components/common/EmptyState.vue'
++import { PlusIcon, TrashIcon } from '../icons'
++import { blogApi } from '../api'
++
++const posts = ref([])
++const loading = ref(true)
++const searchQuery = ref('')
++const filtroEstado = ref('')
++
++const fetchPosts = async () => {
++  try {
++    loading.value = true
++    posts.value = await blogApi.getAllAdmin()
++  } catch (error) {
++    console.error('Error al cargar artículos del blog:', error)
++  } finally {
++    loading.value = false
++  }
++}
++
++onMounted(() => {
++  fetchPosts()
++})
++
++const postsFiltrados = computed(() => {
++  return posts.value.filter(item => {
++    const coincideEstado = !filtroEstado.value || item.estado === filtroEstado.value
++    const query = searchQuery.value.toLowerCase().trim()
++    const coincideBusqueda = !query ||
++      (item.titulo && item.titulo.toLowerCase().includes(query)) ||
++      (item.autor && item.autor.toLowerCase().includes(query)) ||
++      (item.slug && item.slug.toLowerCase().includes(query))
++
++    return coincideEstado && coincideBusqueda
++  })
++})
++
++const confirmarEliminar = async (post) => {
++  if (confirm(`¿Estás seguro de eliminar el artículo "${post.titulo}"?`)) {
++    try {
++      await blogApi.delete(post.id)
++      await fetchPosts()
++    } catch (error) {
++      alert('Error al eliminar el artículo: ' + error.message)
++    }
++  }
++}
++</script>
+diff --git a/admin/src/views/BlogPostForm.vue b/admin/src/views/BlogPostForm.vue
+new file mode 100644
+index 0000000..f6dc947
+--- /dev/null
++++ b/admin/src/views/BlogPostForm.vue
+@@ -0,0 +1,440 @@
++<template>
++  <AdminLayout>
++    <div class="w-full">
++      <FormSection
++        :title="isEditing ? 'Editar Artículo de Blog' : 'Redactar Nuevo Artículo de Salud'"
++        :loading="saving"
++        :submitText="isEditing ? 'Actualizar Artículo' : 'Publicar Artículo'"
++        @submit="guardar"
++        @cancel="cancelar"
++      >
++        <div v-if="errorMsg" class="rounded-xl bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 mb-4">
++          {{ errorMsg }}
++        </div>
++
++        <div class="space-y-5 text-xs">
++          <!-- Título y Estado -->
++          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
++            <div class="sm:col-span-2">
++              <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Título del Artículo *</label>
++              <input
++                v-model="form.titulo"
++                type="text"
++                required
++                placeholder="Ej. 5 Consejos Clave para una Alimentación Balanceada en 2026"
++                class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs font-bold text-gray-900 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
++              />
++            </div>
++
++            <div>
++              <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Estado de Publicación *</label>
++              <select
++                v-model="form.estado"
++                required
++                class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
++              >
++                <option value="Publicado">Publicado</option>
++                <option value="Borrador">Borrador</option>
++                <option value="Archivado">Archivado</option>
++              </select>
++            </div>
++          </div>
++
++          <!-- Imagen de Portada y Autor -->
++          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
++            <div>
++              <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Imagen de Portada</label>
++              
++              <!-- Input oculto para subir archivo -->
++              <input
++                ref="fileInputPortada"
++                type="file"
++                accept="image/*"
++                class="hidden"
++                @change="subirFotoPortada"
++              />
++
++              <!-- Preview de la foto o botón de subida -->
++              <div v-if="form.imagen_url" class="relative group mt-1">
++                <img :src="form.imagen_url" alt="Portada" class="h-28 w-full rounded-xl object-cover border border-gray-200 dark:border-gray-700" />
++                <button
++                  type="button"
++                  @click="form.imagen_url = ''"
++                  class="absolute top-2 right-2 rounded-lg bg-red-600 px-2 py-1 text-[10px] font-bold text-white shadow-md hover:bg-red-700 transition-colors"
++                >
++                  Eliminar foto
++                </button>
++              </div>
++
++              <div v-else class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 p-4 text-center dark:border-gray-700 hover:border-brand-500 transition-colors">
++                <button
++                  type="button"
++                  @click="fileInputPortada.click()"
++                  :disabled="uploadingPortada"
++                  class="inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-3.5 py-2 text-xs font-semibold text-brand-600 dark:bg-brand-950/50 dark:text-brand-300 hover:bg-brand-100 transition-colors"
++                >
++                  <span v-if="uploadingPortada">Subiendo...</span>
++                  <span v-else>Elegir foto</span>
++                </button>
++              </div>
++            </div>
++
++            <div>
++              <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Autor *</label>
++              <input
++                v-model="form.autor"
++                type="text"
++                required
++                placeholder="Dra. Alexa Lora"
++                class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
++              />
++            </div>
++          </div>
++
++          <!-- Resumen Breve -->
++          <div>
++            <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Resumen Breve</label>
++            <textarea
++              v-model="form.resumen"
++              rows="2"
++              placeholder="Escribe una breve introducción para motivar a tus pacientes a leer el artículo..."
++              class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
++            ></textarea>
++          </div>
++
++          <!-- Editor Visual -->
++          <div>
++            <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Contenido del Artículo *</label>
++
++            <!-- Input oculto para insertar imágenes en el editor -->
++            <input
++              ref="fileInputEditor"
++              type="file"
++              accept="image/*"
++              class="hidden"
++              @change="subirFotoEditor"
++            />
++
++            <!-- Barra de Herramientas Visual -->
++            <div class="rounded-t-xl border border-gray-300 bg-gray-100 p-2 flex flex-wrap items-center gap-1.5 dark:border-gray-700 dark:bg-gray-800">
++              <button
++                type="button"
++                @click="execCmd('bold')"
++                title="Negrita"
++                class="px-2.5 py-1 text-xs font-bold rounded hover:bg-white dark:hover:bg-gray-700 border border-transparent hover:border-gray-200 dark:hover:border-gray-600 transition-all"
++              >
++                <b>B</b>
++              </button>
++              <button
++                type="button"
++                @click="execCmd('italic')"
++                title="Cursiva"
++                class="px-2.5 py-1 text-xs italic rounded hover:bg-white dark:hover:bg-gray-700 border border-transparent hover:border-gray-200 dark:hover:border-gray-600 transition-all"
++              >
++                <i>I</i>
++              </button>
++              <div class="h-4 w-px bg-gray-300 dark:bg-gray-700 mx-1"></div>
++              <button
++                type="button"
++                @click="execCmd('formatBlock', 'h2')"
++                title="Título Sección"
++                class="px-2.5 py-1 text-xs font-bold text-brand-600 dark:text-brand-400 rounded hover:bg-white dark:hover:bg-gray-700 border border-transparent hover:border-gray-200 dark:hover:border-gray-600 transition-all"
++              >
++                Título H2
++              </button>
++              <button
++                type="button"
++                @click="execCmd('formatBlock', 'h3')"
++                title="Subtítulo"
++                class="px-2.5 py-1 text-xs font-semibold rounded hover:bg-white dark:hover:bg-gray-700 border border-transparent hover:border-gray-200 dark:hover:border-gray-600 transition-all"
++              >
++                Subtítulo H3
++              </button>
++              <div class="h-4 w-px bg-gray-300 dark:bg-gray-700 mx-1"></div>
++              <button
++                type="button"
++                @click="execCmd('insertUnorderedList')"
++                title="Lista con Viñetas"
++                class="px-2.5 py-1 text-xs rounded hover:bg-white dark:hover:bg-gray-700 border border-transparent hover:border-gray-200 dark:hover:border-gray-600 transition-all"
++              >
++                • Lista
++              </button>
++              <button
++                type="button"
++                @click="execCmd('formatBlock', 'blockquote')"
++                title="Cita Destacada"
++                class="px-2.5 py-1 text-xs italic rounded hover:bg-white dark:hover:bg-gray-700 border border-transparent hover:border-gray-200 dark:hover:border-gray-600 transition-all"
++              >
++                “Cita”
++              </button>
++              <div class="h-4 w-px bg-gray-300 dark:bg-gray-700 mx-1"></div>
++              
++              <!-- Botón Subir Foto -->
++              <button
++                type="button"
++                @click="fileInputEditor.click()"
++                :disabled="uploadingEditor"
++                title="Subir foto desde tu computadora"
++                class="px-2.5 py-1 text-xs rounded bg-brand-50 text-brand-600 font-semibold hover:bg-brand-100 dark:bg-brand-950/50 dark:text-brand-300 transition-all"
++              >
++                <span v-if="uploadingEditor">Subiendo...</span>
++                <span v-else>Insertar foto</span>
++              </button>
++
++              <button
++                type="button"
++                @click="execCmd('removeFormat')"
++                title="Limpiar Formato"
++                class="ml-auto px-2 py-1 text-[10px] text-gray-500 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
++              >
++                Limpiar formato
++              </button>
++            </div>
++
++            <!-- Lienzo de Redacción Visual -->
++            <div
++              ref="editorRef"
++              contenteditable="true"
++              @input="onEditorInput"
++              class="editor-content min-h-[260px] rounded-b-xl border border-t-0 border-gray-300 bg-white p-4 text-xs text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 leading-relaxed font-sans prose dark:prose-invert max-w-none"
++            ></div>
++          </div>
++        </div>
++      </FormSection>
++    </div>
++  </AdminLayout>
++</template>
++
++<script setup>
++import { ref, computed, onMounted, nextTick } from 'vue'
++import { useRoute, useRouter } from 'vue-router'
++import AdminLayout from '../components/layout/AdminLayout.vue'
++import FormSection from '../components/common/FormSection.vue'
++import { blogApi } from '../api'
++
++const route = useRoute()
++const router = useRouter()
++
++const isEditing = computed(() => !!route.params.id)
++const saving = ref(false)
++const errorMsg = ref('')
++const editorRef = ref(null)
++
++const fileInputPortada = ref(null)
++const fileInputEditor = ref(null)
++const uploadingPortada = ref(false)
++const uploadingEditor = ref(false)
++
++const form = ref({
++  titulo: '',
++  resumen: '',
++  contenido_html: '',
++  imagen_url: '',
++  autor: 'Dra. Alexa Lora',
++  fecha_publicacion: new Date().toISOString().split('T')[0],
++  estado: 'Publicado'
++})
++
++onMounted(async () => {
++  if (isEditing.value) {
++    try {
++      const data = await blogApi.getById(route.params.id)
++      if (data) {
++        form.value = {
++          titulo: data.titulo || '',
++          resumen: data.resumen || '',
++          contenido_html: data.contenido_html || '',
++          imagen_url: data.imagen_url || '',
++          autor: data.autor || 'Dra. Alexa Lora',
++          fecha_publicacion: data.fecha_publicacion || new Date().toISOString().split('T')[0],
++          estado: data.estado || 'Publicado'
++        }
++        await nextTick()
++        if (editorRef.value) {
++          editorRef.value.innerHTML = form.value.contenido_html
++        }
++      }
++    } catch (err) {
++      errorMsg.value = 'Error al cargar los datos del artículo.'
++    }
++  }
++})
++
++const onEditorInput = () => {
++  if (editorRef.value) {
++    form.value.contenido_html = editorRef.value.innerHTML
++  }
++}
++
++const execCmd = (command, value = null) => {
++  if (!editorRef.value) return
++  editorRef.value.focus()
++
++  if (command === 'formatBlock') {
++    const selection = window.getSelection()
++    if (selection && selection.rangeCount > 0) {
++      let parentNode = selection.getRangeAt(0).commonAncestorContainer
++      if (parentNode.nodeType === 3) parentNode = parentNode.parentNode // Nodo de texto
++
++      const targetTag = value.toUpperCase()
++      let currentBlock = parentNode
++      let isAlreadyTarget = false
++
++      while (currentBlock && currentBlock !== editorRef.value) {
++        if (currentBlock.nodeName === targetTag) {
++          isAlreadyTarget = true
++          break
++        }
++        currentBlock = currentBlock.parentNode
++      }
++
++      if (isAlreadyTarget) {
++        document.execCommand('formatBlock', false, 'p')
++      } else {
++        document.execCommand('formatBlock', false, value)
++      }
++    } else {
++      document.execCommand('formatBlock', false, value)
++    }
++  } else {
++    document.execCommand(command, false, value)
++  }
++
++  onEditorInput()
++}
++
++const subirFotoPortada = async (event) => {
++  const file = event.target.files[0]
++  if (!file) return
++
++  try {
++    uploadingPortada.value = true
++    errorMsg.value = ''
++    const formData = new FormData()
++    formData.append('imagen', file)
++
++    const res = await blogApi.uploadImagen(formData)
++    if (res && res.url) {
++      form.value.imagen_url = res.url
++    }
++  } catch (err) {
++    errorMsg.value = 'Error al subir la foto de portada: ' + err.message
++  } finally {
++    uploadingPortada.value = false
++    if (fileInputPortada.value) fileInputPortada.value.value = ''
++  }
++}
++
++const subirFotoEditor = async (event) => {
++  const file = event.target.files[0]
++  if (!file) return
++
++  try {
++    uploadingEditor.value = true
++    errorMsg.value = ''
++    const formData = new FormData()
++    formData.append('imagen', file)
++
++    const res = await blogApi.uploadImagen(formData)
++    if (res && res.url) {
++      execCmd('insertImage', res.url)
++    }
++  } catch (err) {
++    errorMsg.value = 'Error al subir la foto del artículo: ' + err.message
++  } finally {
++    uploadingEditor.value = false
++    if (fileInputEditor.value) fileInputEditor.value.value = ''
++  }
++}
++
++const guardar = async () => {
++  try {
++    saving.value = true
++    errorMsg.value = ''
++
++    if (editorRef.value) {
++      form.value.contenido_html = editorRef.value.innerHTML
++    }
++
++    if (!form.value.titulo || !form.value.contenido_html || form.value.contenido_html.trim() === '') {
++      errorMsg.value = 'Por favor ingresa el título y el contenido del artículo.'
++      return
++    }
++
++    if (isEditing.value) {
++      await blogApi.update(route.params.id, form.value)
++    } else {
++      await blogApi.create(form.value)
++    }
++
++    router.push('/blog')
++  } catch (err) {
++    errorMsg.value = err.message || 'Error al guardar el artículo.'
++  } finally {
++    saving.value = false
++  }
++}
++
++const cancelar = () => {
++  router.push('/blog')
++}
++</script>
++
++<style>
++.editor-content h2 {
++  font-size: 1.25rem !important; /* 20px */
++  font-weight: 700 !important;
++  color: #111827 !important;
++  margin-top: 0.75rem !important;
++  margin-bottom: 0.5rem !important;
++  display: block !important;
++}
++
++.editor-content h3 {
++  font-size: 1.05rem !important; /* 17px */
++  font-weight: 600 !important;
++  color: #1f2937 !important;
++  margin-top: 0.5rem !important;
++  margin-bottom: 0.25rem !important;
++  display: block !important;
++}
++
++.editor-content ul {
++  list-style-type: disc !important;
++  padding-left: 1.25rem !important;
++  margin-top: 0.5rem !important;
++  margin-bottom: 0.5rem !important;
++}
++
++.editor-content li {
++  margin-bottom: 0.25rem !important;
++}
++
++.editor-content blockquote {
++  border-left: 4px solid #10b981 !important;
++  padding-left: 0.75rem !important;
++  font-style: italic !important;
++  color: #4b5563 !important;
++  margin-top: 0.5rem !important;
++  margin-bottom: 0.5rem !important;
++}
++
++.editor-content img {
++  max-width: 100% !important;
++  border-radius: 0.75rem !important;
++  margin-top: 0.75rem !important;
++  margin-bottom: 0.75rem !important;
++}
++
++.dark .editor-content h2 {
++  color: #ffffff !important;
++}
++
++.dark .editor-content h3 {
++  color: #f3f4f6 !important;
++}
++
++.dark .editor-content blockquote {
++  color: #9ca3af !important;
++}
++</style>
+diff --git a/server/controllers/blogController.js b/server/controllers/blogController.js
+new file mode 100644
+index 0000000..e88d284
+--- /dev/null
++++ b/server/controllers/blogController.js
+@@ -0,0 +1,258 @@
++import pool from '../db/pool.js'
++import { generarIdUnico } from '../utils/generarId.js'
++
++/**
++ * Controlador de Blog CMS (Artículos y Noticias de Salud)
++ */
++
++const slugify = (text) => {
++  return text
++    .toString()
++    .toLowerCase()
++    .trim()
++    .normalize('NFD')
++    .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
++    .replace(/\s+/g, '-')
++    .replace(/[^\w\-]+/g, '')
++    .replace(/\-\-+/g, '-')
++}
++
++// ─── POST /api/blog/upload-imagen (Subir foto a Cloudinary) ───────────────
++export const uploadImagen = async (req, res) => {
++  try {
++    if (!req.file) {
++      return res.status(400).json({ error: 'No se proporcionó ningún archivo de imagen' })
++    }
++    // req.file.path contiene la URL de Cloudinary generada por multer-storage-cloudinary
++    res.json({ url: req.file.path })
++  } catch (error) {
++    console.error('uploadImagen error:', error.message)
++    res.status(500).json({ error: 'Error al subir la imagen a Cloudinary', detalle: error.message })
++  }
++}
++
++// ─── GET /api/blog (Público - Solo artículos en estado 'Publicado') ──────────
++export const getPublicPosts = async (req, res) => {
++  try {
++    const query = `
++      SELECT id,
++             titulo,
++             slug,
++             resumen,
++             contenido_html,
++             imagen_url,
++             autor,
++             TO_CHAR(fecha_publicacion, 'YYYY-MM-DD') AS "fecha_publicacion",
++             estado,
++             created_at
++      FROM posts_blog
++      WHERE estado = 'Publicado' AND deleted_at IS NULL
++      ORDER BY fecha_publicacion DESC, created_at DESC
++    `
++    const { rows } = await pool.query(query)
++    res.json(rows)
++  } catch (error) {
++    console.error('getPublicPosts error:', error.message)
++    res.status(500).json({ error: 'Error al obtener los artículos del blog', detalle: error.message })
++  }
++}
++
++// ─── GET /api/blog/:slug (Público - Obtener un artículo por slug) ───────────
++export const getPostBySlug = async (req, res) => {
++  try {
++    const { slug } = req.params
++    const query = `
++      SELECT id,
++             titulo,
++             slug,
++             resumen,
++             contenido_html,
++             imagen_url,
++             autor,
++             TO_CHAR(fecha_publicacion, 'YYYY-MM-DD') AS "fecha_publicacion",
++             estado,
++             created_at
++      FROM posts_blog
++      WHERE slug = $1 AND estado = 'Publicado' AND deleted_at IS NULL
++    `
++    const { rows } = await pool.query(query, [slug])
++    if (rows.length === 0) {
++      return res.status(404).json({ error: 'Artículo no encontrado' })
++    }
++    res.json(rows[0])
++  } catch (error) {
++    console.error('getPostBySlug error:', error.message)
++    res.status(500).json({ error: 'Error al obtener el artículo', detalle: error.message })
++  }
++}
++
++// ─── GET /api/blog/admin/all (Admin - Todos los artículos) ──────────────────
++export const getAdminPosts = async (req, res) => {
++  try {
++    const query = `
++      SELECT id,
++             titulo,
++             slug,
++             resumen,
++             contenido_html,
++             imagen_url,
++             autor,
++             TO_CHAR(fecha_publicacion, 'YYYY-MM-DD') AS "fecha_publicacion",
++             estado,
++             created_at,
++             updated_at
++      FROM posts_blog
++      WHERE deleted_at IS NULL
++      ORDER BY created_at DESC
++    `
++    const { rows } = await pool.query(query)
++    res.json(rows)
++  } catch (error) {
++    console.error('getAdminPosts error:', error.message)
++    res.status(500).json({ error: 'Error al obtener los posts del panel', detalle: error.message })
++  }
++}
++
++// ─── GET /api/blog/admin/:id (Admin - Obtener post por ID) ──────────────────
++export const getPostById = async (req, res) => {
++  try {
++    const { id } = req.params
++    const query = `
++      SELECT id,
++             titulo,
++             slug,
++             resumen,
++             contenido_html,
++             imagen_url,
++             autor,
++             TO_CHAR(fecha_publicacion, 'YYYY-MM-DD') AS "fecha_publicacion",
++             estado,
++             created_at,
++             updated_at
++      FROM posts_blog
++      WHERE id = $1 AND deleted_at IS NULL
++    `
++    const { rows } = await pool.query(query, [id])
++    if (rows.length === 0) {
++      return res.status(404).json({ error: 'Artículo no encontrado' })
++    }
++    res.json(rows[0])
++  } catch (error) {
++    console.error('getPostById error:', error.message)
++    res.status(500).json({ error: 'Error al obtener el artículo', detalle: error.message })
++  }
++}
++
++// ─── POST /api/blog (Admin - Crear nuevo artículo) ──────────────────────────
++export const createPost = async (req, res) => {
++  try {
++    const { titulo, resumen, contenido_html, imagen_url, autor, fecha_publicacion, estado } = req.body
++
++    if (!titulo || !contenido_html) {
++      return res.status(400).json({ error: 'El título y el contenido del artículo son obligatorios' })
++    }
++
++    const finalImagenUrl = req.file ? req.file.path : (imagen_url || null)
++
++    const baseSlug = slugify(titulo)
++    let finalSlug = baseSlug
++    const existingSlug = await pool.query('SELECT id FROM posts_blog WHERE slug = $1 AND deleted_at IS NULL', [finalSlug])
++    if (existingSlug.rows.length > 0) {
++      finalSlug = `${baseSlug}-${Date.now().toString().slice(-4)}`
++    }
++
++    const newId = await generarIdUnico('posts_blog')
++    const insertQuery = `
++      INSERT INTO posts_blog (id, titulo, slug, resumen, contenido_html, imagen_url, autor, fecha_publicacion, estado)
++      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
++      RETURNING *, TO_CHAR(fecha_publicacion, 'YYYY-MM-DD') AS "fecha_publicacion"
++    `
++    const { rows } = await pool.query(insertQuery, [
++      newId,
++      titulo,
++      finalSlug,
++      resumen || null,
++      contenido_html,
++      finalImagenUrl,
++      autor || 'Dra. Alexa Lora',
++      fecha_publicacion || new Date().toISOString().split('T')[0],
++      estado || 'Publicado'
++    ])
++
++    res.status(201).json(rows[0])
++  } catch (error) {
++    console.error('createPost error:', error.message)
++    res.status(500).json({ error: 'Error al publicar el artículo', detalle: error.message })
++  }
++}
++
++// ─── PUT /api/blog/:id (Admin - Actualizar artículo) ─────────────────────────
++export const updatePost = async (req, res) => {
++  try {
++    const { id } = req.params
++    const { titulo, resumen, contenido_html, imagen_url, autor, fecha_publicacion, estado } = req.body
++
++    const existing = await pool.query('SELECT * FROM posts_blog WHERE id = $1 AND deleted_at IS NULL', [id])
++    if (existing.rows.length === 0) {
++      return res.status(404).json({ error: 'Artículo no encontrado' })
++    }
++
++    const current = existing.rows[0]
++    const finalImagenUrl = req.file ? req.file.path : (imagen_url !== undefined ? imagen_url : current.imagen_url)
++
++    let newSlug = current.slug
++    if (titulo && titulo !== current.titulo) {
++      const baseSlug = slugify(titulo)
++      newSlug = baseSlug
++      const existingSlug = await pool.query('SELECT id FROM posts_blog WHERE slug = $1 AND id != $2 AND deleted_at IS NULL', [newSlug, id])
++      if (existingSlug.rows.length > 0) {
++        newSlug = `${baseSlug}-${Date.now().toString().slice(-4)}`
++      }
++    }
++
++    const updateQuery = `
++      UPDATE posts_blog
++      SET titulo = $1, slug = $2, resumen = $3, contenido_html = $4,
++          imagen_url = $5, autor = $6, fecha_publicacion = $7, estado = $8, updated_at = NOW()
++      WHERE id = $9 AND deleted_at IS NULL
++      RETURNING *, TO_CHAR(fecha_publicacion, 'YYYY-MM-DD') AS "fecha_publicacion"
++    `
++    const { rows } = await pool.query(updateQuery, [
++      titulo || current.titulo,
++      newSlug,
++      resumen !== undefined ? resumen : current.resumen,
++      contenido_html || current.contenido_html,
++      finalImagenUrl,
++      autor || current.autor,
++      fecha_publicacion || current.fecha_publicacion,
++      estado || current.estado,
++      id
++    ])
++
++    res.json(rows[0])
++  } catch (error) {
++    console.error('updatePost error:', error.message)
++    res.status(500).json({ error: 'Error al actualizar el artículo', detalle: error.message })
++  }
++}
++
++// ─── DELETE /api/blog/:id (Admin - Soft Delete) ─────────────────────────────
++export const deletePost = async (req, res) => {
++  try {
++    const { id } = req.params
++    const query = `
++      UPDATE posts_blog
++      SET deleted_at = NOW()
++      WHERE id = $1 AND deleted_at IS NULL
++      RETURNING id
++    `
++    const { rows } = await pool.query(query, [id])
++    if (rows.length === 0) {
++      return res.status(404).json({ error: 'Artículo no encontrado' })
++    }
++    res.json({ message: 'Artículo eliminado correctamente', id: rows[0].id })
++  } catch (error) {
++    console.error('deletePost error:', error.message)
++    res.status(500).json({ error: 'Error al eliminar el artículo', detalle: error.message })
++  }
++}
+diff --git a/server/db/migrate_all.js b/server/db/migrate_all.js
+index 3e06fa4..9b59883 100644
+--- a/server/db/migrate_all.js
++++ b/server/db/migrate_all.js
+@@ -205,6 +205,22 @@ const resetTablesSQL = `
+     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     deleted_at      TIMESTAMPTZ DEFAULT NULL
+   );
++
++  -- 14. Posts del Blog
++  CREATE TABLE IF NOT EXISTS posts_blog (
++    id                VARCHAR(8) PRIMARY KEY,
++    titulo            VARCHAR(255) NOT NULL,
++    slug              VARCHAR(255) NOT NULL UNIQUE,
++    resumen           TEXT DEFAULT NULL,
++    contenido_html    TEXT NOT NULL,
++    imagen_url        TEXT DEFAULT NULL,
++    autor             VARCHAR(150) NOT NULL DEFAULT 'Dra. Alexa Lora',
++    fecha_publicacion DATE NOT NULL DEFAULT CURRENT_DATE,
++    estado            VARCHAR(20) NOT NULL DEFAULT 'Publicado' CHECK (estado IN ('Borrador', 'Publicado', 'Archivado')),
++    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
++    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
++    deleted_at        TIMESTAMPTZ DEFAULT NULL
++  );
+ `
+ 
+ async function migrateAll() {
+diff --git a/server/db/migrate_blog.js b/server/db/migrate_blog.js
+new file mode 100644
+index 0000000..a86c886
+--- /dev/null
++++ b/server/db/migrate_blog.js
+@@ -0,0 +1,35 @@
++import pool from './pool.js'
++
++const createBlogSQL = `
++  CREATE TABLE IF NOT EXISTS posts_blog (
++    id                VARCHAR(8) PRIMARY KEY,
++    titulo            VARCHAR(255) NOT NULL,
++    slug              VARCHAR(255) NOT NULL UNIQUE,
++    resumen           TEXT DEFAULT NULL,
++    contenido_html    TEXT NOT NULL,
++    imagen_url        TEXT DEFAULT NULL,
++    autor             VARCHAR(150) NOT NULL DEFAULT 'Dra. Alexa Lora',
++    fecha_publicacion DATE NOT NULL DEFAULT CURRENT_DATE,
++    estado            VARCHAR(20) NOT NULL DEFAULT 'Publicado' CHECK (estado IN ('Borrador', 'Publicado', 'Archivado')),
++    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
++    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
++    deleted_at        TIMESTAMPTZ DEFAULT NULL
++  );
++`
++
++async function migrate() {
++  const client = await pool.connect()
++  try {
++    console.log('🚀 Ejecutando migración de Blog CMS...')
++    await client.query(createBlogSQL)
++    console.log('✅ Tabla "posts_blog" creada/verificada correctamente en Neon DB.')
++  } catch (err) {
++    console.error('❌ Error en la migración de blog:', err.message)
++    process.exit(1)
++  } finally {
++    client.release()
++    await pool.end()
++  }
++}
++
++migrate()
+diff --git a/server/index.js b/server/index.js
+index 7d0bf56..0358ef8 100644
+--- a/server/index.js
++++ b/server/index.js
+@@ -17,6 +17,7 @@ import zonasEnvioRouter from './routes/zonasEnvio.js'
+ import iaRouter from './routes/ia.js'
+ import ordenesRouter from './routes/ordenes.js'
+ import publicRouter from './routes/public.js'
++import blogRouter from './routes/blog.js'
+ 
+ dotenv.config()
+ 
+@@ -60,6 +61,7 @@ app.use('/api/expedientes', expedientesRouter)
+ app.use('/api/zonas-envio', zonasEnvioRouter)
+ app.use('/api/ia', iaRouter)
+ app.use('/api/ordenes', ordenesRouter)
++app.use('/api/blog', blogRouter)
+ app.use('/api/public', publicRouter)
+ 
+ // ── 404 ────────────────────────────────────────────────
+diff --git a/server/routes/blog.js b/server/routes/blog.js
+new file mode 100644
+index 0000000..6619192
+--- /dev/null
++++ b/server/routes/blog.js
+@@ -0,0 +1,32 @@
++import express from 'express'
++import { verificarToken } from '../middleware/authMiddleware.js'
++import { upload } from '../middleware/upload.js'
++import {
++  getPublicPosts,
++  getPostBySlug,
++  getAdminPosts,
++  getPostById,
++  createPost,
++  updatePost,
++  deletePost,
++  uploadImagen
++} from '../controllers/blogController.js'
++
++/**
++ * Rutas de Blog CMS (Públicas y de Administración con Cloudinary)
++ */
++const router = express.Router()
++
++// Rutas Públicas (para Landing Page / Cliente)
++router.get('/', getPublicPosts)
++router.get('/post/:slug', getPostBySlug)
++
++// Rutas Protegidas de Administración
++router.get('/admin/all', verificarToken, getAdminPosts)
++router.get('/admin/:id', verificarToken, getPostById)
++router.post('/upload-imagen', verificarToken, upload.single('imagen'), uploadImagen)
++router.post('/', verificarToken, upload.single('imagen'), createPost)
++router.put('/:id', verificarToken, upload.single('imagen'), updatePost)
++router.delete('/:id', verificarToken, deletePost)
++
++export default router
+diff --git a/server/routes/public.js b/server/routes/public.js
+index 6f43f02..117015b 100644
+--- a/server/routes/public.js
++++ b/server/routes/public.js
+@@ -17,7 +17,10 @@ router.get('/zonas-envio', getZonasEnvioPublicas)
+ // Endpoint público para procesar compras / checkout
+ router.post('/checkout', procesarCheckoutPublico)
+ 
+-// Endpoint público para agendar citas en línea
+-router.post('/citas', agendarCitaPublica)
++import { getPublicPosts, getPostBySlug } from '../controllers/blogController.js'
++
++// Endpoints públicos para Blog / Noticias de Salud
++router.get('/blog', getPublicPosts)
++router.get('/blog/:slug', getPostBySlug)
+ 
+ export default router

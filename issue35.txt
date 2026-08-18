@@ -1,0 +1,22 @@
+title:	[Client/Front] Portal del Paciente (Dashboard Privado)
+state:	OPEN
+author:	DmnCrtSWL (DmnCrt88)
+labels:	
+comments:	0
+assignees:	DmnCrtSWL (DmnCrt88)
+projects:	
+milestone:	
+issue-type:	
+parent:	
+sub-issues:	
+sub-issues-completed:	
+blocked-by:	
+blocking:	
+number:	35
+--
+El área privada donde el paciente inicia sesión para ver sus menús semanales, expediente y métricas.
+
+**Criterios de Aceptación:**
+- [ ] **Instrucción para el Agente:** Ejecutar `/grill-me` preguntando por: ¿Cómo mostrar las métricas antropométricas (gráficas o tarjetas)? Diseño de la grilla de menús (lunes a domingo).
+- [ ] Consumir los endpoints autenticados de Expediente y Menús.
+- [ ] Maquetar el Dashboard privado, asegurando que se sienta exclusivo y profesional.
