@@ -1,12 +1,6 @@
-import { createRequire } from 'module'
-const require = createRequire(import.meta.url)
-const pdfParse = require('pdf-parse')
-
 import pool from '../db/pool.js'
 import { generarIdUnico } from '../utils/generarId.js'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import * as xlsx from 'xlsx'
-import mammoth from 'mammoth'
 
 const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || ''
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null
@@ -21,14 +15,20 @@ const HORARIOS_DISPONIBLES = [
 async function extraerTexto(buffer, mimetype, originalname) {
   try {
     if (mimetype === 'application/pdf') {
+      const pdfParseModule = await import('pdf-parse')
+      const pdfParse = pdfParseModule.default || pdfParseModule
       const data = await pdfParse(buffer)
       return data.text
     } else if (originalname.endsWith('.xlsx') || originalname.endsWith('.xls') || originalname.endsWith('.csv')) {
+      const xlsxModule = await import('xlsx')
+      const xlsx = xlsxModule.default || xlsxModule
       const workbook = xlsx.read(buffer, { type: 'buffer' })
       const sheetName = workbook.SheetNames[0]
       const sheet = workbook.Sheets[sheetName]
       return xlsx.utils.sheet_to_csv(sheet)
     } else if (originalname.endsWith('.docx')) {
+      const mammothModule = await import('mammoth')
+      const mammoth = mammothModule.default || mammothModule
       const result = await mammoth.extractRawText({ buffer })
       return result.value
     } else {
