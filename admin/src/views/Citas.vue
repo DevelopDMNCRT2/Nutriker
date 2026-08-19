@@ -306,7 +306,7 @@ async function uploadImportFile() {
     const result = await citasApi.importar(formData)
     alert(result.message || 'Importación exitosa.')
     closeImportModal()
-    await fetchCitas()
+    await loadCitas()
   } catch (err: any) {
     console.error('Error importando:', err)
     alert(err.message || 'Error al importar archivo.')
