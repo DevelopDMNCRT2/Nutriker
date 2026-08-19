@@ -33,9 +33,10 @@ export async function getExpedienteByCliente(req, res) {
 
     // 2. Obtener el historial de mediciones antropométricas
     const medicionesResult = await pool.query(
-      `SELECT id, TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha", peso, porcentaje_grasa AS "porcentajeGrasa",
-              masa_muscular AS "masaMuscular", porcentaje_agua AS "porcentajeAgua",
-              grasa_visceral AS "grasaVisceral", cintura, cadera, brazo, observaciones
+      `SELECT id, TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha", peso, talla,
+              brazo_relajado AS "brazoRelajado", brazo_flexionado AS "brazoFlexionado",
+              cintura, abdomen, cadera, muslo, pantorrilla,
+              imc, indice_cc AS "indiceCC", riesgo_imc AS "riesgoImc", riesgo_cc AS "riesgoCc", observaciones
        FROM mediciones_antropometricas
        WHERE cliente_id = $1
        ORDER BY fecha ASC`,
@@ -57,14 +58,12 @@ export async function createMedicion(req, res) {
   const {
     clienteId,
     fecha = new Date().toISOString().split('T')[0],
-    peso,
-    porcentajeGrasa = null,
-    masaMuscular = null,
-    porcentajeAgua = null,
-    grasaVisceral = null,
-    cintura = null,
-    cadera = null,
-    brazo = null,
+    peso, talla = null,
+    brazoRelajado = null, brazoFlexionado = null,
+    cintura = null, abdomen = null, cadera = null,
+    muslo = null, pantorrilla = null,
+    imc = null, indiceCC = null,
+    riesgoImc = null, riesgoCc = null,
     observaciones = '',
   } = req.body
 
@@ -76,16 +75,17 @@ export async function createMedicion(req, res) {
     const newId = await generarIdUnico('mediciones_antropometricas')
     const result = await pool.query(
       `INSERT INTO mediciones_antropometricas (
-        id, cliente_id, fecha, peso, porcentaje_grasa, masa_muscular,
-        porcentaje_agua, grasa_visceral, cintura, cadera, brazo, observaciones
+        id, cliente_id, fecha, peso, talla, brazo_relajado, brazo_flexionado,
+        cintura, abdomen, cadera, muslo, pantorrilla, imc, indice_cc, riesgo_imc, riesgo_cc, observaciones
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-       RETURNING id, TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha", peso, porcentaje_grasa AS "porcentajeGrasa",
-                 masa_muscular AS "masaMuscular", porcentaje_agua AS "porcentajeAgua",
-                 grasa_visceral AS "grasaVisceral", cintura, cadera, brazo, observaciones`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+       RETURNING id, TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha", peso, talla,
+                 brazo_relajado AS "brazoRelajado", brazo_flexionado AS "brazoFlexionado",
+                 cintura, abdomen, cadera, muslo, pantorrilla,
+                 imc, indice_cc AS "indiceCC", riesgo_imc AS "riesgoImc", riesgo_cc AS "riesgoCc", observaciones`,
       [
-        newId, clienteId, fecha, peso, porcentajeGrasa, masaMuscular,
-        porcentajeAgua, grasaVisceral, cintura, cadera, brazo, observaciones,
+        newId, clienteId, fecha, peso, talla, brazoRelajado, brazoFlexionado,
+        cintura, abdomen, cadera, muslo, pantorrilla, imc, indiceCC, riesgoImc, riesgoCc, observaciones,
       ]
     )
     res.status(201).json(result.rows[0])

@@ -8,7 +8,10 @@
           <p class="page-subtitle">Gestión de agenda y citas de la clínica</p>
         </div>
         <div class="header-right">
-
+          <button class="btn-importar" @click="openImportModal" style="margin-right: 12px; background-color: #6366f1; color: white; padding: 10px 16px; border-radius: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Importar Lista (IA)
+          </button>
           <button class="btn-nueva-cita" @click="openCreateModal">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Nueva Cita
@@ -44,6 +47,72 @@
         <FullCalendar :options="calendarOptions" ref="calendarRef" />
       </div>
     </div>
+
+    <!-- Modal Importar Citas IA -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showImportModal" class="modal-overlay" @click.self="closeImportModal">
+          <div class="modal-card">
+            <div class="modal-header">
+              <h2 class="modal-title" style="color: #6366f1;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Importador Mágico con IA
+              </h2>
+              <button class="modal-close" @click="closeImportModal" :disabled="importing">✕</button>
+            </div>
+            <div class="modal-body">
+              <p style="font-size: 13px; color: #64748b; margin-bottom: 16px;">Sube un documento (PDF, Excel, Word o CSV) con la lista de personas a agendar. La IA de Gemini analizará el documento y acomodará las citas automáticamente en los horarios libres.</p>
+              
+              <div v-if="importing" class="flex flex-col items-center justify-center py-8">
+                <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-indigo-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <p class="text-sm font-semibold text-indigo-600">La IA está analizando el documento y agendando...</p>
+              </div>
+
+              <div v-else class="form-group full-width">
+                <input type="file" @change="handleFileUpload" accept=".pdf,.xlsx,.xls,.csv,.docx" class="form-input" style="padding: 12px;" />
+              </div>
+            </div>
+            <div class="modal-footer" v-if="!importing">
+              <button class="btn-cancel" @click="closeImportModal">Cancelar</button>
+              <button class="btn-submit" @click="uploadImportFile" :disabled="!importFile" style="background-color: #6366f1;">
+                Procesar Documento
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- Modal Cita -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="actionModalVisible" class="modal-overlay" @click.self="actionModalVisible = false">
+          <div class="modal-card !max-w-md p-8">
+            <div class="text-center mb-6">
+              <div class="w-16 h-16 bg-brand-100 text-brand-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </div>
+              <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ selectedEvent?.extendedProps.cliente_nombre }}</h2>
+              <p class="text-sm font-medium text-gray-500 mt-1">{{ selectedEvent?.extendedProps.fecha }} a las {{ selectedEvent?.extendedProps.horario }} hrs</p>
+            </div>
+            
+            <div class="flex flex-col gap-3">
+              <button @click="comenzarCita" class="w-full flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-green-700 transition-colors shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                Comenzar Consulta (Expediente)
+              </button>
+              <button @click="editarCitaAction" class="w-full flex items-center justify-center gap-2 bg-brand-600 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-brand-700 transition-colors shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Editar Cita
+              </button>
+              <button @click="actionModalVisible = false" class="w-full font-bold py-3.5 px-4 rounded-xl text-gray-600 hover:bg-gray-100 transition-colors dark:text-gray-300 dark:hover:bg-gray-800">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
     <!-- Modal Cita -->
     <Teleport to="body">
@@ -201,6 +270,50 @@ const allCitas = ref<any[]>([])
 const horariosOcupados = ref<string[]>([])
 const listaClientes = ref<any[]>([])
 const showDropdownClientes = ref(false)
+
+// Estado del Modal de Acción
+const actionModalVisible = ref(false)
+const selectedEvent = ref<any>(null)
+
+// Estado del Importador IA
+const showImportModal = ref(false)
+const importFile = ref<File | null>(null)
+const importing = ref(false)
+
+function openImportModal() {
+  importFile.value = null
+  showImportModal.value = true
+}
+
+function closeImportModal() {
+  if (importing.value) return
+  showImportModal.value = false
+}
+
+function handleFileUpload(e: Event) {
+  const target = e.target as HTMLInputElement
+  if (target.files && target.files.length > 0) {
+    importFile.value = target.files[0]
+  }
+}
+
+async function uploadImportFile() {
+  if (!importFile.value) return
+  importing.value = true
+  try {
+    const formData = new FormData()
+    formData.append('archivo', importFile.value)
+    const result = await citasApi.importar(formData)
+    alert(result.message || 'Importación exitosa.')
+    closeImportModal()
+    await fetchCitas()
+  } catch (err: any) {
+    console.error('Error importando:', err)
+    alert(err.message || 'Error al importar archivo.')
+  } finally {
+    importing.value = false
+  }
+}
 
 const HORARIOS = [
   '08:00','08:30','09:00','09:30','10:00','10:30',
@@ -450,19 +563,57 @@ function handleDateSelect(selectInfo: any) {
 }
 
 function handleEventClick(clickInfo: any) {
-  router.push(`/citas/editar/${clickInfo.event.id}`)
+  selectedEvent.value = clickInfo.event
+  actionModalVisible.value = true
+}
+
+function editarCitaAction() {
+  actionModalVisible.value = false
+  if (selectedEvent.value) {
+    router.push(`/citas/editar/${selectedEvent.value.id}`)
+  }
+}
+
+async function comenzarCita() {
+  if (!selectedEvent.value) return
+  const cita = selectedEvent.value.extendedProps
+  actionModalVisible.value = false
+  
+  try {
+    // Buscar si ya existe el cliente registrado
+    await loadClientesSearch()
+    const match = listaClientes.value.find(c => c.nombre.toLowerCase() === cita.cliente_nombre.toLowerCase() || c.cita_id === cita.id)
+    
+    if (match) {
+      router.push(`/expedientes/${match.id}`)
+    } else {
+      // Pasar data por query param a nuevo cliente
+      router.push({
+        path: '/clientes/nuevo',
+        query: {
+          cita_id: cita.id,
+          nombre: cita.cliente_nombre,
+          telefono: cita.cliente_telefono
+        }
+      })
+    }
+  } catch (err) {
+    console.error('Error al comenzar cita:', err)
+  }
 }
 
 async function handleEventDrop(dropInfo: any) {
   const event = dropInfo.event
   const props = event.extendedProps
 
-  // Las citas demo de muestra no se persisten en base de datos
+  // Ya se permiten mover las citas demo para pruebas del usuario
+  /*
   if (props._demo || String(event.id).startsWith('demo-')) {
     alert('Las citas de muestra no pueden ser reagendadas.')
     dropInfo.revert()
     return
   }
+  */
 
   const startDate = event.start
   if (!startDate) {

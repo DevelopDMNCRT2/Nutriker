@@ -109,11 +109,12 @@ export const pedidosApi = {
 
 // --- Citas ---
 export const citasApi = {
-  getAll:  ()         => request('GET',    '/citas'),
-  getById: (id)       => request('GET',    `/citas/${id}`),
-  create:  (body)     => request('POST',   '/citas', body),
-  update:  (id, body) => request('PUT',    `/citas/${id}`, body),
-  delete:  (id)       => request('DELETE', `/citas/${id}`),
+  getAll:   ()         => request('GET',    '/citas'),
+  getById:  (id)       => request('GET',    `/citas/${id}`),
+  create:   (body)     => request('POST',   '/citas', body),
+  update:   (id, body) => request('PUT',    `/citas/${id}`, body),
+  delete:   (id)       => request('DELETE', `/citas/${id}`),
+  importar: (formData) => requestForm('POST', '/citas/importar', formData),
 }
 
 // --- Clientes ---
