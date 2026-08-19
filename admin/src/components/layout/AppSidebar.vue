@@ -94,10 +94,13 @@ const allMenuItems = [
   { name: 'Usuarios',       path: '/usuarios',      icon: UserCircleIcon },
   { name: 'Pacientes',      path: '/clientes',      icon: ListIcon },
   { name: 'Citas',          path: '/citas',         icon: CalenderIcon },
+  // Módulos ocultos temporalmente para el hito actual
+  /*
   { name: 'Productos',      path: '/productos',     icon: BoxCubeIcon },
   { name: 'Órdenes',        path: '/ordenes',       icon: ShoppingBagIcon },
-  { name: 'Zonas de Envío',    path: '/zonas-envio',   icon: TruckIcon },
-  { name: 'Finanzas / Ingresos', path: '/ingresos',    icon: ShoppingBagIcon },
+  { name: 'Zonas de Envío', path: '/zonas-envio',   icon: TruckIcon },
+  { name: 'Finanzas',       path: '/ingresos',      icon: ShoppingBagIcon },
+  */
   { name: 'Blog / CMS',        path: '/blog',        icon: ListIcon },
   { name: 'Asistente IA',      path: '/chat-agencial', icon: UserCircleIcon },
 ]

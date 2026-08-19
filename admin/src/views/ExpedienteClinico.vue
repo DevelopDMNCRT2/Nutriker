@@ -147,8 +147,8 @@
                 <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">{{ m.fecha }}</td>
                 <td class="px-4 py-3 font-bold text-brand-600 dark:text-brand-400">{{ m.peso }} kg</td>
                 <td class="px-4 py-3 font-semibold text-amber-600 dark:text-amber-400">{{ m.porcentajeGrasa ? `${m.porcentajeGrasa}%` : '-' }}</td>
-                <td class="px-4 py-3 font-semibold text-indigo-600 dark:text-indigo-400">{{ m.masaMuscular ? `${m.masaMuscular} kg` : '-' }}</td>
-                <td class="px-4 py-3 text-gray-600 dark:text-gray-300">{{ m.porcentajeAgua ? `${m.porcentajeAgua}%` : '-' }}</td>
+                <td class="px-4 py-3 font-semibold text-indigo-600 dark:text-indigo-400">{{ m.cintura ? `${m.cintura}cm` : '-' }}</td>
+                <td class="px-4 py-3 text-gray-600 dark:text-gray-300">{{ m.abdomen ? `${m.abdomen}cm` : '-' }}</td>
                 <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
                   {{ m.cintura ? `${m.cintura}cm` : '-' }} / {{ m.cadera ? `${m.cadera}cm` : '-' }}
                 </td>
@@ -159,59 +159,116 @@
         </div>
       </div>
 
-      <!-- Modal Registrar Nueva Medición -->
+      <!-- Modal Registrar Nueva Medición (Wizard 2 Pasos) -->
       <Teleport to="body">
         <Transition name="fade">
           <div v-if="modalMedicionVisible" class="fixed inset-0 z-99999 flex items-center justify-center p-4">
             <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" @click="cerrarModalMedicion"></div>
-            <div class="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900 dark:border dark:border-gray-800 z-10 max-h-[90vh] overflow-y-auto">
+            <div class="relative w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900 dark:border dark:border-gray-800 z-10 max-h-[90vh] overflow-y-auto">
               <div class="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
                 <h3 class="text-base font-bold text-gray-900 dark:text-white">Nueva Medición Antropométrica</h3>
                 <button @click="cerrarModalMedicion" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
               </div>
 
-              <div class="space-y-4 text-xs py-4">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- PASO 1: TOMA DE DATOS -->
+              <div v-if="stepMedicion === 1" class="space-y-4 text-xs py-4">
+                <p class="text-gray-500 mb-2">Paso 1: Captura de Datos Clínicos</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha de Consulta *</label>
                     <input v-model="formMedicion.fecha" type="date" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                   </div>
                   <div>
-                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Peso (kg) *</label>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Peso en Kg *</label>
                     <input v-model="formMedicion.peso" type="number" step="0.1" placeholder="Ej. 72.5" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                   </div>
                   <div>
-                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">% Grasa Corporal</label>
-                    <input v-model="formMedicion.porcentajeGrasa" type="number" step="0.1" placeholder="Ej. 33.5" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Talla en mts</label>
+                    <input v-model="formMedicion.talla" type="number" step="0.01" placeholder="Ej. 1.68" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                   </div>
                   <div>
-                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Masa Muscular (kg)</label>
-                    <input v-model="formMedicion.masaMuscular" type="number" step="0.1" placeholder="Ej. 45.0" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Brazo relaj (cm)</label>
+                    <input v-model="formMedicion.brazoRelajado" type="number" step="0.1" placeholder="Ej. 28" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                   </div>
                   <div>
-                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Cintura (cm)</label>
-                    <input v-model="formMedicion.cintura" type="number" step="0.5" placeholder="Ej. 84.0" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Brazo flex (cm)</label>
+                    <input v-model="formMedicion.brazoFlexionado" type="number" step="0.1" placeholder="Ej. 30" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                   </div>
                   <div>
-                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Cadera (cm)</label>
-                    <input v-model="formMedicion.cadera" type="number" step="0.5" placeholder="Ej. 97.5" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Cintura en cm</label>
+                    <input v-model="formMedicion.cintura" type="number" step="0.1" placeholder="Ej. 84.0" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  </div>
+                  <div>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Abdómen en cms</label>
+                    <input v-model="formMedicion.abdomen" type="number" step="0.1" placeholder="Ej. 88.0" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  </div>
+                  <div>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Cadera en cms</label>
+                    <input v-model="formMedicion.cadera" type="number" step="0.1" placeholder="Ej. 97.5" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  </div>
+                  <div>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Muslo (cm)</label>
+                    <input v-model="formMedicion.muslo" type="number" step="0.1" placeholder="Ej. 55.0" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  </div>
+                  <div>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Pantorrilla (cm)</label>
+                    <input v-model="formMedicion.pantorrilla" type="number" step="0.1" placeholder="Ej. 38.0" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  </div>
+                  <div class="sm:col-span-2">
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Observaciones</label>
+                    <input v-model="formMedicion.observaciones" type="text" placeholder="Notas adicionales..." class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                   </div>
                 </div>
 
-                <div>
-                  <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Observaciones de la Consulta</label>
-                  <textarea v-model="formMedicion.observaciones" placeholder="Avances, adhesión a la dieta, pliegues cutáneos..." class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white h-20"></textarea>
+                <div class="flex justify-end gap-3 border-t border-gray-100 pt-3 dark:border-gray-800 mt-4">
+                  <button @click="cerrarModalMedicion" class="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg dark:text-gray-300 dark:hover:bg-gray-800">
+                    Cancelar
+                  </button>
+                  <button @click="stepMedicion = 2" class="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                    Siguiente →
+                  </button>
                 </div>
               </div>
 
-              <div class="flex justify-end gap-3 border-t border-gray-100 pt-3 dark:border-gray-800">
-                <button @click="cerrarModalMedicion" class="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg dark:text-gray-300 dark:hover:bg-gray-800">
-                  Cancelar
-                </button>
-                <button @click="guardarMedicion" :disabled="saving" class="px-4 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors">
-                  {{ saving ? 'Guardando...' : 'Guardar Medición' }}
-                </button>
+              <!-- PASO 2: FÓRMULAS Y RESULTADOS -->
+              <div v-if="stepMedicion === 2" class="space-y-4 text-sm py-4">
+                <p class="text-brand-600 font-semibold mb-4 border-l-4 border-brand-500 pl-3">Paso 2: Aplicación de Fórmulas y Diagnóstico</p>
+                <div class="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700 space-y-3">
+                  <p class="text-xs text-gray-500 dark:text-gray-400">
+                    <em>Nota: Los valores aquí mostrados son placeholders (N/D) hasta que la Dra. nos confirme la fórmula exacta que utiliza para calcular los índices y riesgos dependiendo de los datos del paciente.</em>
+                  </p>
+                  <div class="grid grid-cols-2 gap-4 mt-2">
+                    <div>
+                      <span class="block text-gray-500 text-xs uppercase tracking-wider font-bold">IMC Calculado:</span>
+                      <span class="text-lg font-bold text-gray-900 dark:text-white">N/D</span>
+                    </div>
+                    <div>
+                      <span class="block text-gray-500 text-xs uppercase tracking-wider font-bold">Índice C/C:</span>
+                      <span class="text-lg font-bold text-gray-900 dark:text-white">N/D</span>
+                    </div>
+                    <div>
+                      <span class="block text-gray-500 text-xs uppercase tracking-wider font-bold">Riesgo de IMC:</span>
+                      <span class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">Pendiente de fórmula</span>
+                    </div>
+                    <div>
+                      <span class="block text-gray-500 text-xs uppercase tracking-wider font-bold">Riesgo de C/C:</span>
+                      <span class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">Pendiente de fórmula</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex justify-between border-t border-gray-100 pt-4 mt-4 dark:border-gray-800">
+                  <button @click="stepMedicion = 1" class="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg dark:text-gray-300 dark:hover:bg-gray-800">
+                    ← Volver
+                  </button>
+                  <div class="flex gap-2">
+                    <button @click="guardarMedicion" :disabled="saving" class="px-4 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors shadow-theme-sm">
+                      {{ saving ? 'Guardando...' : 'Aplicar Fórmula y Guardar' }}
+                    </button>
+                  </div>
+                </div>
               </div>
+
             </div>
           </div>
         </Transition>
@@ -244,13 +301,19 @@ const mediciones = ref<any[]>([])
 const clienteName = computed(() => cliente.value?.nombre || 'Cargando...')
 
 const modalMedicionVisible = ref(false)
+const stepMedicion = ref(1)
+
 const formMedicion = ref({
   fecha: new Date().toISOString().split('T')[0],
   peso: '',
-  porcentajeGrasa: '',
-  masaMuscular: '',
+  talla: '',
+  brazoRelajado: '',
+  brazoFlexionado: '',
   cintura: '',
+  abdomen: '',
   cadera: '',
+  muslo: '',
+  pantorrilla: '',
   observaciones: '',
 })
 
@@ -288,12 +351,12 @@ const seriesGráfica = computed(() => [
     data: mediciones.value.map(m => parseFloat(m.peso)),
   },
   {
-    name: 'Grasa (%)',
-    data: mediciones.value.map(m => parseFloat(m.porcentajeGrasa || 0)),
+    name: 'Cintura (cm)',
+    data: mediciones.value.map(m => parseFloat(m.cintura || 0)),
   },
   {
-    name: 'Masa Muscular (kg)',
-    data: mediciones.value.map(m => parseFloat(m.masaMuscular || 0)),
+    name: 'Cadera (cm)',
+    data: mediciones.value.map(m => parseFloat(m.cadera || 0)),
   },
 ])
 
@@ -322,12 +385,17 @@ function abrirModalMedicion() {
   formMedicion.value = {
     fecha: new Date().toISOString().split('T')[0],
     peso: '',
-    porcentajeGrasa: '',
-    masaMuscular: '',
+    talla: '',
+    brazoRelajado: '',
+    brazoFlexionado: '',
     cintura: '',
+    abdomen: '',
     cadera: '',
+    muslo: '',
+    pantorrilla: '',
     observaciones: '',
   }
+  stepMedicion.value = 1
   modalMedicionVisible.value = true
 }
 
@@ -345,10 +413,16 @@ async function guardarMedicion() {
       clienteId: idPaciente,
       fecha: formMedicion.value.fecha || new Date().toISOString().split('T')[0],
       peso: parseFloat(formMedicion.value.peso),
-      porcentajeGrasa: formMedicion.value.porcentajeGrasa ? parseFloat(formMedicion.value.porcentajeGrasa) : null,
-      masaMuscular: formMedicion.value.masaMuscular ? parseFloat(formMedicion.value.masaMuscular) : null,
+      talla: formMedicion.value.talla ? parseFloat(formMedicion.value.talla) : null,
+      brazoRelajado: formMedicion.value.brazoRelajado ? parseFloat(formMedicion.value.brazoRelajado) : null,
+      brazoFlexionado: formMedicion.value.brazoFlexionado ? parseFloat(formMedicion.value.brazoFlexionado) : null,
       cintura: formMedicion.value.cintura ? parseFloat(formMedicion.value.cintura) : null,
+      abdomen: formMedicion.value.abdomen ? parseFloat(formMedicion.value.abdomen) : null,
       cadera: formMedicion.value.cadera ? parseFloat(formMedicion.value.cadera) : null,
+      muslo: formMedicion.value.muslo ? parseFloat(formMedicion.value.muslo) : null,
+      pantorrilla: formMedicion.value.pantorrilla ? parseFloat(formMedicion.value.pantorrilla) : null,
+      // Los calculados aún se mandan null porque faltan las fórmulas,
+      // o pueden calcularse aquí en un futuro.
       observaciones: formMedicion.value.observaciones || '',
     }
 

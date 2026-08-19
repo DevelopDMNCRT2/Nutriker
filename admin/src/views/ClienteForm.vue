@@ -91,7 +91,8 @@ const form = ref({
   telefono: '',
   correo: '',
   edad: null as number | null,
-  ocupacion: ''
+  ocupacion: '',
+  cita_id: null as string | null
 })
 
 onMounted(async () => {
@@ -104,10 +105,16 @@ onMounted(async () => {
         form.value.correo = data.correo || ''
         form.value.edad = data.edad || null
         form.value.ocupacion = data.ocupacion || ''
+        form.value.cita_id = data.cita_id || null
       }
     } catch (e: any) {
       errorMsg.value = 'Error al cargar los datos del paciente'
     }
+  } else {
+    // Si venimos del calendario de citas, prellenar los datos
+    if (route.query.nombre) form.value.nombre = String(route.query.nombre)
+    if (route.query.telefono) form.value.telefono = String(route.query.telefono)
+    if (route.query.cita_id) form.value.cita_id = String(route.query.cita_id)
   }
 })
 
