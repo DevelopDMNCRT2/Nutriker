@@ -100,9 +100,9 @@ const allMenuItems = [
   { name: 'Órdenes',        path: '/ordenes',       icon: ShoppingBagIcon },
   { name: 'Zonas de Envío', path: '/zonas-envio',   icon: TruckIcon },
   { name: 'Finanzas',       path: '/ingresos',      icon: ShoppingBagIcon },
-  */
   { name: 'Blog / CMS',        path: '/blog',        icon: ListIcon },
   { name: 'Asistente IA',      path: '/chat-agencial', icon: UserCircleIcon },
+  */
 ]
 
 const userStr = localStorage.getItem('admin_user')
