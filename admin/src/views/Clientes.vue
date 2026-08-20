@@ -123,6 +123,14 @@
                   <input v-model="form.edad" type="number" placeholder="Ej. 30" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
                 </div>
                 <div>
+                  <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Sexo *</label>
+                  <select v-model="form.sexo" required class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90">
+                    <option value="" disabled>Seleccionar sexo</option>
+                    <option value="Femenino">Femenino</option>
+                    <option value="Masculino">Masculino</option>
+                  </select>
+                </div>
+                <div>
                   <label class="mb-1 block text-[13px] font-medium text-gray-700 dark:text-gray-400">Teléfono * <span class="text-xs text-gray-400 font-normal">(10 dígitos)</span></label>
                   <input v-model="form.telefono" type="tel" required maxlength="10" @input="sanitizeTelefono" placeholder="1234567890" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90" />
                 </div>
@@ -299,6 +307,7 @@ const initForm = () => ({
   id: null as string | null,
   cita_id: null as string | null,   // ID de la cita vinculada en la tabla `citas`
   nombre: '',
+  sexo: '',
   telefono: '',
   correo: '',
   edad: '',

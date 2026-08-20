@@ -71,7 +71,7 @@ export async function createCliente(req, res) {
     cita_id, nombre, telefono, correo, edad, ocupacion, motivo_consulta,
     patologias, antecedentes_familiares, bioquimicos, farmacos, digestiva,
     peso, estatura, circunferencias, composicion, recordatorio_24h, alergias,
-    ultraprocesados, gustos, logistica_cocina, estilo_vida, fecha, horario, atencion_previa
+    ultraprocesados, gustos, logistica_cocina, estilo_vida, fecha, horario, atencion_previa, sexo
   } = req.body
 
   if (!nombre || !telefono) {
@@ -86,9 +86,9 @@ export async function createCliente(req, res) {
         id, cita_id, nombre, telefono, correo, edad, ocupacion, motivo_consulta,
         patologias, antecedentes_familiares, bioquimicos, farmacos, digestiva,
         peso, estatura, circunferencias, composicion, recordatorio_24h, alergias,
-        ultraprocesados, gustos, logistica_cocina, estilo_vida, fecha, horario, atencion_previa
+        ultraprocesados, gustos, logistica_cocina, estilo_vida, fecha, horario, atencion_previa, sexo
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27
       ) RETURNING *`,
       [
         newId, cita_id || null, nombre, telefono, correo || null, edad || null,
@@ -98,7 +98,7 @@ export async function createCliente(req, res) {
         circunferencias || null, composicion || null, recordatorio_24h || null,
         alergias || null, ultraprocesados || null, gustos || null,
         logistica_cocina || null, estilo_vida || null, fecha || null,
-        horario || null, atencion_previa || 'no'
+        horario || null, atencion_previa || 'no', sexo || null
       ]
     )
 
@@ -116,7 +116,7 @@ export async function updateCliente(req, res) {
     cita_id, nombre, telefono, correo, edad, ocupacion, motivo_consulta,
     patologias, antecedentes_familiares, bioquimicos, farmacos, digestiva,
     peso, estatura, circunferencias, composicion, recordatorio_24h, alergias,
-    ultraprocesados, gustos, logistica_cocina, estilo_vida, fecha, horario, atencion_previa
+    ultraprocesados, gustos, logistica_cocina, estilo_vida, fecha, horario, atencion_previa, sexo
   } = req.body
 
   if (!nombre || !telefono) {
@@ -132,9 +132,9 @@ export async function updateCliente(req, res) {
         digestiva = $12, peso = $13, estatura = $14, circunferencias = $15,
         composicion = $16, recordatorio_24h = $17, alergias = $18,
         ultraprocesados = $19, gustos = $20, logistica_cocina = $21,
-        estilo_vida = $22, fecha = $23, horario = $24, atencion_previa = $25,
+        estilo_vida = $22, fecha = $23, horario = $24, atencion_previa = $25, sexo = $26,
         updated_at = NOW()
-       WHERE id = $26 AND deleted_at IS NULL
+       WHERE id = $27 AND deleted_at IS NULL
        RETURNING *`,
       [
         cita_id || null, nombre, telefono, correo || null, edad || null,
@@ -144,7 +144,7 @@ export async function updateCliente(req, res) {
         circunferencias || null, composicion || null, recordatorio_24h || null,
         alergias || null, ultraprocesados || null, gustos || null,
         logistica_cocina || null, estilo_vida || null, fecha || null,
-        horario || null, atencion_previa || 'no', id
+        horario || null, atencion_previa || 'no', sexo || null, id
       ]
     )
 
