@@ -65,8 +65,8 @@ export async function createUsuario(req, res) {
   if (!nombre || !usuario || !correo || !contrasena || !rol) {
     return res.status(400).json({ error: 'Todos los campos son obligatorios' })
   }
-  if (!['Administrador', 'Asistente'].includes(rol)) {
-    return res.status(400).json({ error: 'El rol debe ser Administrador o Asistente' })
+  if (!['Administrador', 'Asistente', 'RRHH'].includes(rol)) {
+    return res.status(400).json({ error: 'El rol debe ser Administrador, Asistente o RRHH' })
   }
 
   try {
@@ -103,8 +103,8 @@ export async function updateUsuario(req, res) {
   if (!nombre || !usuario || !correo || !rol) {
     return res.status(400).json({ error: 'Nombre, usuario, correo y rol son obligatorios' })
   }
-  if (!['Administrador', 'Asistente'].includes(rol)) {
-    return res.status(400).json({ error: 'El rol debe ser Administrador o Asistente' })
+  if (!['Administrador', 'Asistente', 'RRHH'].includes(rol)) {
+    return res.status(400).json({ error: 'El rol debe ser Administrador, Asistente o RRHH' })
   }
 
   try {
