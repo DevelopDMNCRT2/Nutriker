@@ -22,7 +22,7 @@ El proyecto está construido con la siguiente arquitectura:
 ### 🟢 1. Cliente Público y API Gateway (`client/` & `server/routes/public.js`)
 El frontend del cliente y la capa de servicios públicos integran:
 
-1.  **Trayectoria, Trabajo y Resultados de la Dra. Karla:**
+1.  **Trayectoria, Trabajo y Resultados de la Karla:**
     *   Landing page principal de alto impacto visual orientada al branding personal.
     *   Sección de "Nosotros" y "Trayectoria" detallando su experiencia y metodología.
     *   Casos de éxito, testimonios de pacientes y galería de resultados (antes/después) administrables.
@@ -49,7 +49,7 @@ El frontend del cliente y la capa de servicios públicos integran:
 ---
 
 ### 🔵 2. Panel de Administración (`admin/`)
-El panel privado de gestión de la Dra. Karla y su equipo implementa las siguientes capacidades estandarizadas:
+El panel privado de gestión de la Karla y su equipo implementa las siguientes capacidades estandarizadas:
 
 *   **Estandarización de Formularios (Vistas Dedicadas Ruteadas):**
     *   Captura y edición de datos integrada en páginas completas de ancho adaptable (`FormSection.vue`) con navegación limpia ruteada en Vue Router, eliminando modales emergentes encimados (*pop-ups*).
@@ -99,7 +99,7 @@ El ciclo de vida y manejo del paciente dentro de la plataforma sigue un flujo li
 
 ## 🔮 Fase 2: Inteligencia Artificial (IA)
 En el segundo avance del proyecto, se introducirá un **Asistente de IA** integrado para:
-*   Apoyar a la Dra. Karla en la generación automatizada de menús semanales personalizados basados en el perfil clínico del paciente (alergias, metas, mediciones antropométricas, etc.).
+*   Apoyar a la Karla en la generación automatizada de menús semanales personalizados basados en el perfil clínico del paciente (alergias, metas, mediciones antropométricas, etc.).
 
 ---
 

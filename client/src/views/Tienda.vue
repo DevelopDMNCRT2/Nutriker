@@ -10,7 +10,7 @@
     <header class="watercolor-header relative z-10">
       <div class="watercolor-header-content slide-up">
         <h1 class="watercolor-title">Nutre tu cuerpo,<br><span class="watercolor-text-peach">siente la frescura.</span></h1>
-        <p class="watercolor-subtitle">Selección exclusiva de suplementos y guías de la Dra. Karla, pensados para acompañarte en cada paso de tu bienestar.</p>
+        <p class="watercolor-subtitle">Selección exclusiva de suplementos y guías de la Karla, pensados para acompañarte en cada paso de tu bienestar.</p>
         
         <div class="watercolor-search">
           <input

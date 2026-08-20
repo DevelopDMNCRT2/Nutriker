@@ -3,14 +3,14 @@
     <div class="container grid-2">
       <div class="image-box">
         <!-- Generar imagen de una doctora elegante en consultorio -->
-        <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=2000&auto=format&fit=crop" alt="Dra. Karla en el consultorio" />
+        <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=2000&auto=format&fit=crop" alt="Karla en el consultorio" />
         <div class="accent-box"></div>
       </div>
       <div class="content-box">
         <h2 class="section-title">Quién es <span class="highlight">Ella</span></h2>
-        <h3 class="subtitle">Dra. Karla – Nutrición Clínica y Metabolismo</h3>
+        <h3 class="subtitle">Karla – Nutrición Clínica y Metabolismo</h3>
         <p class="paragraph">
-          Con más de 10 años de experiencia transformando la relación de las personas con sus hábitos alimenticios, la Dra. Karla fundó NutriKer con una premisa simple: la salud no se mide solo en la balanza, sino en la calidad de vida.
+          Con más de 10 años de experiencia transformando la relación de las personas con sus hábitos alimenticios, la Karla fundó NutriKer con una premisa simple: la salud no se mide solo en la balanza, sino en la calidad de vida.
         </p>
         <p class="paragraph">
           Especialista en nutrición clínica y metabolismo, ha dedicado su carrera a crear planes sostenibles, alejados de las dietas restrictivas y enfocados en el bienestar integral.

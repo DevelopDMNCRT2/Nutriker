@@ -9,7 +9,7 @@
       <div class="cards-grid">
         <div class="testimonio-card" v-for="i in 3" :key="i">
           <div class="quote-icon">“</div>
-          <p class="testimonio-text">La Dra. Karla cambió completamente mi perspectiva sobre la alimentación. Su plan no fue una dieta, fue un cambio de vida sostenible y lleno de energía.</p>
+          <p class="testimonio-text">La Karla cambió completamente mi perspectiva sobre la alimentación. Su plan no fue una dieta, fue un cambio de vida sostenible y lleno de energía.</p>
           <div class="testimonio-author">
             <div class="author-avatar"></div>
             <div>

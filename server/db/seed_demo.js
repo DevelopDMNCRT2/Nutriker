@@ -26,7 +26,7 @@ async function seedMassive() {
     await client.query(`
       INSERT INTO usuarios (id, nombre, usuario, correo, contrasena, rol)
       VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (usuario) DO NOTHING
-    `, [await generarIdUnico('usuarios'), 'Dra. Karla (Admin)', 'admin', 'admin@nutriker.com', hashedPassAdmin, 'Administrador'])
+    `, [await generarIdUnico('usuarios'), 'Karla (Admin)', 'admin', 'admin@nutriker.com', hashedPassAdmin, 'Administrador'])
 
     // 2. Categorías y Productos
     const cat1Id = await generarIdUnico('categorias')

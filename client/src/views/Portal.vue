@@ -47,7 +47,7 @@
             <p class="imc-categoria">{{ imcCategoria }}</p>
           </div>
 
-          <!-- Tarjeta de Indicaciones Clínicas de la Dra. Karla -->
+          <!-- Tarjeta de Indicaciones Clínicas de la Karla -->
           <div class="card notes-card">
             <h2 class="card-title">Notas e Indicaciones Médicas</h2>
             <p class="notes-body">

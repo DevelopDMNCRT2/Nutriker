@@ -3,13 +3,13 @@
     <div class="hero-content slide-in-bottom">
       <span class="editorial-badge">
         <span class="badge-dot"></span>
-        Dra. Karla
+        Karla
       </span>
       <h1>Vitalidad<br/>Pura.</h1>
       <p class="subtitle">Medicina y Nutrición Integral para una vida plena.</p>
     </div>
     <div class="hero-image parallax-img fade-in">
-      <img src="https://images.unsplash.com/photo-1594824432258-2da8b7bdcd84?q=80&w=2000&auto=format&fit=crop" alt="Dra Karla" />
+      <img src="https://images.unsplash.com/photo-1594824432258-2da8b7bdcd84?q=80&w=2000&auto=format&fit=crop" alt="Karla" />
     </div>
   </section>
 </template>

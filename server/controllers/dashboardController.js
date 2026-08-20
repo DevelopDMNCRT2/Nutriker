@@ -12,11 +12,11 @@ export const getResumenDiario = async (req, res) => {
     const hour = parseInt(hourStr, 10)
 
     // Determinar saludo dinámico según la hora local de la doctora
-    let saludo = '¡Buenos días, Dra. Karla! ☀️'
+    let saludo = '¡Buenos días, Karla! ☀️'
     if (hour >= 12 && hour < 19) {
-      saludo = '¡Buenas tardes, Dra. Karla! 🌤️'
+      saludo = '¡Buenas tardes, Karla! 🌤️'
     } else if (hour >= 19 || hour < 6) {
-      saludo = '¡Buenas noches, Dra. Karla! 🌙'
+      saludo = '¡Buenas noches, Karla! 🌙'
     }
 
     // Consultar citas de hoy

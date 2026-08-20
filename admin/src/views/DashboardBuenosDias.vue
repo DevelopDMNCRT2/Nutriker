@@ -10,7 +10,7 @@
               <span>{{ fechaFormateada }}</span>
             </div>
             <h1 class="text-2xl md:text-3xl font-bold tracking-tight">
-              {{ datosDashboard.saludo || '¡Buenos días, Dra. Karla!' }}
+              {{ datosDashboard.saludo || '¡Buenos días, Karla!' }}
             </h1>
             <p class="mt-1 text-sm text-white/90 max-w-xl">
               Aquí tienes el resumen de tu jornada médica de hoy. Tienes <strong class="underline decoration-brand-200 font-semibold">{{ datosDashboard.totalCitasHoy }} cita(s) agendada(s)</strong> para el día de hoy.
@@ -224,7 +224,7 @@ import { CalenderIcon, ListIcon, TaskIcon, InfoCircleIcon, BarChartIcon, Success
 
 const loading = ref(true)
 const datosDashboard = ref<any>({
-  saludo: '¡Buenos días, Dra. Karla!',
+  saludo: '¡Buenos días, Karla!',
   totalCitasHoy: 0,
   totalCitas: 0,
   totalClientes: 0,

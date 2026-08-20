@@ -8,7 +8,7 @@
           Reserva en Línea
         </div>
         <h1>Agendar <span class="text-highlight">Cita Nutricional</span></h1>
-        <p>Proceso guiado paso a paso para reservar tu consulta con la Dra. Karla.</p>
+        <p>Proceso guiado paso a paso para reservar tu consulta con la Karla.</p>
       </div>
     </section>
 
@@ -226,7 +226,7 @@
           <div v-if="citaConfirmada" class="success-screen">
             <div class="success-badge-icon">✓</div>
             <h2>¡Cita Reservada Exitosamente!</h2>
-            <p>Tu consulta médica con la Dra. Karla ha sido guardada en el sistema.</p>
+            <p>Tu consulta médica con la Karla ha sido guardada en el sistema.</p>
 
             <div class="ticket-box">
               <div class="ticket-header">

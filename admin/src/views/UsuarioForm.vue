@@ -19,7 +19,7 @@
               v-model="form.nombre"
               type="text"
               required
-              placeholder="Ej. Dra. Karla Ramírez"
+              placeholder="Ej. Karla Ramírez"
               class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             />
           </div>

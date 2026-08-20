@@ -3,7 +3,7 @@
     <!-- Header del Blog -->
     <header class="blog-header">
       <h1 class="blog-title">Blog y Noticias de Salud</h1>
-      <p class="blog-subtitle">Consejos de nutrición, artículos de salud y publicaciones de la Dra. Karla.</p>
+      <p class="blog-subtitle">Consejos de nutrición, artículos de salud y publicaciones de la Karla.</p>
     </header>
 
     <!-- Barra de Búsqueda -->
