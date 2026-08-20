@@ -1,13 +1,21 @@
 <template>
   <AdminLayout>
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
       <h2 class="text-2xl font-bold text-gray-800 dark:text-white/90">Pacientes (Expedientes)</h2>
-      <button
-        @click="abrirAgregar"
-        class="rounded-lg bg-brand-500 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-brand-600 focus:outline-none focus:ring-4 focus:ring-brand-300 transition-colors"
-      >
-        Agregar Nuevo Paciente
-      </button>
+      <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+        <div class="relative w-full sm:w-64">
+          <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          </div>
+          <input v-model="searchQuery" type="text" class="block w-full p-2.5 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:ring-brand-500 focus:border-brand-500 dark:bg-gray-800 dark:border-gray-700 dark:placeholder-gray-400 dark:text-white" placeholder="Buscar paciente...">
+        </div>
+        <button
+          @click="abrirAgregar"
+          class="w-full sm:w-auto shrink-0 rounded-lg bg-brand-500 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-brand-600 focus:outline-none focus:ring-4 focus:ring-brand-300 transition-colors"
+        >
+          Agregar Nuevo Paciente
+        </button>
+      </div>
     </div>
 
     <!-- Cargador Skeleton -->
@@ -15,7 +23,7 @@
 
     <!-- Estado Vacío Ilustrado -->
     <EmptyState
-      v-else-if="clientes.length === 0"
+      v-else-if="clientes.length === 0 && !searchQuery"
       title="No hay expedientes clínicos registrados"
       description="Comienza agregando el expediente del primer paciente para dar seguimiento a su historial y antropometría."
       actionText="Agregar Primer Paciente"
@@ -23,18 +31,8 @@
       class="mb-6"
     />
 
-    <!-- Buscador -->
-    <div v-if="clientes.length > 0 && !cargando" class="mb-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <div class="relative w-full max-w-sm">
-        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-        </div>
-        <input v-model="searchQuery" type="text" class="block w-full p-2.5 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:ring-brand-500 focus:border-brand-500 dark:bg-gray-800 dark:border-gray-700 dark:placeholder-gray-400 dark:text-white" placeholder="Buscar paciente por nombre o teléfono...">
-      </div>
-    </div>
-
     <!-- Tabla -->
-    <div v-if="clientes.length > 0 && !cargando" class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-white/[0.03] mb-6">
+    <div v-else class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-white/[0.03] mb-6">
       <div class="max-w-full overflow-x-auto custom-scrollbar">
         <table class="min-w-full">
           <thead>
