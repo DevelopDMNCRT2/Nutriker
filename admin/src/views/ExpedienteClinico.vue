@@ -4,20 +4,20 @@
       <!-- Regresar & Header -->
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-4 dark:border-gray-800">
         <div>
-          <router-link to="/clientes" class="text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 flex items-center gap-1 mb-1">
+          <router-link to="/pacientes" class="text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 flex items-center gap-1 mb-1">
             ← Regresar a Expedientes
           </router-link>
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white flex flex-wrap items-center gap-2">
             <span>Expediente Clínico Digital</span>
-            <span v-if="cliente && cliente.nombre" class="text-xl font-medium text-brand-600 dark:text-brand-400">
-              — {{ cliente.nombre }}
+            <span v-if="paciente && paciente.nombre" class="text-xl font-medium text-brand-600 dark:text-brand-400">
+              — {{ paciente.nombre }}
             </span>
           </h1>
         </div>
 
         <div class="flex items-center gap-3">
           <router-link
-            :to="`/chat-agencial?clienteId=${clienteId}`"
+            :to="`/chat-agencial?pacienteId=${pacienteId}`"
             class="inline-flex items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-purple-700 transition-colors"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
@@ -34,30 +34,30 @@
       </div>
 
       <!-- Datos del Paciente (Tarjeta Principal) -->
-      <div v-if="cliente" class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <div v-if="paciente" class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6 border-b border-gray-100 pb-6 dark:border-gray-800">
           <div class="flex items-center gap-4">
             <div class="w-16 h-16 rounded-2xl bg-brand-50 text-brand-700 font-bold flex items-center justify-center text-xl dark:bg-brand-500/10 dark:text-brand-300">
-              {{ cliente.nombre ? cliente.nombre.substring(0, 2).toUpperCase() : 'PA' }}
+              {{ paciente.nombre ? paciente.nombre.substring(0, 2).toUpperCase() : 'PA' }}
             </div>
             <div>
-              <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ cliente.nombre }}</h2>
+              <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ paciente.nombre }}</h2>
               <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 mt-1">
                 <span class="flex items-center gap-1">
                   <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
-                  <span>{{ cliente.telefono || 'Sin teléfono' }}</span>
+                  <span>{{ paciente.telefono || 'Sin teléfono' }}</span>
                 </span>
                 <span class="flex items-center gap-1">
                   <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                  <span>{{ cliente.correo || 'Sin correo' }}</span>
+                  <span>{{ paciente.correo || 'Sin correo' }}</span>
                 </span>
                 <span class="flex items-center gap-1">
                   <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                  <span>{{ cliente.edad ? `${cliente.edad} años` : 'Edad N/D' }}</span>
+                  <span>{{ paciente.edad ? `${paciente.edad} años` : 'Edad N/D' }}</span>
                 </span>
                 <span class="flex items-center gap-1">
                   <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                  <span>{{ cliente.ocupacion || 'Ocupación N/D' }}</span>
+                  <span>{{ paciente.ocupacion || 'Ocupación N/D' }}</span>
                 </span>
               </div>
             </div>
@@ -66,11 +66,11 @@
           <div class="flex items-center gap-4 text-xs">
             <div class="bg-gray-50 p-3 rounded-xl dark:bg-gray-800/50">
               <span class="block text-gray-400 font-medium">Estatura</span>
-              <span class="font-bold text-gray-900 dark:text-white text-sm">{{ cliente.estatura ? `${cliente.estatura} m` : '1.65 m' }}</span>
+              <span class="font-bold text-gray-900 dark:text-white text-sm">{{ paciente.estatura ? `${paciente.estatura} m` : '1.65 m' }}</span>
             </div>
             <div class="bg-gray-50 p-3 rounded-xl dark:bg-gray-800/50">
               <span class="block text-gray-400 font-medium">Peso Inicial</span>
-              <span class="font-bold text-gray-900 dark:text-white text-sm">{{ cliente.peso ? `${cliente.peso} kg` : 'N/D' }}</span>
+              <span class="font-bold text-gray-900 dark:text-white text-sm">{{ paciente.peso ? `${paciente.peso} kg` : 'N/D' }}</span>
             </div>
             <div class="bg-brand-50 p-3 rounded-xl dark:bg-brand-500/10">
               <span class="block text-brand-600 font-medium dark:text-brand-400">Último Peso</span>
@@ -281,7 +281,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
-import { clientesApi, expedientesApi } from '@/api/index.js'
+import { pacientesApi, expedientesApi } from '@/api/index.js'
 import { BarChartIcon, PlusIcon } from '@/icons'
 // @ts-ignore
 import VueApexCharts from 'vue3-apexcharts'
@@ -289,16 +289,16 @@ import VueApexCharts from 'vue3-apexcharts'
 const apexchart = VueApexCharts
 
 const route = useRoute()
-const clienteId = ref<string>(route.params.clienteId as string || '35135447')
+const pacienteId = ref<string>(route.params.pacienteId as string || '35135447')
 
 const loading = ref(true)
 const saving = ref(false)
 
-const cliente = ref<any>(null)
+const paciente = ref<any>(null)
 const expediente = ref<any>({})
 const mediciones = ref<any[]>([])
 
-const clienteName = computed(() => cliente.value?.nombre || 'Cargando...')
+const pacienteName = computed(() => paciente.value?.nombre || 'Cargando...')
 
 const modalMedicionVisible = ref(false)
 const stepMedicion = ref(1)
@@ -321,7 +321,7 @@ const ultimoPeso = computed(() => {
   if (mediciones.value.length > 0) {
     return mediciones.value[mediciones.value.length - 1].peso
   }
-  return cliente.value?.peso || 'N/D'
+  return paciente.value?.peso || 'N/D'
 })
 
 // Opciones de configuración para ApexCharts
@@ -363,15 +363,15 @@ const seriesGráfica = computed(() => [
 async function cargarExpediente() {
   loading.value = true
   try {
-    const targetId = (route.params.clienteId as string) || clienteId.value || '35135447'
-    clienteId.value = targetId
+    const targetId = (route.params.pacienteId as string) || pacienteId.value || '35135447'
+    pacienteId.value = targetId
 
-    const [clienteRes, expRes] = await Promise.all([
-      clientesApi.getById(targetId).catch(() => null),
-      expedientesApi.getByCliente(targetId),
+    const [pacienteRes, expRes] = await Promise.all([
+      pacientesApi.getById(targetId).catch(() => null),
+      expedientesApi.getByPaciente(targetId),
     ])
 
-    cliente.value = clienteRes
+    paciente.value = pacienteRes
     expediente.value = expRes.expediente
     mediciones.value = expRes.mediciones || []
   } catch (err) {
@@ -408,9 +408,9 @@ async function guardarMedicion() {
 
   saving.value = true
   try {
-    const idPaciente = (route.params.clienteId as string) || clienteId.value || '22014468'
+    const idPaciente = (route.params.pacienteId as string) || pacienteId.value || '22014468'
     const body = {
-      clienteId: idPaciente,
+      pacienteId: idPaciente,
       fecha: formMedicion.value.fecha || new Date().toISOString().split('T')[0],
       peso: parseFloat(formMedicion.value.peso),
       talla: formMedicion.value.talla ? parseFloat(formMedicion.value.talla) : null,
@@ -438,10 +438,10 @@ async function guardarMedicion() {
 }
 
 watch(
-  () => route.params.clienteId,
+  () => route.params.pacienteId,
   (newId) => {
     if (newId) {
-      clienteId.value = newId as string
+      pacienteId.value = newId as string
       cargarExpediente()
     }
   }

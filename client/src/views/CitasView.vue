@@ -69,7 +69,7 @@
               <div class="form-group full-width">
                 <label>Nombre Completo *</label>
                 <input
-                  v-model="form.cliente_nombre"
+                  v-model="form.paciente_nombre"
                   type="text"
                   placeholder="Ej. Ana María López"
                   class="form-input"
@@ -79,7 +79,7 @@
               <div class="form-group">
                 <label>Correo Electrónico *</label>
                 <input
-                  v-model="form.cliente_email"
+                  v-model="form.paciente_email"
                   type="email"
                   placeholder="correo@ejemplo.com"
                   class="form-input"
@@ -89,11 +89,11 @@
               <div class="form-group">
                 <label>Teléfono de Contacto (10 dígitos) *</label>
                 <input
-                  v-model="form.cliente_telefono"
+                  v-model="form.paciente_telefono"
                   type="tel"
                   maxlength="10"
                   placeholder="Ej. 5555123456"
-                  @input="form.cliente_telefono = form.cliente_telefono.replace(/\D/g, '').slice(0, 10)"
+                  @input="form.paciente_telefono = form.paciente_telefono.replace(/\D/g, '').slice(0, 10)"
                   class="form-input"
                 />
               </div>
@@ -190,15 +190,15 @@
             <div class="resumen-box">
               <div class="resumen-item">
                 <span class="resumen-label">Paciente:</span>
-                <span class="resumen-val">{{ form.cliente_nombre }}</span>
+                <span class="resumen-val">{{ form.paciente_nombre }}</span>
               </div>
               <div class="resumen-item">
                 <span class="resumen-label">Correo:</span>
-                <span class="resumen-val">{{ form.cliente_email }}</span>
+                <span class="resumen-val">{{ form.paciente_email }}</span>
               </div>
               <div class="resumen-item">
                 <span class="resumen-label">Teléfono:</span>
-                <span class="resumen-val">{{ form.cliente_telefono }}</span>
+                <span class="resumen-val">{{ form.paciente_telefono }}</span>
               </div>
               <div class="resumen-item">
                 <span class="resumen-label">Fecha Reservada:</span>
@@ -234,7 +234,7 @@
                 <strong>#{{ citaConfirmada.id }}</strong>
               </div>
               <div class="ticket-body">
-                <p><strong>Paciente:</strong> {{ citaConfirmada.cliente_nombre }}</p>
+                <p><strong>Paciente:</strong> {{ citaConfirmada.paciente_nombre }}</p>
                 <p><strong>Fecha:</strong> {{ formatearFecha(citaConfirmada.fecha) }}</p>
                 <p><strong>Horario:</strong> {{ citaConfirmada.horario }} hrs</p>
                 <p><strong>Lugar:</strong> Consultorio NutriKer, Ciudad de Guatemala</p>
@@ -288,9 +288,9 @@ const horariosPosibles = [
 ]
 
 const form = ref({
-  cliente_nombre: '',
-  cliente_email: '',
-  cliente_telefono: '',
+  paciente_nombre: '',
+  paciente_email: '',
+  paciente_telefono: '',
   atencion_previa: 'no',
   peso: '',
   estatura: '',
@@ -308,16 +308,16 @@ onMounted(() => {
 
 const irAlPaso2 = () => {
   errorMsg.value = ''
-  if (!form.value.cliente_nombre.trim()) {
+  if (!form.value.paciente_nombre.trim()) {
     errorMsg.value = 'Por favor ingresa tu nombre completo.'
     return
   }
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(form.value.cliente_email.trim())) {
+  if (!emailRegex.test(form.value.paciente_email.trim())) {
     errorMsg.value = 'Por favor ingresa un correo electrónico válido (ej. usuario@dominio.com).'
     return
   }
-  if (form.value.cliente_telefono.replace(/\D/g, '').length !== 10) {
+  if (form.value.paciente_telefono.replace(/\D/g, '').length !== 10) {
     errorMsg.value = 'El número de teléfono debe contener exactamente 10 dígitos.'
     return
   }
@@ -343,8 +343,8 @@ const confirmarYGuardarCita = async () => {
     errorMsg.value = ''
 
     const payload = {
-      cliente_nombre: form.value.cliente_nombre.trim(),
-      cliente_telefono: form.value.cliente_telefono.replace(/\D/g, ''),
+      paciente_nombre: form.value.paciente_nombre.trim(),
+      paciente_telefono: form.value.paciente_telefono.replace(/\D/g, ''),
       fecha: form.value.fecha,
       horario: form.value.horario,
       atencion_previa: form.value.atencion_previa,
@@ -365,9 +365,9 @@ const reiniciarWizard = () => {
   citaConfirmada.value = null
   pasoActual.value = 1
   form.value = {
-    cliente_nombre: '',
-    cliente_email: '',
-    cliente_telefono: '',
+    paciente_nombre: '',
+    paciente_email: '',
+    paciente_telefono: '',
     atencion_previa: 'no',
     peso: '',
     estatura: '',

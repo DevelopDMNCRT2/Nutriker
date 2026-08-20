@@ -1,15 +1,15 @@
 import pool from '../db/pool.js'
 import { generarIdUnico } from '../utils/generarId.js'
 
-// GET /api/clientes — Listar todos los clientes / expedientes activos
-export async function getClientes(req, res) {
+// GET /api/pacientes — Listar todos los pacientes / expedientes activos
+export async function getPacientes(req, res) {
   try {
     const { page = 1, limit = 10, search = '' } = req.query
     const offset = (page - 1) * limit
 
     let query = `
       SELECT id, cita_id, nombre, correo, telefono, edad, ocupacion, fecha, horario, TO_CHAR(created_at, 'YYYY-MM-DD') AS created_at
-      FROM clientes
+      FROM pacientes
       WHERE deleted_at IS NULL
     `
     const params = []
@@ -41,17 +41,17 @@ export async function getClientes(req, res) {
       }
     })
   } catch (err) {
-    console.error('getClientes error:', err.message)
-    res.status(500).json({ error: 'Error al obtener los expedientes de clientes', detalle: err.message })
+    console.error('getPacientes error:', err.message)
+    res.status(500).json({ error: 'Error al obtener los expedientes de pacientes', detalle: err.message })
   }
 }
 
-// GET /api/clientes/:id — Obtener un cliente por ID
-export async function getClienteById(req, res) {
+// GET /api/pacientes/:id — Obtener un paciente por ID
+export async function getPacienteById(req, res) {
   const { id } = req.params
   try {
     const result = await pool.query(
-      `SELECT * FROM clientes
+      `SELECT * FROM pacientes
        WHERE id = $1 AND deleted_at IS NULL`,
       [id]
     )
@@ -60,13 +60,13 @@ export async function getClienteById(req, res) {
     }
     res.json(result.rows[0])
   } catch (err) {
-    console.error('getClienteById error:', err.message)
+    console.error('getPacienteById error:', err.message)
     res.status(500).json({ error: 'Error al obtener el expediente', detalle: err.message })
   }
 }
 
-// POST /api/clientes — Crear un expediente de cliente
-export async function createCliente(req, res) {
+// POST /api/pacientes — Crear un expediente de paciente
+export async function createPaciente(req, res) {
   const {
     cita_id, nombre, telefono, correo, edad, ocupacion, motivo_consulta,
     patologias, antecedentes_familiares, bioquimicos, farmacos, digestiva,
@@ -79,10 +79,10 @@ export async function createCliente(req, res) {
   }
 
   try {
-    const newId = await generarIdUnico('clientes')
+    const newId = await generarIdUnico('pacientes')
 
     const result = await pool.query(
-      `INSERT INTO clientes (
+      `INSERT INTO pacientes (
         id, cita_id, nombre, telefono, correo, edad, ocupacion, motivo_consulta,
         patologias, antecedentes_familiares, bioquimicos, farmacos, digestiva,
         peso, estatura, circunferencias, composicion, recordatorio_24h, alergias,
@@ -104,13 +104,13 @@ export async function createCliente(req, res) {
 
     res.status(201).json(result.rows[0])
   } catch (err) {
-    console.error('createCliente error:', err.message)
-    res.status(500).json({ error: 'Error al crear el expediente de cliente', detalle: err.message })
+    console.error('createPaciente error:', err.message)
+    res.status(500).json({ error: 'Error al crear el expediente de paciente', detalle: err.message })
   }
 }
 
-// PUT /api/clientes/:id — Editar un expediente de cliente
-export async function updateCliente(req, res) {
+// PUT /api/pacientes/:id — Editar un expediente de paciente
+export async function updatePaciente(req, res) {
   const { id } = req.params
   const {
     cita_id, nombre, telefono, correo, edad, ocupacion, motivo_consulta,
@@ -125,7 +125,7 @@ export async function updateCliente(req, res) {
 
   try {
     const result = await pool.query(
-      `UPDATE clientes SET
+      `UPDATE pacientes SET
         cita_id = $1, nombre = $2, telefono = $3, correo = $4, edad = $5,
         ocupacion = $6, motivo_consulta = $7, patologias = $8,
         antecedentes_familiares = $9, bioquimicos = $10, farmacos = $11,
@@ -149,22 +149,22 @@ export async function updateCliente(req, res) {
     )
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Expediente de cliente no encontrado' })
+      return res.status(404).json({ error: 'Expediente de paciente no encontrado' })
     }
 
     res.json(result.rows[0])
   } catch (err) {
-    console.error('updateCliente error:', err.message)
-    res.status(500).json({ error: 'Error al actualizar el expediente de cliente', detalle: err.message })
+    console.error('updatePaciente error:', err.message)
+    res.status(500).json({ error: 'Error al actualizar el expediente de paciente', detalle: err.message })
   }
 }
 
-// DELETE /api/clientes/:id — Soft delete
-export async function deleteCliente(req, res) {
+// DELETE /api/pacientes/:id — Soft delete
+export async function deletePaciente(req, res) {
   const { id } = req.params
   try {
     const result = await pool.query(
-      `UPDATE clientes SET deleted_at = NOW()
+      `UPDATE pacientes SET deleted_at = NOW()
        WHERE id = $1 AND deleted_at IS NULL
        RETURNING id`,
       [id]
@@ -174,7 +174,7 @@ export async function deleteCliente(req, res) {
     }
     res.json({ message: 'Expediente eliminado correctamente', id: result.rows[0].id })
   } catch (err) {
-    console.error('deleteCliente error:', err.message)
+    console.error('deletePaciente error:', err.message)
     res.status(500).json({ error: 'Error al eliminar el expediente', detalle: err.message })
   }
 }

@@ -117,13 +117,13 @@ export const citasApi = {
   importar: (formData) => requestForm('POST', '/citas/importar', formData),
 }
 
-// --- Clientes ---
-export const clientesApi = {
-  getAll:  (page = 1, limit = 10, search = '') => request('GET', `/clientes?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`),
-  getById: (id)       => request('GET',    `/clientes/${id}`),
-  create:  (body)     => request('POST',   '/clientes', body),
-  update:  (id, body) => request('PUT',    `/clientes/${id}`, body),
-  delete:  (id)       => request('DELETE', `/clientes/${id}`),
+// --- Pacientes ---
+export const pacientesApi = {
+  getAll:  (page = 1, limit = 10, search = '') => request('GET', `/pacientes?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`),
+  getById: (id)       => request('GET',    `/pacientes/${id}`),
+  create:  (body)     => request('POST',   '/pacientes', body),
+  update:  (id, body) => request('PUT',    `/pacientes/${id}`, body),
+  delete:  (id)       => request('DELETE', `/pacientes/${id}`),
 }
 
 // --- Dashboard ---
@@ -133,7 +133,7 @@ export const dashboardApi = {
 
 // --- Menus Semanales ---
 export const menusApi = {
-  getByCliente: (clienteId)   => request('GET',    `/menus/cliente/${clienteId}`),
+  getByPaciente: (pacienteId)   => request('GET',    `/menus/paciente/${pacienteId}`),
   getById:      (id)          => request('GET',    `/menus/${id}`),
   create:       (body)        => request('POST',   '/menus', body),
   update:       (id, body)    => request('PUT',    `/menus/${id}`, body),
@@ -142,8 +142,8 @@ export const menusApi = {
 
 // --- Expedientes Clínicos y Mediciones ---
 export const expedientesApi = {
-  getByCliente:    (clienteId)   => request('GET', `/expedientes/cliente/${clienteId}`),
-  updateNotas:     (clienteId, body) => request('PUT', `/expedientes/cliente/${clienteId}`, body),
+  getByPaciente:    (pacienteId)   => request('GET', `/expedientes/paciente/${pacienteId}`),
+  updateNotas:     (pacienteId, body) => request('PUT', `/expedientes/paciente/${pacienteId}`, body),
   createMedicion:  (body)        => request('POST', '/expedientes/mediciones', body),
   updateMedicion:  (id, body)    => request('PUT', `/expedientes/mediciones/${id}`, body),
   deleteMedicion:  (id)          => request('DELETE', `/expedientes/mediciones/${id}`),

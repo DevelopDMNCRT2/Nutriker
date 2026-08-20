@@ -45,14 +45,14 @@ export const getZonasEnvioPublicas = async (req, res) => {
   }
 }
 
-// 3. Procesar checkout público del cliente
+// 3. Procesar checkout público del paciente
 export const procesarCheckoutPublico = async (req, res) => {
   const client = await pool.connect()
   try {
     const {
-      cliente_nombre,
-      cliente_email,
-      cliente_telefono,
+      paciente_nombre,
+      paciente_email,
+      paciente_telefono,
       direccion_entrega,
       ciudad,
       zona_envio_id,
@@ -60,9 +60,9 @@ export const procesarCheckoutPublico = async (req, res) => {
       items
     } = req.body
 
-    if (!cliente_nombre || !direccion_entrega || !items || !Array.isArray(items) || items.length === 0) {
+    if (!paciente_nombre || !direccion_entrega || !items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ 
-        error: 'Datos incompletos. Se requiere nombre del cliente, dirección de entrega y al menos un producto en el carrito.' 
+        error: 'Datos incompletos. Se requiere nombre del paciente, dirección de entrega y al menos un producto en el carrito.' 
       })
     }
 
@@ -73,7 +73,7 @@ export const procesarCheckoutPublico = async (req, res) => {
 
     const insertOrdenSQL = `
       INSERT INTO ordenes (
-        id, cliente_nombre, cliente_email, cliente_telefono,
+        id, paciente_nombre, paciente_email, paciente_telefono,
         total, direccion_entrega, ciudad, estado_orden, estado_envio,
         zona_envio_id, metodo_pago
       )
@@ -81,7 +81,7 @@ export const procesarCheckoutPublico = async (req, res) => {
       RETURNING *
     `
     const ordenValues = [
-      newOrdenId, cliente_nombre, cliente_email || null, cliente_telefono || null,
+      newOrdenId, paciente_nombre, paciente_email || null, paciente_telefono || null,
       total, direccion_entrega, ciudad || 'Ciudad de México',
       zona_envio_id || null, metodo_pago || 'Tarjeta de Crédito/Débito'
     ]
@@ -120,15 +120,15 @@ export const procesarCheckoutPublico = async (req, res) => {
   }
 }
 
-// 4. Agendar cita pública desde el portal cliente
+// 4. Agendar cita pública desde el portal paciente
 export const agendarCitaPublica = async (req, res) => {
   try {
     const { 
-      cliente_nombre, cliente_telefono, fecha, horario,
+      paciente_nombre, paciente_telefono, fecha, horario,
       atencion_previa, peso, estatura 
     } = req.body
 
-    if (!cliente_nombre || !cliente_telefono || !fecha || !horario) {
+    if (!paciente_nombre || !paciente_telefono || !fecha || !horario) {
       return res.status(400).json({ 
         error: 'Todos los campos obligatorios deben estar completos (nombre, teléfono, fecha y horario).' 
       })
@@ -152,14 +152,14 @@ export const agendarCitaPublica = async (req, res) => {
 
     const query = `
       INSERT INTO citas (
-        id, cliente_nombre, cliente_telefono, fecha, horario,
+        id, paciente_nombre, paciente_telefono, fecha, horario,
         atencion_previa, peso, estatura
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `
     const values = [
-      newId, cliente_nombre, cliente_telefono, fecha, horario,
+      newId, paciente_nombre, paciente_telefono, fecha, horario,
       atencion_previa || 'no', 
       peso ? parseFloat(peso) : null, 
       estatura ? parseFloat(estatura) : null
@@ -186,27 +186,27 @@ export const loginPaciente = async (req, res) => {
     const rawVal = identificador.trim()
     const cleanPhone = rawVal.replace(/\D/g, '')
 
-    // 1. Buscar en la tabla clientes
-    const queryClientes = `
+    // 1. Buscar en la tabla pacientes
+    const queryPacientes = `
       SELECT *
-      FROM clientes
+      FROM pacientes
       WHERE (telefono = $1 OR (length($2) = 10 AND REPLACE(telefono, '-', '') = $2) OR LOWER(correo) = LOWER($1)) AND deleted_at IS NULL
       LIMIT 1
     `
-    const { rows: clientesRows } = await pool.query(queryClientes, [rawVal, cleanPhone])
+    const { rows: pacientesRows } = await pool.query(queryPacientes, [rawVal, cleanPhone])
 
-    if (clientesRows.length > 0) {
+    if (pacientesRows.length > 0) {
       return res.json({
         mensaje: 'Autenticación exitosa',
-        paciente: clientesRows[0]
+        paciente: pacientesRows[0]
       })
     }
 
-    // 2. Si no está en clientes, buscar en la tabla citas
+    // 2. Si no está en pacientes, buscar en la tabla citas
     const queryCitas = `
-      SELECT *, cliente_nombre AS nombre, cliente_telefono AS telefono
+      SELECT *, paciente_nombre AS nombre, paciente_telefono AS telefono
       FROM citas
-      WHERE (cliente_telefono = $1 OR (length($2) = 10 AND REPLACE(cliente_telefono, '-', '') = $2) OR LOWER(correo) = LOWER($1)) AND deleted_at IS NULL
+      WHERE (paciente_telefono = $1 OR (length($2) = 10 AND REPLACE(paciente_telefono, '-', '') = $2) OR LOWER(correo) = LOWER($1)) AND deleted_at IS NULL
       ORDER BY created_at DESC
       LIMIT 1
     `
@@ -235,30 +235,30 @@ export const getPortalPaciente = async (req, res) => {
       return res.status(400).json({ error: 'Se requiere el ID o teléfono del paciente' })
     }
 
-    let clienteRes
+    let pacienteRes
     if (paciente_id) {
-      clienteRes = await pool.query('SELECT * FROM clientes WHERE id = $1 AND deleted_at IS NULL', [paciente_id])
+      pacienteRes = await pool.query('SELECT * FROM pacientes WHERE id = $1 AND deleted_at IS NULL', [paciente_id])
     } else {
-      clienteRes = await pool.query('SELECT * FROM clientes WHERE telefono = $1 AND deleted_at IS NULL', [telefono])
+      pacienteRes = await pool.query('SELECT * FROM pacientes WHERE telefono = $1 AND deleted_at IS NULL', [telefono])
     }
 
-    if (clienteRes.rows.length === 0) {
+    if (pacienteRes.rows.length === 0) {
       return res.status(404).json({ error: 'Expediente de paciente no encontrado' })
     }
 
-    const paciente = clienteRes.rows[0]
+    const paciente = pacienteRes.rows[0]
 
     // Obtener menú semanal asignado al paciente
     const menuRes = await pool.query(`
       SELECT * FROM menus_semanales 
-      WHERE cliente_id = $1 AND deleted_at IS NULL
+      WHERE paciente_id = $1 AND deleted_at IS NULL
       ORDER BY created_at DESC LIMIT 1
     `, [paciente.id])
 
     // Obtener citas del paciente
     const citasRes = await pool.query(`
       SELECT * FROM citas 
-      WHERE (cliente_telefono = $1 OR cliente_nombre = $2) AND deleted_at IS NULL
+      WHERE (paciente_telefono = $1 OR paciente_nombre = $2) AND deleted_at IS NULL
       ORDER BY fecha DESC, horario DESC
     `, [paciente.telefono, paciente.nombre])
 

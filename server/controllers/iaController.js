@@ -28,24 +28,24 @@ No agregues texto fuera del objeto JSON.`
 
 // ─── POST /api/ia/sintetizar-notas ───────────────────────────────────────────
 export async function sintetizarNotas(req, res) {
-  const { textoConsulta, clienteId } = req.body
+  const { textoConsulta, pacienteId } = req.body
 
   if (!textoConsulta || !textoConsulta.trim()) {
     return res.status(400).json({ error: 'El texto de la consulta o dictado es requerido' })
   }
 
   try {
-    let datosCliente = null
-    if (clienteId) {
-      const clienteRes = await pool.query('SELECT nombre, edad, motivo_consulta, peso, estatura, patologias FROM clientes WHERE id = $1', [clienteId])
-      if (clienteRes.rows.length > 0) {
-        datosCliente = clienteRes.rows[0]
+    let datosPaciente = null
+    if (pacienteId) {
+      const pacienteRes = await pool.query('SELECT nombre, edad, motivo_consulta, peso, estatura, patologias FROM pacientes WHERE id = $1', [pacienteId])
+      if (pacienteRes.rows.length > 0) {
+        datosPaciente = pacienteRes.rows[0]
       }
     }
 
     const contextText = `
-Paciente: ${datosCliente ? `${datosCliente.nombre} (${datosCliente.edad || 'S/D'} años)` : 'Paciente en Consulta'}
-Diagnóstico/Patologías registradas: ${datosCliente?.patologias || datosCliente?.motivo_consulta || 'Sin antecedente registrado'}
+Paciente: ${datosPaciente ? `${datosPaciente.nombre} (${datosPaciente.edad || 'S/D'} años)` : 'Paciente en Consulta'}
+Diagnóstico/Patologías registradas: ${datosPaciente?.patologias || datosPaciente?.motivo_consulta || 'Sin antecedente registrado'}
 
 Dictado o Notas de la Consulta Actual:
 "${textoConsulta}"
@@ -69,7 +69,7 @@ Dictado o Notas de la Consulta Actual:
 
     // Extracción y síntesis PNL dinámica según la consulta médica ingresada
     const textLower = textoConsulta.toLowerCase()
-    const nombrePaciente = datosCliente ? datosCliente.nombre : 'Paciente'
+    const nombrePaciente = datosPaciente ? datosPaciente.nombre : 'Paciente'
     const palabras = textoConsulta.trim()
     
     // 1. Diagnóstico Nutricional Dinámico
@@ -154,18 +154,18 @@ Dictado o Notas de la Consulta Actual:
 
 // ─── POST /api/ia/chat-asistente ─────────────────────────────────────────────
 export async function chatAsistente(req, res) {
-  const { mensaje, historial = [], clienteId } = req.body
+  const { mensaje, historial = [], pacienteId } = req.body
 
   if (!mensaje || !mensaje.trim()) {
     return res.status(400).json({ error: 'El mensaje es requerido' })
   }
 
   try {
-    let datosCliente = null
-    if (clienteId) {
-      const clienteRes = await pool.query('SELECT nombre, edad, motivo_consulta, peso, estatura, patologias FROM clientes WHERE id = $1', [clienteId])
-      if (clienteRes.rows.length > 0) {
-        datosCliente = clienteRes.rows[0]
+    let datosPaciente = null
+    if (pacienteId) {
+      const pacienteRes = await pool.query('SELECT nombre, edad, motivo_consulta, peso, estatura, patologias FROM pacientes WHERE id = $1', [pacienteId])
+      if (pacienteRes.rows.length > 0) {
+        datosPaciente = pacienteRes.rows[0]
       }
     }
 
@@ -173,7 +173,7 @@ export async function chatAsistente(req, res) {
       try {
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
         const promptContext = `Eres NutriKer AI, asistente médico nutricional. 
-Paciente en consulta: ${datosCliente ? `${datosCliente.nombre}, Patologías: ${datosCliente.patologias || 'Ninguna'}` : 'Consulta General'}
+Paciente en consulta: ${datosPaciente ? `${datosPaciente.nombre}, Patologías: ${datosPaciente.patologias || 'Ninguna'}` : 'Consulta General'}
 Mensaje del médico: "${mensaje}"
 Responde de forma concisa, profesional y útil para la nutrióloga.`
 
@@ -190,7 +190,7 @@ Responde de forma concisa, profesional y útil para la nutrióloga.`
     let respuestaDinamica = ''
 
     if (query.includes('colación') || query.includes('colacion') || query.includes('snack')) {
-      respuestaDinamica = `Para ${datosCliente ? datosCliente.nombre : 'este paciente'}, sugiero colaciones de bajo índice glucémico como almendras con manzana verde, yogur griego sin azúcar con chía o bastones de pepino con hummus.`
+      respuestaDinamica = `Para ${datosPaciente ? datosPaciente.nombre : 'este paciente'}, sugiero colaciones de bajo índice glucémico como almendras con manzana verde, yogur griego sin azúcar con chía o bastones de pepino con hummus.`
     } else if (query.includes('agua') || query.includes('hidratación') || query.includes('sed')) {
       respuestaDinamica = `Se recomienda calcular el requerimiento hídrico a 35ml por kg de peso. Para la condición actual del paciente, entre 2.2 y 2.7 litros de agua natural al día.`
     } else if (query.includes('hipertensión') || query.includes('presión') || query.includes('sal')) {
@@ -198,7 +198,7 @@ Responde de forma concisa, profesional y útil para la nutrióloga.`
     } else if (query.includes('ayud') || query.includes('puedes') || query.includes('qué haces') || query.includes('ahora')) {
       respuestaDinamica = `¡Claro que sí, Dra.! Puedo ayudarte a sugerir reemplazos de alimentos, calcular requerimientos hídricos o calóricos, sugerir colaciones personalizadas para la patología del paciente o redactar el plan nutricional.`
     } else {
-      respuestaDinamica = `Comprendido. Respecto a "${mensaje}", analizando el expediente de ${datosCliente ? datosCliente.nombre : 'paciente'}, sugiero mantener un balance de macronutrientes del 45% carbohidratos complejos, 30% proteínas magras y 25% grasas saludables con monitoreo en 15 días.`
+      respuestaDinamica = `Comprendido. Respecto a "${mensaje}", analizando el expediente de ${datosPaciente ? datosPaciente.nombre : 'paciente'}, sugiero mantener un balance de macronutrientes del 45% carbohidratos complejos, 30% proteínas magras y 25% grasas saludables con monitoreo en 15 días.`
     }
 
     res.json({ respuesta: respuestaDinamica })
@@ -210,27 +210,27 @@ Responde de forma concisa, profesional y útil para la nutrióloga.`
 
 // ─── POST /api/ia/generar-menu ───────────────────────────────────────────────
 export async function generarMenu(req, res) {
-  const { clienteId, instrucciones } = req.body
+  const { pacienteId, instrucciones } = req.body
 
   try {
-    let datosCliente = null
+    let datosPaciente = null
     let expediente = null
     
-    if (clienteId) {
-      const clienteRes = await pool.query('SELECT nombre, edad, peso, estatura, patologias, gustos, alergias, estilo_vida FROM clientes WHERE id = $1', [clienteId])
-      if (clienteRes.rows.length > 0) datosCliente = clienteRes.rows[0]
+    if (pacienteId) {
+      const pacienteRes = await pool.query('SELECT nombre, edad, peso, estatura, patologias, gustos, alergias, estilo_vida FROM pacientes WHERE id = $1', [pacienteId])
+      if (pacienteRes.rows.length > 0) datosPaciente = pacienteRes.rows[0]
       
-      const expRes = await pool.query('SELECT diagnostico, objetivo_nutricional, notas_medicas FROM expedientes_clinicos WHERE cliente_id = $1', [clienteId])
+      const expRes = await pool.query('SELECT diagnostico, objetivo_nutricional, notas_medicas FROM expedientes_clinicos WHERE paciente_id = $1', [pacienteId])
       if (expRes.rows.length > 0) expediente = expRes.rows[0]
     }
 
     const contextText = `
-Paciente: ${datosCliente ? datosCliente.nombre : 'General'}
-Edad: ${datosCliente?.edad || 'N/A'}, Peso: ${datosCliente?.peso || 'N/A'}, Estatura: ${datosCliente?.estatura || 'N/A'}
-Patologías: ${datosCliente?.patologias || 'Ninguna'}
-Alergias: ${datosCliente?.alergias || 'Ninguna'}
-Gustos: ${datosCliente?.gustos || 'N/A'}
-Estilo de vida: ${datosCliente?.estilo_vida || 'N/A'}
+Paciente: ${datosPaciente ? datosPaciente.nombre : 'General'}
+Edad: ${datosPaciente?.edad || 'N/A'}, Peso: ${datosPaciente?.peso || 'N/A'}, Estatura: ${datosPaciente?.estatura || 'N/A'}
+Patologías: ${datosPaciente?.patologias || 'Ninguna'}
+Alergias: ${datosPaciente?.alergias || 'Ninguna'}
+Gustos: ${datosPaciente?.gustos || 'N/A'}
+Estilo de vida: ${datosPaciente?.estilo_vida || 'N/A'}
 Objetivo Nutricional: ${expediente?.objetivo_nutricional || 'Mantenimiento y salud general'}
 
 Instrucciones adicionales de la doctora: "${instrucciones || 'Genera una dieta balanceada adecuada para este paciente'}"

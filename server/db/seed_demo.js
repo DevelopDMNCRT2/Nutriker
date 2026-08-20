@@ -46,35 +46,35 @@ async function seedMassive() {
       const pId = await generarIdUnico('pedidos')
       const total = getRandomInt(450, 1500)
       const estado = getRandomItem(['En proceso', 'completado', 'completado', 'pendiente'])
-      await client.query('INSERT INTO pedidos (id, cliente_nombre, total, direccion_entrega, ciudad, estado, codigo_postal, estado_pedido, metodo_pago) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)', 
+      await client.query('INSERT INTO pedidos (id, paciente_nombre, total, direccion_entrega, ciudad, estado, codigo_postal, estado_pedido, metodo_pago) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)', 
       [pId, `${getRandomItem(nombres)} ${getRandomItem(apellidos)}`, total, 'Calle Falsa 123', 'Guadalajara', 'Jalisco', '45000', estado, 'Tarjeta'])
     }
 
-    // 3. Generar 30 Clientes (1 mes de trabajo)
-    const clientesGenerados = []
+    // 3. Generar 30 Pacientes (1 mes de trabajo)
+    const pacientesGenerados = []
     for (let i = 0; i < 30; i++) {
       const nombre = `${getRandomItem(nombres)} ${getRandomItem(apellidos)}`
-      const clienteId = await generarIdUnico('clientes')
+      const pacienteId = await generarIdUnico('pacientes')
       
       const f = new Date()
       f.setDate(f.getDate() - getRandomInt(1, 30)) // Fecha de registro
       const fechaRegistro = f.toISOString().split('T')[0]
       
       await client.query(`
-        INSERT INTO clientes (id, nombre, telefono, correo, edad, ocupacion, motivo_consulta, peso, estatura, fecha)
+        INSERT INTO pacientes (id, nombre, telefono, correo, edad, ocupacion, motivo_consulta, peso, estatura, fecha)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      `, [clienteId, nombre, `331${getRandomInt(1000000, 9999999)}`, `paciente${i}@correo.com`, getRandomInt(20, 60), 'Oficina', getRandomItem(motivos), getRandomInt(60, 100), getRandomInt(155, 190)/100, fechaRegistro])
+      `, [pacienteId, nombre, `331${getRandomInt(1000000, 9999999)}`, `paciente${i}@correo.com`, getRandomInt(20, 60), 'Oficina', getRandomItem(motivos), getRandomInt(60, 100), getRandomInt(155, 190)/100, fechaRegistro])
 
-      clientesGenerados.push({ id: clienteId, nombre, fechaRegistro })
+      pacientesGenerados.push({ id: pacienteId, nombre, fechaRegistro })
 
       // Expediente
-      await client.query('INSERT INTO expedientes_clinicos (id, cliente_id, diagnostico, objetivo_nutricional) VALUES ($1, $2, $3, $4)', 
-      [await generarIdUnico('expedientes_clinicos'), clienteId, 'Evaluación inicial completada.', 'Mejorar hábitos alimenticios y composición corporal.'])
+      await client.query('INSERT INTO expedientes_clinicos (id, paciente_id, diagnostico, objetivo_nutricional) VALUES ($1, $2, $3, $4)', 
+      [await generarIdUnico('expedientes_clinicos'), pacienteId, 'Evaluación inicial completada.', 'Mejorar hábitos alimenticios y composición corporal.'])
       
       // Mediciones
       for(let m=0; m<2; m++) {
-        await client.query('INSERT INTO mediciones_antropometricas (id, cliente_id, peso, porcentaje_grasa, masa_muscular) VALUES ($1, $2, $3, $4, $5)', 
-        [await generarIdUnico('mediciones_antropometricas'), clienteId, getRandomInt(60, 90), getRandomInt(15, 35), getRandomInt(30, 50)])
+        await client.query('INSERT INTO mediciones_antropometricas (id, paciente_id, peso, porcentaje_grasa, masa_muscular) VALUES ($1, $2, $3, $4, $5)', 
+        [await generarIdUnico('mediciones_antropometricas'), pacienteId, getRandomInt(60, 90), getRandomInt(15, 35), getRandomInt(30, 50)])
       }
     }
 
@@ -92,25 +92,25 @@ async function seedMassive() {
       
       const horarios = ['09:00', '10:30', '12:00', '16:00', '17:30', '19:00']
       for (let h = 0; h < getRandomInt(3, 6); h++) {
-        const clienteRandom = getRandomItem(clientesGenerados)
+        const pacienteRandom = getRandomItem(pacientesGenerados)
         await client.query(`
-          INSERT INTO citas (id, cliente_nombre, cliente_telefono, fecha, horario, atencion_previa)
+          INSERT INTO citas (id, paciente_nombre, paciente_telefono, fecha, horario, atencion_previa)
           VALUES ($1, $2, $3, $4, $5, 'si')
-        `, [await generarIdUnico('citas'), clienteRandom.nombre, '3310000000', dateStr, horarios[h]])
+        `, [await generarIdUnico('citas'), pacienteRandom.nombre, '3310000000', dateStr, horarios[h]])
         citasGeneradas++;
       }
     }
 
     // 5. Menús Semanales
     for (let i = 0; i < 5; i++) {
-      const c = getRandomItem(clientesGenerados)
+      const c = getRandomItem(pacientesGenerados)
       await client.query(`
-        INSERT INTO menus_semanales (id, cliente_id, nombre, semana_inicio, lunes_desayuno, lunes_comida, lunes_cena, martes_desayuno, martes_comida, martes_cena)
+        INSERT INTO menus_semanales (id, paciente_id, nombre, semana_inicio, lunes_desayuno, lunes_comida, lunes_cena, martes_desayuno, martes_comida, martes_cena)
         VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6, $7, $8, $9)
       `, [await generarIdUnico('menus_semanales'), c.id, 'Plan de Seguimiento Semanal', 'Huevo a la mexicana', 'Pechuga asada con nopal', 'Ensalada de atún', 'Avena con fruta', 'Salmón con verduras', 'Yogur con chía'])
     }
 
-    console.log(`✅ Seed Masivo Exitoso: 30 Clientes, ${citasGeneradas} Citas para esta semana, 10 Órdenes, 5 Menús creados.`)
+    console.log(`✅ Seed Masivo Exitoso: 30 Pacientes, ${citasGeneradas} Citas para esta semana, 10 Órdenes, 5 Menús creados.`)
   } catch (err) {
     console.error('❌ Error en Seed Masivo:', err.message)
   } finally {

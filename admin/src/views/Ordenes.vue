@@ -67,7 +67,7 @@
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="Buscar por cliente o ID de orden..."
+            placeholder="Buscar por paciente o ID de orden..."
             class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
           />
         </div>
@@ -100,7 +100,7 @@
             <thead class="bg-gray-50 text-gray-500 dark:bg-gray-800/50 dark:text-gray-400 uppercase font-semibold">
               <tr>
                 <th class="px-4 py-3.5">ID Orden</th>
-                <th class="px-4 py-3.5">Paciente / Cliente</th>
+                <th class="px-4 py-3.5">Paciente / Paciente</th>
                 <th class="px-4 py-3.5">Zona de Envío</th>
                 <th class="px-4 py-3.5">Total</th>
                 <th class="px-4 py-3.5">Estado Pago</th>
@@ -114,8 +114,8 @@
                   #{{ orden.id }}
                 </td>
                 <td class="px-4 py-3.5">
-                  <span class="block font-semibold text-gray-900 dark:text-white">{{ orden.cliente_nombre }}</span>
-                  <span class="text-[11px] text-gray-500">{{ orden.cliente_telefono || orden.cliente_email || 'Sin contacto' }}</span>
+                  <span class="block font-semibold text-gray-900 dark:text-white">{{ orden.paciente_nombre }}</span>
+                  <span class="text-[11px] text-gray-500">{{ orden.paciente_telefono || orden.paciente_email || 'Sin contacto' }}</span>
                 </td>
                 <td class="px-4 py-3.5">
                   <span class="font-medium text-gray-700 dark:text-gray-300">{{ orden.zona_nombre || 'Sin zona asignada' }}</span>
@@ -203,10 +203,10 @@
               <!-- Paciente & Dirección -->
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl">
                 <div>
-                  <p class="font-bold text-gray-500 uppercase tracking-wider mb-1">Cliente / Paciente</p>
-                  <p class="font-semibold text-gray-900 dark:text-white text-sm">{{ ordenSeleccionada.cliente_nombre }}</p>
-                  <p class="text-gray-500">{{ ordenSeleccionada.cliente_telefono }}</p>
-                  <p class="text-gray-500">{{ ordenSeleccionada.cliente_email }}</p>
+                  <p class="font-bold text-gray-500 uppercase tracking-wider mb-1">Paciente / Paciente</p>
+                  <p class="font-semibold text-gray-900 dark:text-white text-sm">{{ ordenSeleccionada.paciente_nombre }}</p>
+                  <p class="text-gray-500">{{ ordenSeleccionada.paciente_telefono }}</p>
+                  <p class="text-gray-500">{{ ordenSeleccionada.paciente_email }}</p>
                 </div>
                 <div>
                   <p class="font-bold text-gray-500 uppercase tracking-wider mb-1">Dirección de Entrega</p>
@@ -262,30 +262,30 @@
 
             <form @submit.prevent="guardarOrden" class="space-y-4 text-xs">
               <div class="relative">
-                <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre del Cliente / Paciente *</label>
+                <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre del Paciente / Paciente *</label>
                 <input
-                  v-model="formCrear.cliente_nombre"
+                  v-model="formCrear.paciente_nombre"
                   type="text"
                   required
                   placeholder="Escribe para buscar paciente registrado o ingresar uno nuevo..."
                   class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                  @focus="showDropdownClientes = true"
-                  @input="showDropdownClientes = true"
+                  @focus="showDropdownPacientes = true"
+                  @input="showDropdownPacientes = true"
                 />
-                <!-- Dropdown de búsqueda de clientes -->
+                <!-- Dropdown de búsqueda de pacientes -->
                 <div
-                  v-if="showDropdownClientes && clientesFiltrados.length > 0"
+                  v-if="showDropdownPacientes && pacientesFiltrados.length > 0"
                   class="absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 max-h-48 overflow-y-auto"
                 >
                   <div
-                    v-for="cliente in clientesFiltrados"
-                    :key="cliente.id"
-                    @mousedown.prevent="seleccionarCliente(cliente)"
+                    v-for="paciente in pacientesFiltrados"
+                    :key="paciente.id"
+                    @mousedown.prevent="seleccionarPaciente(paciente)"
                     class="cursor-pointer px-4 py-2.5 hover:bg-emerald-50 dark:hover:bg-gray-700/60 border-b border-gray-100 dark:border-gray-700/50 last:border-0 flex items-center justify-between transition-colors"
                   >
                     <div>
-                      <p class="text-xs font-bold text-gray-800 dark:text-white">{{ cliente.nombre }}</p>
-                      <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ cliente.telefono }} <span v-if="cliente.correo">• {{ cliente.correo }}</span></p>
+                      <p class="text-xs font-bold text-gray-800 dark:text-white">{{ paciente.nombre }}</p>
+                      <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ paciente.telefono }} <span v-if="paciente.correo">• {{ paciente.correo }}</span></p>
                     </div>
                     <span class="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 rounded-full">Paciente Registrado</span>
                   </div>
@@ -295,11 +295,11 @@
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Teléfono</label>
-                  <input v-model="formCrear.cliente_telefono" type="text" placeholder="Ej. 5512345678" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  <input v-model="formCrear.paciente_telefono" type="text" placeholder="Ej. 5512345678" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                 </div>
                 <div>
                   <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Correo Electrónico</label>
-                  <input v-model="formCrear.cliente_email" type="email" placeholder="mariana@gmail.com" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  <input v-model="formCrear.paciente_email" type="email" placeholder="mariana@gmail.com" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                 </div>
               </div>
 
@@ -357,7 +357,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import Modal from '@/components/ui/Modal.vue'
-import { ordenesApi, zonasEnvioApi, productosApi, clientesApi } from '@/api/index.js'
+import { ordenesApi, zonasEnvioApi, productosApi, pacientesApi } from '@/api/index.js'
 import { PlusIcon, TrashIcon } from '@/icons'
 
 const router = useRouter()
@@ -367,8 +367,8 @@ const guardando = ref(false)
 const ordenes = ref<any[]>([])
 const zonas = ref<any[]>([])
 const listaProductos = ref<any[]>([])
-const listaClientes = ref<any[]>([])
-const showDropdownClientes = ref(false)
+const listaPacientes = ref<any[]>([])
+const showDropdownPacientes = ref(false)
 const searchQuery = ref('')
 const filtroPago = ref('')
 const filtroEnvio = ref('')
@@ -378,9 +378,9 @@ const modalCrearVisible = ref(false)
 const ordenSeleccionada = ref<any>(null)
 
 const formCrear = ref({
-  cliente_nombre: '',
-  cliente_telefono: '',
-  cliente_email: '',
+  paciente_nombre: '',
+  paciente_telefono: '',
+  paciente_email: '',
   direccion_entrega: '',
   ciudad: 'Ciudad de México',
   zona_envio_id: '',
@@ -394,28 +394,28 @@ const nuevoItem = ref({
   precio_unitario: 0
 })
 
-const clientesFiltrados = computed(() => {
-  if (!formCrear.value.cliente_nombre || formCrear.value.cliente_nombre.trim() === '') {
-    return listaClientes.value.slice(0, 5)
+const pacientesFiltrados = computed(() => {
+  if (!formCrear.value.paciente_nombre || formCrear.value.paciente_nombre.trim() === '') {
+    return listaPacientes.value.slice(0, 5)
   }
-  const q = formCrear.value.cliente_nombre.toLowerCase()
-  return listaClientes.value.filter(c => 
+  const q = formCrear.value.paciente_nombre.toLowerCase()
+  return listaPacientes.value.filter(c => 
     (c.nombre && c.nombre.toLowerCase().includes(q)) || 
     (c.telefono && c.telefono.includes(q))
   ).slice(0, 5)
 })
 
-function seleccionarCliente(cliente: any) {
-  formCrear.value.cliente_nombre = cliente.nombre || ''
-  formCrear.value.cliente_telefono = cliente.telefono || ''
-  formCrear.value.cliente_email = cliente.correo || ''
-  showDropdownClientes.value = false
+function seleccionarPaciente(paciente: any) {
+  formCrear.value.paciente_nombre = paciente.nombre || ''
+  formCrear.value.paciente_telefono = paciente.telefono || ''
+  formCrear.value.paciente_email = paciente.correo || ''
+  showDropdownPacientes.value = false
 }
 
 const ordenesFiltradas = computed(() => {
   return ordenes.value.filter(o => {
     const query = searchQuery.value.toLowerCase()
-    const coincideBusqueda = o.cliente_nombre.toLowerCase().includes(query) || String(o.id).toLowerCase().includes(query)
+    const coincideBusqueda = o.paciente_nombre.toLowerCase().includes(query) || String(o.id).toLowerCase().includes(query)
     const coincidePago = !filtroPago.value || o.estado_orden === filtroPago.value
     const coincideEnvio = !filtroEnvio.value || o.estado_envio === filtroEnvio.value
     return coincideBusqueda && coincidePago && coincideEnvio
@@ -441,16 +441,16 @@ const enviosEntregados = computed(() => {
 async function cargarDatos() {
   loading.value = true
   try {
-    const [dataOrdenes, dataZonas, dataProductos, dataClientes] = await Promise.all([
+    const [dataOrdenes, dataZonas, dataProductos, dataPacientes] = await Promise.all([
       ordenesApi.getAll(),
       zonasEnvioApi.getAll(),
       productosApi.getAll(),
-      clientesApi.getAll()
+      pacientesApi.getAll()
     ])
     ordenes.value = dataOrdenes
     zonas.value = dataZonas
     listaProductos.value = dataProductos
-    listaClientes.value = dataClientes
+    listaPacientes.value = dataPacientes
   } catch (e: any) {
     console.error('Error al cargar órdenes:', e.message)
   } finally {
@@ -475,7 +475,7 @@ const abrirModalCrear = () => {
 
 const cerrarModalCrear = () => {
   modalCrearVisible.value = false
-  showDropdownClientes.value = false
+  showDropdownPacientes.value = false
 }
 
 const onProductoChange = () => {

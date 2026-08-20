@@ -279,9 +279,9 @@ const procesarCheckout = async () => {
     }
 
     const payload = {
-      cliente_nombre: formCheckout.value.nombre.trim(),
-      cliente_email: formCheckout.value.email.trim(),
-      cliente_telefono: telefonoLimpio,
+      paciente_nombre: formCheckout.value.nombre.trim(),
+      paciente_email: formCheckout.value.email.trim(),
+      paciente_telefono: telefonoLimpio,
       direccion_entrega: formCheckout.value.direccion.trim(),
       ciudad: 'Ciudad de Guatemala',
       zona_envio_id: zonaSeleccionadaId.value,

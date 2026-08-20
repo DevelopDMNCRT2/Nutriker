@@ -26,7 +26,7 @@
               <span>Ver Calendario</span>
             </router-link>
             <router-link
-              to="/clientes"
+              to="/pacientes"
               class="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 border border-white/30 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-colors backdrop-blur-sm"
             >
               <ListIcon class="w-4 h-4 text-white" />
@@ -65,7 +65,7 @@
             </div>
           </div>
           <div class="mt-3 flex items-baseline gap-2">
-            <span class="text-2xl font-bold text-gray-900 dark:text-white">{{ datosDashboard.totalClientes }}</span>
+            <span class="text-2xl font-bold text-gray-900 dark:text-white">{{ datosDashboard.totalPacientes }}</span>
             <span class="text-xs text-gray-500">pacientes</span>
           </div>
           <p class="mt-1 text-xs text-teal-600 font-medium dark:text-teal-400">Registrados en sistema</p>
@@ -145,8 +145,8 @@
                   <span class="text-sm">{{ cita.horario }}</span>
                 </div>
                 <div>
-                  <h4 class="text-sm font-bold text-gray-900 dark:text-white">{{ cita.cliente_nombre }}</h4>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">📞 {{ cita.cliente_telefono || 'Sin teléfono' }}</p>
+                  <h4 class="text-sm font-bold text-gray-900 dark:text-white">{{ cita.paciente_nombre }}</h4>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">📞 {{ cita.paciente_telefono || 'Sin teléfono' }}</p>
                 </div>
               </div>
 
@@ -227,7 +227,7 @@ const datosDashboard = ref<any>({
   saludo: '¡Buenos días, Karla!',
   totalCitasHoy: 0,
   totalCitas: 0,
-  totalClientes: 0,
+  totalPacientes: 0,
   citasHoy: [],
   tareas: [],
 })

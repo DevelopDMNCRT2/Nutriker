@@ -17,27 +17,27 @@
           <div class="sm:col-span-2 relative">
             <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Nombre del Paciente *</label>
             <input
-              v-model="form.cliente_nombre"
+              v-model="form.paciente_nombre"
               type="text"
               required
               placeholder="Escribe para buscar paciente o ingresar nuevo..."
               class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-              @focus="showDropdownClientes = true"
-              @input="showDropdownClientes = true"
+              @focus="showDropdownPacientes = true"
+              @input="showDropdownPacientes = true"
             />
             <div
-              v-if="showDropdownClientes && clientesFiltrados.length > 0"
+              v-if="showDropdownPacientes && pacientesFiltrados.length > 0"
               class="absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 max-h-48 overflow-y-auto"
             >
               <div
-                v-for="cliente in clientesFiltrados"
-                :key="cliente.id"
-                @mousedown.prevent="seleccionarCliente(cliente)"
+                v-for="paciente in pacientesFiltrados"
+                :key="paciente.id"
+                @mousedown.prevent="seleccionarPaciente(paciente)"
                 class="cursor-pointer px-4 py-2.5 hover:bg-emerald-50 dark:hover:bg-gray-700/60 border-b border-gray-100 dark:border-gray-700/50 last:border-0 flex items-center justify-between transition-colors"
               >
                 <div>
-                  <p class="text-xs font-bold text-gray-800 dark:text-white">{{ cliente.nombre }}</p>
-                  <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ cliente.telefono }} <span v-if="cliente.correo">• {{ cliente.correo }}</span></p>
+                  <p class="text-xs font-bold text-gray-800 dark:text-white">{{ paciente.nombre }}</p>
+                  <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ paciente.telefono }} <span v-if="paciente.correo">• {{ paciente.correo }}</span></p>
                 </div>
                 <span class="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 rounded-full">Paciente Registrado</span>
               </div>
@@ -47,7 +47,7 @@
           <div>
             <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Teléfono *</label>
             <input
-              v-model="form.cliente_telefono"
+              v-model="form.paciente_telefono"
               type="text"
               required
               maxlength="10"
@@ -99,7 +99,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import FormSection from '@/components/common/FormSection.vue'
-import { citasApi, clientesApi } from '@/api/index.js'
+import { citasApi, pacientesApi } from '@/api/index.js'
 
 const HORARIOS = [
   '08:00','08:30','09:00','09:30','10:00','10:30',
@@ -113,48 +113,48 @@ const router = useRouter()
 
 const saving = ref(false)
 const errorMsg = ref('')
-const listaClientes = ref<any[]>([])
-const showDropdownClientes = ref(false)
+const listaPacientes = ref<any[]>([])
+const showDropdownPacientes = ref(false)
 
 const citaId = computed(() => route.params.id as string)
 const isEditing = computed(() => !!citaId.value)
 
 const form = ref({
-  cliente_nombre: '',
-  cliente_telefono: '',
+  paciente_nombre: '',
+  paciente_telefono: '',
   fecha: new Date().toISOString().split('T')[0],
   horario: '10:00',
   atencion_previa: 'no'
 })
 
-const clientesFiltrados = computed(() => {
-  if (!form.value.cliente_nombre || form.value.cliente_nombre.trim() === '') {
-    return listaClientes.value.slice(0, 5)
+const pacientesFiltrados = computed(() => {
+  if (!form.value.paciente_nombre || form.value.paciente_nombre.trim() === '') {
+    return listaPacientes.value.slice(0, 5)
   }
-  const q = form.value.cliente_nombre.toLowerCase()
-  return listaClientes.value.filter(c => 
+  const q = form.value.paciente_nombre.toLowerCase()
+  return listaPacientes.value.filter(c => 
     (c.nombre && c.nombre.toLowerCase().includes(q)) || 
     (c.telefono && c.telefono.includes(q))
   ).slice(0, 5)
 })
 
-function seleccionarCliente(cliente: any) {
-  form.value.cliente_nombre = cliente.nombre || ''
-  form.value.cliente_telefono = cliente.telefono || ''
-  showDropdownClientes.value = false
+function seleccionarPaciente(paciente: any) {
+  form.value.paciente_nombre = paciente.nombre || ''
+  form.value.paciente_telefono = paciente.telefono || ''
+  showDropdownPacientes.value = false
 }
 
 onMounted(async () => {
   try {
-    listaClientes.value = await clientesApi.getAll()
+    listaPacientes.value = await pacientesApi.getAll()
   } catch (e) {}
 
   if (isEditing.value) {
     try {
       const data = await citasApi.getById(citaId.value)
       if (data) {
-        form.value.cliente_nombre = data.nombre || data.cliente_nombre || ''
-        form.value.cliente_telefono = data.telefono || data.cliente_telefono || ''
+        form.value.paciente_nombre = data.nombre || data.paciente_nombre || ''
+        form.value.paciente_telefono = data.telefono || data.paciente_telefono || ''
         form.value.fecha = data.fecha ? data.fecha.split('T')[0] : ''
         form.value.horario = data.horario || '10:00'
         form.value.atencion_previa = data.atencion_previa || (data.tipo === 'Subsecuente' ? 'si' : 'no')

@@ -92,7 +92,7 @@
               <div class="w-16 h-16 bg-brand-100 text-brand-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               </div>
-              <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ selectedEvent?.extendedProps.cliente_nombre }}</h2>
+              <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ selectedEvent?.extendedProps.paciente_nombre }}</h2>
               <p class="text-sm font-medium text-gray-500 mt-1">{{ selectedEvent?.extendedProps.fecha }} a las {{ selectedEvent?.extendedProps.horario }} hrs</p>
             </div>
             
@@ -136,35 +136,35 @@
                 <div class="form-group full-width relative">
                   <label>Nombre del Paciente *</label>
                   <input
-                    v-model="form.cliente_nombre"
+                    v-model="form.paciente_nombre"
                     type="text"
                     placeholder="Ej. Ana Sofía Montenegro"
                     class="form-input"
-                    @focus="showDropdownClientes = true; loadClientesSearch()"
-                    @input="showDropdownClientes = true"
+                    @focus="showDropdownPacientes = true; loadPacientesSearch()"
+                    @input="showDropdownPacientes = true"
                   />
-                  <!-- Dropdown de búsqueda de clientes -->
+                  <!-- Dropdown de búsqueda de pacientes -->
                   <div
-                    v-if="clientesFiltrados.length > 0"
+                    v-if="pacientesFiltrados.length > 0"
                     class="absolute left-0 right-0 top-[100%] mt-1 z-50 rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 max-h-48 overflow-y-auto"
                   >
                     <div
-                      v-for="cliente in clientesFiltrados"
-                      :key="cliente.id"
-                      @mousedown.prevent="seleccionarCliente(cliente)"
+                      v-for="paciente in pacientesFiltrados"
+                      :key="paciente.id"
+                      @mousedown.prevent="seleccionarPaciente(paciente)"
                       class="cursor-pointer px-4 py-2.5 hover:bg-brand-50 dark:hover:bg-gray-700/60 border-b border-gray-100 dark:border-gray-700/50 last:border-0 flex items-center justify-between transition-colors"
                     >
                       <div>
-                        <p class="text-sm font-semibold text-gray-800 dark:text-white">{{ cliente.nombre }}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ cliente.telefono }} <span v-if="cliente.correo">• {{ cliente.correo }}</span></p>
+                        <p class="text-sm font-semibold text-gray-800 dark:text-white">{{ paciente.nombre }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ paciente.telefono }} <span v-if="paciente.correo">• {{ paciente.correo }}</span></p>
                       </div>
-                      <span class="text-xs font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/10 px-2 py-0.5 rounded-full">Cliente Registrado</span>
+                      <span class="text-xs font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/10 px-2 py-0.5 rounded-full">Paciente Registrado</span>
                     </div>
                   </div>
                 </div>
                 <div class="form-group full-width">
                   <label>Teléfono * <span style="font-weight:400;font-size:11px;color:#94a3b8;">(10 dígitos)</span></label>
-                  <input v-model="form.cliente_telefono" type="tel" placeholder="0000000000" class="form-input" maxlength="10" @input="sanitizeTelefono" />
+                  <input v-model="form.paciente_telefono" type="tel" placeholder="0000000000" class="form-input" maxlength="10" @input="sanitizeTelefono" />
                 </div>
                 <div class="form-group">
                   <label>Fecha *</label>
@@ -229,7 +229,7 @@
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             </div>
             <h3>¿Eliminar esta cita?</h3>
-            <p>Esta acción no se puede deshacer. La cita de <strong>{{ form.cliente_nombre }}</strong> del <strong>{{ formatDateDisplay(form.fecha) }}</strong> a las <strong>{{ form.horario }}</strong> será eliminada.</p>
+            <p>Esta acción no se puede deshacer. La cita de <strong>{{ form.paciente_nombre }}</strong> del <strong>{{ formatDateDisplay(form.fecha) }}</strong> a las <strong>{{ form.horario }}</strong> será eliminada.</p>
             <div class="confirm-actions">
               <button class="btn-cancel" @click="showConfirmDelete = false">Cancelar</button>
               <button class="btn-delete-confirm" @click="deleteCita" :disabled="saving">
@@ -254,7 +254,7 @@ import listPlugin from '@fullcalendar/list'
 import esLocale from '@fullcalendar/core/locales/es'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
-import { citasApi, clientesApi } from '@/api/index.js'
+import { citasApi, pacientesApi } from '@/api/index.js'
 
 const router = useRouter()
 
@@ -268,8 +268,8 @@ const modalError = ref('')
 const calendarRef = ref(null)
 const allCitas = ref<any[]>([])
 const horariosOcupados = ref<string[]>([])
-const listaClientes = ref<any[]>([])
-const showDropdownClientes = ref(false)
+const listaPacientes = ref<any[]>([])
+const showDropdownPacientes = ref(false)
 
 // Estado del Modal de Acción
 const actionModalVisible = ref(false)
@@ -324,8 +324,8 @@ const HORARIOS = [
 
 const defaultForm = () => ({
   id: null as string | null,
-  cliente_nombre: '',
-  cliente_telefono: '',
+  paciente_nombre: '',
+  paciente_telefono: '',
   fecha: '',
   horario: '',
   atencion_previa: 'no',
@@ -335,33 +335,33 @@ const defaultForm = () => ({
 const form = ref(defaultForm())
 const horariosDisponibles = ref([...HORARIOS])
 
-// --- Búsqueda / Autocomplete de Clientes ---
-async function loadClientesSearch() {
-  if (listaClientes.value.length === 0) {
+// --- Búsqueda / Autocomplete de Pacientes ---
+async function loadPacientesSearch() {
+  if (listaPacientes.value.length === 0) {
     try {
-      listaClientes.value = await clientesApi.getAll()
+      listaPacientes.value = await pacientesApi.getAll()
     } catch {
-      listaClientes.value = []
+      listaPacientes.value = []
     }
   }
 }
 
-const clientesFiltrados = computed(() => {
-  const query = form.value.cliente_nombre.toLowerCase().trim()
-  if (!query || !showDropdownClientes.value) return []
-  return listaClientes.value.filter(c =>
+const pacientesFiltrados = computed(() => {
+  const query = form.value.paciente_nombre.toLowerCase().trim()
+  if (!query || !showDropdownPacientes.value) return []
+  return listaPacientes.value.filter(c =>
     (c.nombre && c.nombre.toLowerCase().includes(query)) ||
     (c.telefono && c.telefono.includes(query))
   ).slice(0, 5)
 })
 
-function seleccionarCliente(cliente: any) {
-  form.value.cliente_nombre = cliente.nombre
-  if (cliente.telefono) form.value.cliente_telefono = cliente.telefono
-  if (cliente.peso) form.value.peso = String(cliente.peso)
-  if (cliente.estatura) form.value.estatura = String(cliente.estatura)
+function seleccionarPaciente(paciente: any) {
+  form.value.paciente_nombre = paciente.nombre
+  if (paciente.telefono) form.value.paciente_telefono = paciente.telefono
+  if (paciente.peso) form.value.peso = String(paciente.peso)
+  if (paciente.estatura) form.value.estatura = String(paciente.estatura)
   form.value.atencion_previa = 'si'
-  showDropdownClientes.value = false
+  showDropdownPacientes.value = false
 }
 
 // --- Stats ---
@@ -390,12 +390,12 @@ const citasMes = computed(() => {
   }).length
 })
 
-// --- Eventos Demo (expedientes de ejemplo de Clientes) ---
+// --- Eventos Demo (expedientes de ejemplo de Pacientes) ---
 const citasDemo = [
   {
     id: 'demo-1',
-    cliente_nombre: 'Ana Sofía Montenegro',
-    cliente_telefono: '5544221100',
+    paciente_nombre: 'Ana Sofía Montenegro',
+    paciente_telefono: '5544221100',
     fecha: '2026-04-14',
     horario: '10:30',
     atencion_previa: 'no',
@@ -405,8 +405,8 @@ const citasDemo = [
   },
   {
     id: 'demo-2',
-    cliente_nombre: 'Fernando Rafael Orozco',
-    cliente_telefono: '3311998800',
+    paciente_nombre: 'Fernando Rafael Orozco',
+    paciente_telefono: '3311998800',
     fecha: '2026-04-17',
     horario: '14:00',
     atencion_previa: 'si',
@@ -438,7 +438,7 @@ const calendarEvents = computed(() => {
     const fin = calcularFinHorario(c.horario)
     return {
       id: c.id,
-      title: `${c.horario} · ${c.cliente_nombre}`,
+      title: `${c.horario} · ${c.paciente_nombre}`,
       start: `${f}T${c.horario}:00`,
       end: `${f}T${fin}:00`,
       extendedProps: { ...c },
@@ -453,7 +453,7 @@ const calendarEvents = computed(() => {
     const fin = calcularFinHorario(c.horario)
     return {
       id: c.id,
-      title: `${c.horario} · ${c.cliente_nombre}`,
+      title: `${c.horario} · ${c.paciente_nombre}`,
       start: `${f}T${c.horario}:00`,
       end: `${f}T${fin}:00`,
       extendedProps: { ...c },
@@ -491,7 +491,7 @@ const calendarOptions = computed(() => ({
   events: calendarEvents.value,
   eventContent: (arg: any) => {
     const isTimeGrid = arg.view.type.startsWith('timeGrid')
-    const nombre = arg.event.extendedProps.cliente_nombre || ''
+    const nombre = arg.event.extendedProps.paciente_nombre || ''
     const horario = arg.event.extendedProps.horario || ''
 
     if (isTimeGrid) {
@@ -518,7 +518,7 @@ const calendarOptions = computed(() => ({
   eventDrop: handleEventDrop,
   eventResize: handleEventDrop,
   eventDidMount: (info: any) => {
-    info.el.title = `${info.event.extendedProps.cliente_nombre}\n${info.event.extendedProps.cliente_telefono}\n${info.event.extendedProps.horario}`
+    info.el.title = `${info.event.extendedProps.paciente_nombre}\n${info.event.extendedProps.paciente_telefono}\n${info.event.extendedProps.horario}`
   },
 }))
 
@@ -580,20 +580,20 @@ async function comenzarCita() {
   actionModalVisible.value = false
   
   try {
-    // Buscar si ya existe el cliente registrado
-    await loadClientesSearch()
-    const match = listaClientes.value.find(c => c.nombre.toLowerCase() === cita.cliente_nombre.toLowerCase() || c.cita_id === cita.id)
+    // Buscar si ya existe el paciente registrado
+    await loadPacientesSearch()
+    const match = listaPacientes.value.find(c => c.nombre.toLowerCase() === cita.paciente_nombre.toLowerCase() || c.cita_id === cita.id)
     
     if (match) {
       router.push(`/expedientes/${match.id}`)
     } else {
-      // Pasar data por query param a nuevo cliente
+      // Pasar data por query param a nuevo paciente
       router.push({
-        path: '/clientes/nuevo',
+        path: '/pacientes/nuevo',
         query: {
           cita_id: cita.id,
-          nombre: cita.cliente_nombre,
-          telefono: cita.cliente_telefono
+          nombre: cita.paciente_nombre,
+          telefono: cita.paciente_telefono
         }
       })
     }
@@ -636,8 +636,8 @@ async function handleEventDrop(dropInfo: any) {
   }
 
   const payload = {
-    cliente_nombre: props.cliente_nombre,
-    cliente_telefono: props.cliente_telefono,
+    paciente_nombre: props.paciente_nombre,
+    paciente_telefono: props.paciente_telefono,
     fecha: newFecha,
     horario: newHorario,
     atencion_previa: props.atencion_previa || 'no',
@@ -666,7 +666,7 @@ function closeModal() {
 
 function resetForm() {
   form.value = defaultForm()
-  showDropdownClientes.value = false
+  showDropdownPacientes.value = false
 }
 
 async function onFechaChange() {
@@ -675,15 +675,15 @@ async function onFechaChange() {
 
 async function saveCita() {
   modalError.value = ''
-  if (!form.value.cliente_nombre || !form.value.cliente_telefono || !form.value.fecha || !form.value.horario) {
+  if (!form.value.paciente_nombre || !form.value.paciente_telefono || !form.value.fecha || !form.value.horario) {
     modalError.value = 'Por favor completa todos los campos obligatorios.'
     return
   }
   saving.value = true
   try {
     const payload = {
-      cliente_nombre: form.value.cliente_nombre,
-      cliente_telefono: form.value.cliente_telefono,
+      paciente_nombre: form.value.paciente_nombre,
+      paciente_telefono: form.value.paciente_telefono,
       fecha: form.value.fecha,
       horario: form.value.horario,
       atencion_previa: form.value.atencion_previa,
@@ -732,7 +732,7 @@ function formatDateDisplay(fecha: string) {
 
 // --- Sanitizers de campos ---
 function sanitizeTelefono() {
-  form.value.cliente_telefono = form.value.cliente_telefono.replace(/[^0-9]/g, '').slice(0, 10)
+  form.value.paciente_telefono = form.value.paciente_telefono.replace(/[^0-9]/g, '').slice(0, 10)
 }
 
 function sanitizePeso() {

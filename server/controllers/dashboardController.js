@@ -32,14 +32,14 @@ export const getResumenDiario = async (req, res) => {
       `SELECT COUNT(*) FROM citas WHERE deleted_at IS NULL`
     )
 
-    // Consultar total de expedientes de clientes registrados
-    const totalClientesRes = await pool.query(
-      `SELECT COUNT(*) FROM clientes WHERE deleted_at IS NULL`
+    // Consultar total de expedientes de pacientes registrados
+    const totalPacientesRes = await pool.query(
+      `SELECT COUNT(*) FROM pacientes WHERE deleted_at IS NULL`
     )
 
     const citasHoy = citasHoyRes.rows
     const totalCitas = parseInt(totalCitasRes.rows[0].count, 10) || 0
-    const totalClientes = parseInt(totalClientesRes.rows[0].count, 10) || 0
+    const totalPacientes = parseInt(totalPacientesRes.rows[0].count, 10) || 0
 
     // Tareas / Alertas diarias dinámicas
     const tareas = [
@@ -54,7 +54,7 @@ export const getResumenDiario = async (req, res) => {
       citasHoy,
       totalCitasHoy: citasHoy.length,
       totalCitas,
-      totalClientes,
+      totalPacientes,
       tareas,
     })
   } catch (error) {

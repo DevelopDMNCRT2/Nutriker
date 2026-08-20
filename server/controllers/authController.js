@@ -74,10 +74,10 @@ export async function loginPaciente(req, res) {
   }
 
   try {
-    // Buscar cliente por correo, teléfono o ID activo
+    // Buscar paciente por correo, teléfono o ID activo
     const result = await pool.query(
       `SELECT id, nombre, correo, telefono, edad
-       FROM clientes
+       FROM pacientes
        WHERE (LOWER(correo) = LOWER($1) OR telefono = $1 OR id = $1) AND deleted_at IS NULL`,
       [email.trim()]
     )

@@ -2,7 +2,7 @@ import pool from './pool.js'
 
 const resetTablesSQL = `
   -- Borrar todas las tablas existentes
-  DROP TABLE IF EXISTS clientes CASCADE;
+  DROP TABLE IF EXISTS pacientes CASCADE;
   DROP TABLE IF EXISTS pedidos CASCADE;
   DROP TABLE IF EXISTS citas CASCADE;
   DROP TABLE IF EXISTS productos CASCADE;
@@ -53,9 +53,9 @@ const resetTablesSQL = `
   -- 4. Pedidos
   CREATE TABLE pedidos (
     id                  VARCHAR(8) PRIMARY KEY,
-    cliente_nombre      VARCHAR(150) NOT NULL,
-    cliente_email       VARCHAR(200),
-    cliente_telefono    VARCHAR(20),
+    paciente_nombre      VARCHAR(150) NOT NULL,
+    paciente_email       VARCHAR(200),
+    paciente_telefono    VARCHAR(20),
     total               DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     direccion_entrega   TEXT NOT NULL,
     ciudad              VARCHAR(100) NOT NULL,
@@ -72,8 +72,8 @@ const resetTablesSQL = `
   -- 5. Citas
   CREATE TABLE citas (
     id                VARCHAR(8) PRIMARY KEY,
-    cliente_nombre    VARCHAR(150) NOT NULL,
-    cliente_telefono  VARCHAR(20) NOT NULL,
+    paciente_nombre    VARCHAR(150) NOT NULL,
+    paciente_telefono  VARCHAR(20) NOT NULL,
     fecha             DATE NOT NULL,
     horario           VARCHAR(10),
     atencion_previa   VARCHAR(10) DEFAULT 'no',
@@ -84,8 +84,8 @@ const resetTablesSQL = `
     deleted_at        TIMESTAMPTZ DEFAULT NULL
   );
 
-  -- 6. Clientes (Expedientes Clínicos)
-  CREATE TABLE clientes (
+  -- 6. Pacientes (Expedientes Clínicos)
+  CREATE TABLE pacientes (
     id                      VARCHAR(8) PRIMARY KEY,
     cita_id                 VARCHAR(8) REFERENCES citas(id) ON DELETE SET NULL,
     nombre                  VARCHAR(150) NOT NULL,
@@ -120,7 +120,7 @@ const resetTablesSQL = `
   -- 10. Menus Semanales
   CREATE TABLE IF NOT EXISTS menus_semanales (
     id                  VARCHAR(8) PRIMARY KEY,
-    cliente_id          VARCHAR(8) NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+    paciente_id          VARCHAR(8) NOT NULL REFERENCES pacientes(id) ON DELETE CASCADE,
     nombre              VARCHAR(255) NOT NULL,
     semana_inicio       DATE NOT NULL,
     lunes_desayuno      TEXT,
@@ -166,7 +166,7 @@ const resetTablesSQL = `
   -- 11. Expedientes Clínicos
   CREATE TABLE IF NOT EXISTS expedientes_clinicos (
     id                  VARCHAR(8) PRIMARY KEY,
-    cliente_id          VARCHAR(8) NOT NULL UNIQUE REFERENCES clientes(id) ON DELETE CASCADE,
+    paciente_id          VARCHAR(8) NOT NULL UNIQUE REFERENCES pacientes(id) ON DELETE CASCADE,
     diagnostico         TEXT,
     objetivo_nutricional TEXT,
     notas_medicas       TEXT,
@@ -177,7 +177,7 @@ const resetTablesSQL = `
   -- 12. Mediciones Antropométricas
   CREATE TABLE IF NOT EXISTS mediciones_antropometricas (
     id                  VARCHAR(8) PRIMARY KEY,
-    cliente_id          VARCHAR(8) NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+    paciente_id          VARCHAR(8) NOT NULL REFERENCES pacientes(id) ON DELETE CASCADE,
     fecha               DATE NOT NULL DEFAULT CURRENT_DATE,
     peso                DECIMAL(10,2),
     porcentaje_grasa    DECIMAL(10,2),
@@ -229,7 +229,7 @@ async function migrateAll() {
   try {
     console.log('🚀 Creando tablas en la base de datos Neon PostgreSQL...')
     await client.query(resetTablesSQL)
-    console.log('✅ Tablas creadas correctamente (usuarios, categorias, productos, pedidos, citas, clientes).')
+    console.log('✅ Tablas creadas correctamente (usuarios, categorias, productos, pedidos, citas, pacientes).')
   } catch (err) {
     console.error('❌ Error en el reinicio de tablas:', err.message)
     process.exit(1)

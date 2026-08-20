@@ -5,14 +5,14 @@
       <!-- Header -->
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-4 dark:border-gray-800">
         <div>
-          <router-link to="/clientes" class="text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 flex items-center gap-1 mb-1">
+          <router-link to="/pacientes" class="text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 flex items-center gap-1 mb-1">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-            Regresar a Clientes
+            Regresar a Pacientes
           </router-link>
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white flex flex-wrap items-center gap-2">
             <span>Generador de Menús Semanales</span>
-            <span v-if="cliente" class="text-xl font-medium text-brand-600 dark:text-brand-400">
-              — {{ cliente.nombre }}
+            <span v-if="paciente" class="text-xl font-medium text-brand-600 dark:text-brand-400">
+              — {{ paciente.nombre }}
             </span>
           </h1>
         </div>
@@ -234,10 +234,10 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
-import { clientesApi, menusApi, iaApi } from '@/api/index.js'
+import { pacientesApi, menusApi, iaApi } from '@/api/index.js'
 
 const route = useRoute()
-const clienteId = ref<string>(route.params.clienteId as string || '')
+const pacienteId = ref<string>(route.params.pacienteId as string || '')
 
 const loading = ref(true)
 const saving = ref(false)
@@ -249,7 +249,7 @@ const generandoIA = ref(false)
 const instruccionIA = ref('')
 const mensajesIA = ref<{rol: string, texto: string}[]>([])
 
-const cliente = ref<any>(null)
+const paciente = ref<any>(null)
 const menus = ref<any[]>([])
 
 const dias = [
@@ -319,13 +319,13 @@ function cerrarModal() {
 async function cargarDatos() {
   loading.value = true
   try {
-    const id = (route.params.clienteId as string) || clienteId.value
-    clienteId.value = id
-    const [clienteRes, menusRes] = await Promise.all([
-      clientesApi.getById(id).catch(() => null),
-      menusApi.getByCliente(id).catch(() => []),
+    const id = (route.params.pacienteId as string) || pacienteId.value
+    pacienteId.value = id
+    const [pacienteRes, menusRes] = await Promise.all([
+      pacientesApi.getById(id).catch(() => null),
+      menusApi.getByPaciente(id).catch(() => []),
     ])
-    cliente.value = clienteRes
+    paciente.value = pacienteRes
     menus.value = menusRes
   } catch (err) {
     console.error('Error al cargar datos:', err)
@@ -339,7 +339,7 @@ async function guardarMenu() {
   saving.value = true
   try {
     const body: Record<string, any> = {
-      clienteId: clienteId.value,
+      pacienteId: pacienteId.value,
       nombre:       form.value.nombre,
       semanaInicio: form.value.semanaInicio,
       notas:        form.value.notas || '',
@@ -382,7 +382,7 @@ async function generarMenuIA() {
   
   try {
     const res = await iaApi.generarMenu({
-      clienteId: clienteId.value,
+      pacienteId: pacienteId.value,
       instrucciones: instruccion
     })
     

@@ -52,10 +52,10 @@
             />
           </div>
 
-          <!-- A Nombre De (con Autocompletado de Clientes) y Recibe -->
+          <!-- A Nombre De (con Autocompletado de Pacientes) y Recibe -->
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div class="relative">
-              <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">A Nombre De (Paciente / Cliente) *</label>
+              <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">A Nombre De (Paciente / Paciente) *</label>
               <input
                 v-model="form.a_nombre_de"
                 type="text"
@@ -68,17 +68,17 @@
 
               <!-- Dropdown de Sugerencias de Pacientes Registrados -->
               <div
-                v-if="mostrarSugerencias && sugerenciasClientes.length > 0"
+                v-if="mostrarSugerencias && sugerenciasPacientes.length > 0"
                 class="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-800 dark:bg-gray-900"
               >
                 <div
-                  v-for="cliente in sugerenciasClientes"
-                  :key="cliente.id"
-                  @mousedown.prevent="seleccionarCliente(cliente)"
+                  v-for="paciente in sugerenciasPacientes"
+                  :key="paciente.id"
+                  @mousedown.prevent="seleccionarPaciente(paciente)"
                   class="cursor-pointer rounded-lg px-3 py-2 text-xs hover:bg-brand-50 dark:hover:bg-brand-950/40 transition-colors flex items-center justify-between"
                 >
-                  <span class="font-medium text-gray-900 dark:text-white">{{ cliente.nombre }}</span>
-                  <span class="text-[10px] text-gray-400 font-mono">{{ cliente.telefono }}</span>
+                  <span class="font-medium text-gray-900 dark:text-white">{{ paciente.nombre }}</span>
+                  <span class="text-[10px] text-gray-400 font-mono">{{ paciente.telefono }}</span>
                 </div>
               </div>
             </div>
@@ -133,7 +133,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AdminLayout from '../components/layout/AdminLayout.vue'
 import FormSection from '../components/common/FormSection.vue'
-import { ingresosApi, clientesApi } from '../api'
+import { ingresosApi, pacientesApi } from '../api'
 
 const route = useRoute()
 const router = useRouter()
@@ -142,7 +142,7 @@ const isEditing = computed(() => !!route.params.id)
 const saving = ref(false)
 const errorMsg = ref('')
 
-const clientesList = ref([])
+const pacientesList = ref([])
 const mostrarSugerencias = ref(false)
 
 const form = ref({
@@ -155,16 +155,16 @@ const form = ref({
   notas: ''
 })
 
-const sugerenciasClientes = computed(() => {
+const sugerenciasPacientes = computed(() => {
   if (!form.value.a_nombre_de || form.value.a_nombre_de.trim() === '') return []
   const query = form.value.a_nombre_de.toLowerCase().trim()
-  return clientesList.value.filter(c =>
+  return pacientesList.value.filter(c =>
     c.nombre && c.nombre.toLowerCase().includes(query)
   ).slice(0, 5)
 })
 
-const seleccionarCliente = (cliente) => {
-  form.value.a_nombre_de = cliente.nombre
+const seleccionarPaciente = (paciente) => {
+  form.value.a_nombre_de = paciente.nombre
   mostrarSugerencias.value = false
 }
 
@@ -177,11 +177,11 @@ const handleClickOutside = (event) => {
 onMounted(async () => {
   window.addEventListener('click', handleClickOutside)
 
-  // Cargar lista de clientes para autocompletado sugerido
+  // Cargar lista de pacientes para autocompletado sugerido
   try {
-    clientesList.value = await clientesApi.getAll()
+    pacientesList.value = await pacientesApi.getAll()
   } catch (err) {
-    console.error('Error al cargar lista de clientes sugeridos:', err)
+    console.error('Error al cargar lista de pacientes sugeridos:', err)
   }
 
   if (isEditing.value) {

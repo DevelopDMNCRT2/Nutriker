@@ -76,15 +76,15 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import FormSection from '@/components/common/FormSection.vue'
-import { clientesApi } from '@/api/index.js'
+import { pacientesApi } from '@/api/index.js'
 
 const route = useRoute()
 const router = useRouter()
 
 const saving = ref(false)
 const errorMsg = ref('')
-const clienteId = computed(() => route.params.id as string)
-const isEditing = computed(() => !!clienteId.value)
+const pacienteId = computed(() => route.params.id as string)
+const isEditing = computed(() => !!pacienteId.value)
 
 const form = ref({
   nombre: '',
@@ -98,7 +98,7 @@ const form = ref({
 onMounted(async () => {
   if (isEditing.value) {
     try {
-      const data = await clientesApi.getById(clienteId.value)
+      const data = await pacientesApi.getById(pacienteId.value)
       if (data) {
         form.value.nombre = data.nombre || ''
         form.value.telefono = data.telefono || ''
@@ -123,11 +123,11 @@ async function guardar() {
   saving.value = true
   try {
     if (isEditing.value) {
-      await clientesApi.update(clienteId.value, form.value)
+      await pacientesApi.update(pacienteId.value, form.value)
     } else {
-      await clientesApi.create(form.value)
+      await pacientesApi.create(form.value)
     }
-    router.push('/clientes')
+    router.push('/pacientes')
   } catch (e: any) {
     errorMsg.value = e.message || 'Error al guardar paciente'
   } finally {
@@ -136,6 +136,6 @@ async function guardar() {
 }
 
 function cancelar() {
-  router.push('/clientes')
+  router.push('/pacientes')
 }
 </script>

@@ -156,7 +156,7 @@
 
                 <div class="flex items-center gap-2 pt-2">
                   <input v-model="form.activa" type="checkbox" id="checkActiva" class="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-                  <label for="checkActiva" class="font-medium text-gray-700 dark:text-gray-300">Zona Activa para Clientes</label>
+                  <label for="checkActiva" class="font-medium text-gray-700 dark:text-gray-300">Zona Activa para Pacientes</label>
                 </div>
               </div>
 

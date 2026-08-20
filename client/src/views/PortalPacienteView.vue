@@ -127,23 +127,23 @@
           <div class="info-grid">
             <div class="info-item">
               <span class="info-label">Paciente</span>
-              <span class="info-val">{{ datosCliente?.nombre || paciente.nombre }}</span>
+              <span class="info-val">{{ datosPaciente?.nombre || paciente.nombre }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Teléfono</span>
-              <span class="info-val">{{ datosCliente?.telefono || paciente.telefono }}</span>
+              <span class="info-val">{{ datosPaciente?.telefono || paciente.telefono }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Edad / Estatura</span>
               <span class="info-val">
-                {{ datosCliente?.edad ? datosCliente.edad + ' años' : 'N/A' }} | {{ datosCliente?.estatura ? datosCliente.estatura + ' m' : 'N/A' }}
+                {{ datosPaciente?.edad ? datosPaciente.edad + ' años' : 'N/A' }} | {{ datosPaciente?.estatura ? datosPaciente.estatura + ' m' : 'N/A' }}
               </span>
             </div>
           </div>
 
-          <div v-if="datosCliente?.motivo_consulta" class="motivo-card">
+          <div v-if="datosPaciente?.motivo_consulta" class="motivo-card">
             <h4>Objetivo / Motivo de Consulta</h4>
-            <p>{{ datosCliente.motivo_consulta }}</p>
+            <p>{{ datosPaciente.motivo_consulta }}</p>
           </div>
         </div>
       </div>
@@ -162,7 +162,7 @@ const cargando = ref(false)
 const errorLogin = ref('')
 
 const paciente = ref(null)
-const datosCliente = ref(null)
+const datosPaciente = ref(null)
 const menuActivo = ref(null)
 const cargandoMenu = ref(false)
 
@@ -209,13 +209,13 @@ async function iniciarSesion() {
   }
 }
 
-async function cargarDatosPortal(clienteId) {
+async function cargarDatosPortal(pacienteId) {
   cargandoMenu.value = true
   try {
-    const clienteRes = await api.get(`/clientes/${clienteId}`).catch(() => null)
-    datosCliente.value = clienteRes
+    const pacienteRes = await api.get(`/pacientes/${pacienteId}`).catch(() => null)
+    datosPaciente.value = pacienteRes
 
-    const menusRes = await api.get(`/menus/cliente/${clienteId}`).catch(() => [])
+    const menusRes = await api.get(`/menus/paciente/${pacienteId}`).catch(() => [])
     if (Array.isArray(menusRes) && menusRes.length > 0) {
       menuActivo.value = menusRes[0]
     }
@@ -228,7 +228,7 @@ async function cargarDatosPortal(clienteId) {
 
 function cerrarSesion() {
   paciente.value = null
-  datosCliente.value = null
+  datosPaciente.value = null
   menuActivo.value = null
   localStorage.removeItem('paciente_token')
   localStorage.removeItem('paciente_data')

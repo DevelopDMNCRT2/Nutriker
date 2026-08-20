@@ -8,7 +8,7 @@ import productosRouter from './routes/productos.js'
 import categoriasRouter from './routes/categorias.js'
 import pedidosRouter from './routes/pedidos.js'
 import citasRouter from './routes/citas.js'
-import clientesRouter from './routes/clientes.js'
+import pacientesRouter from './routes/pacientes.js'
 import authRouter from './routes/auth.js'
 import dashboardRouter from './routes/dashboard.js'
 import menusRouter from './routes/menus.js'
@@ -69,7 +69,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/auth', authRouter)
 app.use('/api/usuarios', usuariosRouter)
-app.use('/api/clientes', clientesRouter)
+app.use('/api/pacientes', pacientesRouter)
 app.use('/api/productos', productosRouter)
 app.use('/api/categorias', categoriasRouter)
 app.use('/api/pedidos', pedidosRouter)

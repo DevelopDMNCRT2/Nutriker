@@ -92,7 +92,7 @@ const { isExpanded, isMobileOpen, isHovered } = useSidebar()
 const allMenuItems = [
   { name: 'Inicio',         path: '/dashboard',     icon: GridIcon },
   { name: 'Usuarios',       path: '/usuarios',      icon: UserCircleIcon },
-  { name: 'Pacientes',      path: '/clientes',      icon: ListIcon },
+  { name: 'Pacientes',      path: '/pacientes',      icon: ListIcon },
   { name: 'Citas',          path: '/citas',         icon: CalenderIcon },
   // Módulos ocultos temporalmente para el hito actual
   /*

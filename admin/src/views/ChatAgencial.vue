@@ -20,22 +20,22 @@
           Seleccionar Paciente de Consulta *
         </label>
         <select
-          v-model="clienteSeleccionadoId"
-          @change="alCambiarCliente"
+          v-model="pacienteSeleccionadoId"
+          @change="alCambiarPaciente"
           class="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3.5 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-colors"
         >
           <option value="">-- Selecciona un paciente registrado --</option>
-          <option v-for="c in clientes" :key="c.id" :value="c.id">
+          <option v-for="c in pacientes" :key="c.id" :value="c.id">
             {{ c.nombre }} {{ c.telefono ? `(${c.telefono})` : '' }}
           </option>
         </select>
 
-        <div v-if="clienteActual" class="mt-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/60 text-xs flex flex-wrap justify-between items-center gap-2">
+        <div v-if="pacienteActual" class="mt-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/60 text-xs flex flex-wrap justify-between items-center gap-2">
           <div>
-            <span class="font-bold text-gray-800 dark:text-white">{{ clienteActual.nombre }}</span>
-            <span class="text-gray-500 dark:text-gray-400 ml-2">Edad: {{ clienteActual.edad ? clienteActual.edad + ' años' : 'N/A' }} | Motivo: {{ clienteActual.motivo_consulta || 'Sin motivo' }}</span>
+            <span class="font-bold text-gray-800 dark:text-white">{{ pacienteActual.nombre }}</span>
+            <span class="text-gray-500 dark:text-gray-400 ml-2">Edad: {{ pacienteActual.edad ? pacienteActual.edad + ' años' : 'N/A' }} | Motivo: {{ pacienteActual.motivo_consulta || 'Sin motivo' }}</span>
           </div>
-          <router-link :to="`/expedientes/${clienteActual.id}`" class="text-brand-600 hover:underline font-semibold">
+          <router-link :to="`/expedientes/${pacienteActual.id}`" class="text-brand-600 hover:underline font-semibold">
             Ver Expediente →
           </router-link>
         </div>
@@ -144,7 +144,7 @@
               <div class="pt-2">
                 <button
                   @click="guardarEnExpediente"
-                  :disabled="guardando || !clienteSeleccionadoId"
+                  :disabled="guardando || !pacienteSeleccionadoId"
                   class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-xs font-bold text-white shadow-sm hover:bg-teal-700 transition-colors disabled:opacity-50"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
@@ -203,16 +203,16 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
-import { clientesApi, expedientesApi, iaApi } from '@/api/index.js'
+import { pacientesApi, expedientesApi, iaApi } from '@/api/index.js'
 
 const router = useRouter()
 const route = useRoute()
 
 const modo = ref<'sintetizador' | 'chat'>('sintetizador')
 
-const clientes = ref<any[]>([])
-const clienteSeleccionadoId = ref<string>('')
-const clienteActual = ref<any>(null)
+const pacientes = ref<any[]>([])
+const pacienteSeleccionadoId = ref<string>('')
+const pacienteActual = ref<any>(null)
 
 const textoConsulta = ref('')
 const procesandoIA = ref(false)
@@ -232,24 +232,24 @@ const mensajesChat = ref<Array<{ rol: 'user' | 'assistant', texto: string }>>([
   { rol: 'assistant', texto: 'Hola Dra. ¿En qué puedo asistirte durante esta consulta médica?' }
 ])
 
-async function cargarClientes() {
+async function cargarPacientes() {
   try {
-    const data = await clientesApi.getAll()
-    clientes.value = data || []
+    const data = await pacientesApi.getAll()
+    pacientes.value = data || []
     
-    const idParam = (route.query.clienteId as string) || (route.params.clienteId as string)
+    const idParam = (route.query.pacienteId as string) || (route.params.pacienteId as string)
     if (idParam) {
-      clienteSeleccionadoId.value = idParam
-      alCambiarCliente()
+      pacienteSeleccionadoId.value = idParam
+      alCambiarPaciente()
     }
   } catch (err) {
-    console.error('Error al cargar clientes:', err)
+    console.error('Error al cargar pacientes:', err)
   }
 }
 
-function alCambiarCliente() {
-  const c = clientes.value.find(item => item.id === clienteSeleccionadoId.value)
-  clienteActual.value = c || null
+function alCambiarPaciente() {
+  const c = pacientes.value.find(item => item.id === pacienteSeleccionadoId.value)
+  pacienteActual.value = c || null
 }
 
 async function procesarConIA() {
@@ -260,7 +260,7 @@ async function procesarConIA() {
   try {
     const res = await iaApi.sintetizarNotas({
       textoConsulta: textoConsulta.value,
-      clienteId: clienteSeleccionadoId.value || undefined
+      pacienteId: pacienteSeleccionadoId.value || undefined
     })
 
     resultadoIA.value = res
@@ -289,7 +289,7 @@ async function enviarMensajeChat() {
     const res = await iaApi.chatAsistente({
       mensaje: msgUser,
       historial: mensajesChat.value,
-      clienteId: clienteSeleccionadoId.value || undefined
+      pacienteId: pacienteSeleccionadoId.value || undefined
     })
 
     mensajesChat.value.push({
@@ -314,21 +314,21 @@ function limpiarCampos() {
 }
 
 async function guardarEnExpediente() {
-  if (!clienteSeleccionadoId.value) {
+  if (!pacienteSeleccionadoId.value) {
     alert('Por favor selecciona un paciente antes de guardar.')
     return
   }
 
   guardando.value = true
   try {
-    await expedientesApi.updateNotas(clienteSeleccionadoId.value, {
+    await expedientesApi.updateNotas(pacienteSeleccionadoId.value, {
       diagnostico: formResultado.value.diagnostico,
       objetivoNutricional: formResultado.value.objetivo_nutricional,
       notasMedicas: formResultado.value.notas_medicas
     })
 
     alert('Notas clínicas guardadas exitosamente en el expediente del paciente.')
-    router.push(`/expedientes/${clienteSeleccionadoId.value}`)
+    router.push(`/expedientes/${pacienteSeleccionadoId.value}`)
   } catch (err: any) {
     console.error('Error al guardar expediente:', err)
     alert(err.message || 'Error al guardar notas en el expediente')
@@ -338,6 +338,6 @@ async function guardarEnExpediente() {
 }
 
 onMounted(() => {
-  cargarClientes()
+  cargarPacientes()
 })
 </script>

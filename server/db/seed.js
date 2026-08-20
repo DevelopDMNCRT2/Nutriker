@@ -36,22 +36,22 @@ async function seed() {
     // 3. Citas iniciales de prueba
     const cita1Id = await generarIdUnico('citas')
     await client.query(`
-      INSERT INTO citas (id, cliente_nombre, cliente_telefono, fecha, horario, atencion_previa, peso, estatura)
+      INSERT INTO citas (id, paciente_nombre, paciente_telefono, fecha, horario, atencion_previa, peso, estatura)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       ON CONFLICT (id) DO NOTHING;
     `, [cita1Id, 'Ana Sofía Montenegro', '5544221100', '2026-04-14', '10:30', 'no', 72.5, 1.63])
 
     const cita2Id = await generarIdUnico('citas')
     await client.query(`
-      INSERT INTO citas (id, cliente_nombre, cliente_telefono, fecha, horario, atencion_previa, peso, estatura)
+      INSERT INTO citas (id, paciente_nombre, paciente_telefono, fecha, horario, atencion_previa, peso, estatura)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       ON CONFLICT (id) DO NOTHING;
     `, [cita2Id, 'Fernando Rafael Orozco', '3311998800', '2026-04-17', '14:00', 'si', 88.0, 1.80])
 
-    // 4. Clientes (Expedientes de prueba)
-    const cliente1Id = await generarIdUnico('clientes')
+    // 4. Pacientes (Expedientes de prueba)
+    const paciente1Id = await generarIdUnico('pacientes')
     await client.query(`
-      INSERT INTO clientes (
+      INSERT INTO pacientes (
         id, cita_id, nombre, telefono, correo, edad, ocupacion, motivo_consulta,
         patologias, antecedentes_familiares, bioquimicos, farmacos, digestiva,
         peso, estatura, circunferencias, composicion, recordatorio_24h, alergias,
@@ -60,7 +60,7 @@ async function seed() {
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26
       )
     `, [
-      cliente1Id, cita1Id, 'Ana Sofía Montenegro', '5544221100', 'ana_montenegro@gmail.com', 31,
+      paciente1Id, cita1Id, 'Ana Sofía Montenegro', '5544221100', 'ana_montenegro@gmail.com', 31,
       'Arquitecta', 'Busco mejorar mi composición corporal y energía, trabajo muchas horas sentada.',
       'Resistencia a la insulina hace 2 años.', 'Padre con diabetes tipo 2', 'Glucosa en 98, insulina un poco elevada.',
       'Metformina 500mg', 'Inflamación por las tardes', 72.5, 1.63, 'Cintura: 85cm, Cadera: 98cm',
@@ -69,9 +69,9 @@ async function seed() {
       'Cocino yo en las noches.', 'Voy al gym 3 días a la semana, pesas.', '2026-04-14', '10:30', 'no'
     ])
 
-    const cliente2Id = await generarIdUnico('clientes')
+    const paciente2Id = await generarIdUnico('pacientes')
     await client.query(`
-      INSERT INTO clientes (
+      INSERT INTO pacientes (
         id, cita_id, nombre, telefono, correo, edad, ocupacion, motivo_consulta,
         patologias, antecedentes_familiares, bioquimicos, farmacos, digestiva,
         peso, estatura, circunferencias, composicion, recordatorio_24h, alergias,
@@ -80,7 +80,7 @@ async function seed() {
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26
       )
     `, [
-      cliente2Id, cita2Id, 'Fernando Rafael Orozco', '3311998800', 'ferorozco@yahoo.es', 45,
+      paciente2Id, cita2Id, 'Fernando Rafael Orozco', '3311998800', 'ferorozco@yahoo.es', 45,
       'Ingeniero', 'Hipertensión e hipertrofia muscular. Quiero subir masa limpia.',
       'Hipertensión leve', 'Madre con HTA', 'Triglicéridos en 160', 'Losartán',
       'Sin problemas aparentes', 88.0, 1.80, 'Cintura: 90cm', '20% grasa corporal',
@@ -144,15 +144,15 @@ async function seed() {
     // 8. Menú Semanal (Generador IA)
     const menu1Id = await generarIdUnico('menus_semanales')
     await client.query(`
-      INSERT INTO menus_semanales (id, cliente_id, nombre, semana_inicio, lunes_desayuno, lunes_comida, lunes_cena)
+      INSERT INTO menus_semanales (id, paciente_id, nombre, semana_inicio, lunes_desayuno, lunes_comida, lunes_cena)
       VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6)
       ON CONFLICT (id) DO NOTHING;
-    `, [menu1Id, cliente1Id, 'Plan Low-Carb Energía', 'Huevo revuelto con espinaca', 'Pechuga asada con ensalada', 'Salmón con espárragos'])
+    `, [menu1Id, paciente1Id, 'Plan Low-Carb Energía', 'Huevo revuelto con espinaca', 'Pechuga asada con ensalada', 'Salmón con espárragos'])
 
     // 9. Pedidos (Órdenes E-Commerce)
     const pedido1Id = await generarIdUnico('pedidos')
     await client.query(`
-      INSERT INTO pedidos (id, cliente_nombre, cliente_email, cliente_telefono, total, direccion_entrega, ciudad, estado, codigo_postal, estado_pedido, metodo_pago)
+      INSERT INTO pedidos (id, paciente_nombre, paciente_email, paciente_telefono, total, direccion_entrega, ciudad, estado, codigo_postal, estado_pedido, metodo_pago)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       ON CONFLICT (id) DO NOTHING;
     `, [pedido1Id, 'Ana Sofía Montenegro', 'ana_montenegro@gmail.com', '5544221100', 1249.00, 'Av. Siempre Viva 123', 'Guadalajara', 'Jalisco', '45000', 'En proceso', 'Tarjeta de Crédito'])
@@ -160,18 +160,18 @@ async function seed() {
     // 10. Expediente Clínico Formal
     const exp1Id = await generarIdUnico('expedientes_clinicos')
     await client.query(`
-      INSERT INTO expedientes_clinicos (id, cliente_id, diagnostico, objetivo_nutricional, notas_medicas)
+      INSERT INTO expedientes_clinicos (id, paciente_id, diagnostico, objetivo_nutricional, notas_medicas)
       VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (id) DO NOTHING;
-    `, [exp1Id, cliente1Id, 'Resistencia a la insulina leve', 'Mejorar sensibilidad a la insulina y bajar grasa', 'Paciente muy motivada. Requiere dieta baja en índice glucémico.'])
+    `, [exp1Id, paciente1Id, 'Resistencia a la insulina leve', 'Mejorar sensibilidad a la insulina y bajar grasa', 'Paciente muy motivada. Requiere dieta baja en índice glucémico.'])
 
     // 11. Mediciones
     const med1Id = await generarIdUnico('mediciones_antropometricas')
     await client.query(`
-      INSERT INTO mediciones_antropometricas (id, cliente_id, peso, porcentaje_grasa, masa_muscular)
+      INSERT INTO mediciones_antropometricas (id, paciente_id, peso, porcentaje_grasa, masa_muscular)
       VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (id) DO NOTHING;
-    `, [med1Id, cliente1Id, 72.5, 35.0, 45.0])
+    `, [med1Id, paciente1Id, 72.5, 35.0, 45.0])
 
     console.log('✅ Datos iniciales sembrados correctamente en la base de datos de Neon.')
   } catch (err) {

@@ -13,31 +13,31 @@
         </div>
 
         <div class="space-y-4 text-xs">
-          <!-- Paciente / Cliente con autocompletado -->
+          <!-- Paciente / Paciente con autocompletado -->
           <div class="relative">
-            <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Nombre del Cliente / Paciente *</label>
+            <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Nombre del Paciente / Paciente *</label>
             <input
-              v-model="form.cliente_nombre"
+              v-model="form.paciente_nombre"
               type="text"
               required
               placeholder="Escribe para buscar paciente registrado o ingresar uno nuevo..."
               class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-              @focus="showDropdownClientes = true"
-              @input="showDropdownClientes = true"
+              @focus="showDropdownPacientes = true"
+              @input="showDropdownPacientes = true"
             />
             <div
-              v-if="showDropdownClientes && clientesFiltrados.length > 0"
+              v-if="showDropdownPacientes && pacientesFiltrados.length > 0"
               class="absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 max-h-48 overflow-y-auto"
             >
               <div
-                v-for="cliente in clientesFiltrados"
-                :key="cliente.id"
-                @mousedown.prevent="seleccionarCliente(cliente)"
+                v-for="paciente in pacientesFiltrados"
+                :key="paciente.id"
+                @mousedown.prevent="seleccionarPaciente(paciente)"
                 class="cursor-pointer px-4 py-2.5 hover:bg-emerald-50 dark:hover:bg-gray-700/60 border-b border-gray-100 dark:border-gray-700/50 last:border-0 flex items-center justify-between transition-colors"
               >
                 <div>
-                  <p class="text-xs font-bold text-gray-800 dark:text-white">{{ cliente.nombre }}</p>
-                  <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ cliente.telefono }} <span v-if="cliente.correo">• {{ cliente.correo }}</span></p>
+                  <p class="text-xs font-bold text-gray-800 dark:text-white">{{ paciente.nombre }}</p>
+                  <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ paciente.telefono }} <span v-if="paciente.correo">• {{ paciente.correo }}</span></p>
                 </div>
                 <span class="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 rounded-full">Paciente Registrado</span>
               </div>
@@ -48,7 +48,7 @@
             <div>
               <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Teléfono</label>
               <input
-                v-model="form.cliente_telefono"
+                v-model="form.paciente_telefono"
                 type="text"
                 placeholder="Ej. 5512345678"
                 class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
@@ -57,7 +57,7 @@
             <div>
               <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Correo Electrónico</label>
               <input
-                v-model="form.cliente_email"
+                v-model="form.paciente_email"
                 type="email"
                 placeholder="mariana@gmail.com"
                 class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
@@ -116,7 +116,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import FormSection from '@/components/common/FormSection.vue'
-import { ordenesApi, zonasEnvioApi, productosApi, clientesApi } from '@/api/index.js'
+import { ordenesApi, zonasEnvioApi, productosApi, pacientesApi } from '@/api/index.js'
 
 const router = useRouter()
 const saving = ref(false)
@@ -124,13 +124,13 @@ const errorMsg = ref('')
 
 const zonas = ref<any[]>([])
 const listaProductos = ref<any[]>([])
-const listaClientes = ref<any[]>([])
-const showDropdownClientes = ref(false)
+const listaPacientes = ref<any[]>([])
+const showDropdownPacientes = ref(false)
 
 const form = ref({
-  cliente_nombre: '',
-  cliente_telefono: '',
-  cliente_email: '',
+  paciente_nombre: '',
+  paciente_telefono: '',
+  paciente_email: '',
   direccion_entrega: '',
   ciudad: 'Ciudad de México',
   zona_envio_id: '',
@@ -144,22 +144,22 @@ const nuevoItem = ref({
   precio_unitario: 0
 })
 
-const clientesFiltrados = computed(() => {
-  if (!form.value.cliente_nombre || form.value.cliente_nombre.trim() === '') {
-    return listaClientes.value.slice(0, 5)
+const pacientesFiltrados = computed(() => {
+  if (!form.value.paciente_nombre || form.value.paciente_nombre.trim() === '') {
+    return listaPacientes.value.slice(0, 5)
   }
-  const q = form.value.cliente_nombre.toLowerCase()
-  return listaClientes.value.filter(c => 
+  const q = form.value.paciente_nombre.toLowerCase()
+  return listaPacientes.value.filter(c => 
     (c.nombre && c.nombre.toLowerCase().includes(q)) || 
     (c.telefono && c.telefono.includes(q))
   ).slice(0, 5)
 })
 
-function seleccionarCliente(cliente: any) {
-  form.value.cliente_nombre = cliente.nombre || ''
-  form.value.cliente_telefono = cliente.telefono || ''
-  form.value.cliente_email = cliente.correo || ''
-  showDropdownClientes.value = false
+function seleccionarPaciente(paciente: any) {
+  form.value.paciente_nombre = paciente.nombre || ''
+  form.value.paciente_telefono = paciente.telefono || ''
+  form.value.paciente_email = paciente.correo || ''
+  showDropdownPacientes.value = false
 }
 
 function onProductoChange() {
@@ -172,14 +172,14 @@ function onProductoChange() {
 
 onMounted(async () => {
   try {
-    const [dataZonas, dataProductos, dataClientes] = await Promise.all([
+    const [dataZonas, dataProductos, dataPacientes] = await Promise.all([
       zonasEnvioApi.getAll(),
       productosApi.getAll(),
-      clientesApi.getAll()
+      pacientesApi.getAll()
     ])
     zonas.value = dataZonas
     listaProductos.value = dataProductos
-    listaClientes.value = dataClientes
+    listaPacientes.value = dataPacientes
   } catch (e: any) {
     console.error('Error al cargar referencias de orden:', e)
   }
