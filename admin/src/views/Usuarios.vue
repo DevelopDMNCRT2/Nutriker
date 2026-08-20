@@ -79,7 +79,7 @@
                     <button @click="abrirEditar(usuario)" class="text-yellow-500 hover:text-yellow-700" title="Editar">
                       <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                     </button>
-                    <button @click="handleEliminar(usuario.id)" class="text-red-500 hover:text-red-700" title="Eliminar">
+                    <button @click="confirmarEliminar(usuario.id)" class="text-red-500 hover:text-red-700" title="Eliminar">
                       <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     </button>
                   </template>
@@ -149,6 +149,21 @@
       </template>
     </Modal>
 
+    <!-- Modal Confirmar Eliminar -->
+    <Modal v-if="modalEliminarVisible" :fullScreenBackdrop="true" @close="cancelarEliminar">
+      <template #body>
+        <div class="relative w-full max-w-sm rounded-xl bg-white p-6 shadow-theme-lg dark:bg-gray-800 m-4 mx-auto mt-32 text-center">
+          <svg class="mx-auto mb-4 h-12 w-12 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+          <h3 class="mb-2 text-lg font-bold text-gray-900 dark:text-white">¿Eliminar Usuario?</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Esta acción no se puede deshacer. El usuario perderá permanentemente el acceso al sistema.</p>
+          <div class="flex justify-center gap-3">
+            <button @click="cancelarEliminar" class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">Cancelar</button>
+            <button @click="handleEliminar" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700 focus:ring-4 focus:ring-rose-300 transition-colors shadow-theme-sm">Sí, eliminar</button>
+          </div>
+        </div>
+      </template>
+    </Modal>
+
   </AdminLayout>
 </template>
 
@@ -210,11 +225,26 @@ function cerrarDetalles() {
 }
 
 // ── Eliminar (soft delete) ────────────────────────────────────────────────────
-async function handleEliminar(id: string) {
-  if (!confirm('¿Estás seguro de que deseas eliminar a este usuario?')) return
+const modalEliminarVisible = ref(false)
+const usuarioAEliminar = ref<string | null>(null)
+
+function confirmarEliminar(id: string) {
+  usuarioAEliminar.value = id
+  modalEliminarVisible.value = true
+}
+
+function cancelarEliminar() {
+  modalEliminarVisible.value = false
+  usuarioAEliminar.value = null
+}
+
+async function handleEliminar() {
+  if (!usuarioAEliminar.value) return
+  const id = usuarioAEliminar.value
   try {
     await usuariosApi.delete(id)
     usuarios.value = usuarios.value.filter(u => u.id !== id)
+    cancelarEliminar()
   } catch (e: any) {
     errorGlobal.value = e.message || 'Error al eliminar el usuario'
   }
