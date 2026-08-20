@@ -47,13 +47,13 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-            <tr v-if="paginatedClientes.length === 0">
+            <tr v-if="clientes.length === 0">
               <td colspan="5" class="px-5 py-8 text-center text-gray-500 dark:text-gray-400 text-sm">
                 No se encontraron pacientes que coincidan con la búsqueda.
               </td>
             </tr>
             <tr
-              v-for="cliente in paginatedClientes"
+              v-for="cliente in clientes"
               :key="cliente.id"
               class="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
             >
@@ -71,9 +71,6 @@
               </td>
               <td class="px-5 py-4 sm:px-6">
                 <div class="flex justify-center gap-3">
-                  <button @click="abrirDetalles(cliente)" class="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 transition-colors" title="Mostrar Detalles">
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                  </button>
                   <router-link :to="`/expedientes/${cliente.id}`" class="text-teal-600 hover:text-teal-800 dark:text-teal-400 transition-colors" title="Expediente Clínico">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                   </router-link>
@@ -92,193 +89,13 @@
           </tbody>
         </table>
       </div>
-      <!-- Paginación -->
-      <div v-if="totalPages > 1" class="flex flex-col sm:flex-row items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 dark:border-gray-700 dark:bg-gray-800">
-        <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-          <div>
-            <p class="text-sm text-gray-700 dark:text-gray-300">
-              Mostrando página <span class="font-medium">{{ currentPage }}</span> de <span class="font-medium">{{ totalPages }}</span>
-            </p>
-          </div>
-          <div>
-            <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-              <button @click="prevPage" :disabled="currentPage === 1" class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 dark:ring-gray-600 dark:hover:bg-gray-700">
-                <span class="sr-only">Anterior</span>
-                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" /></svg>
-              </button>
-              <button @click="nextPage" :disabled="currentPage === totalPages" class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 dark:ring-gray-600 dark:hover:bg-gray-700">
-                <span class="sr-only">Siguiente</span>
-                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" /></svg>
-              </button>
-            </nav>
-          </div>
-        </div>
-        <!-- Paginación Móvil -->
-        <div class="flex flex-1 justify-between sm:hidden w-full">
-          <button @click="prevPage" :disabled="currentPage === 1" class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300">Anterior</button>
-          <span class="text-sm text-gray-500 py-2">{{ currentPage }} / {{ totalPages }}</span>
-          <button @click="nextPage" :disabled="currentPage === totalPages" class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300">Siguiente</button>
-        </div>
-      </div>
+      <Pagination 
+        :current-page="currentPage" 
+        :total-pages="totalPages" 
+        :total-records="totalRecords" 
+        @change="cambiarPagina" 
+      />
     </div>
-
-    <!-- ── Modal Detalles ── -->
-    <Modal v-if="modalDetallesVisible" :fullScreenBackdrop="true" @close="cerrarDetalles">
-      <template #body>
-        <div class="relative w-full max-w-4xl rounded-xl bg-white p-6 shadow-theme-lg dark:bg-gray-800 m-4 mx-auto mt-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
-          <h3 class="mb-5 text-xl font-bold text-gray-900 dark:text-white border-b pb-3 dark:border-gray-700">
-            Expediente Clínico del Paciente
-          </h3>
-
-          <div class="space-y-6" v-if="clienteSeleccionado">
-            
-            <!-- 1. Identidad -->
-            <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-5">
-               <h4 class="text-sm font-bold text-brand-500 mb-4 uppercase tracking-wider">1. Identidad General</h4>
-               <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                  <div>
-                    <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Nombre Completo</p>
-                    <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.nombre || '-' }}</p>
-                  </div>
-                  <div>
-                    <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Teléfono</p>
-                    <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.telefono || '-' }}</p>
-                  </div>
-                  <div>
-                    <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Correo</p>
-                    <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.correo || '-' }}</p>
-                  </div>
-                  <div>
-                    <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Edad</p>
-                    <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.edad ? clienteSeleccionado.edad + ' años' : '-' }}</p>
-                  </div>
-                  <div>
-                    <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Ocupación</p>
-                    <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.ocupacion || '-' }}</p>
-                  </div>
-                  <div class="col-span-1 sm:col-span-3">
-                    <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Motivo de Consulta</p>
-                    <p class="font-medium text-gray-800 dark:text-white/90 text-sm bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700 min-h-[60px]">{{ clienteSeleccionado.motivo_consulta || 'No se especificó motivo de consulta' }}</p>
-                  </div>
-               </div>
-            </div>
-
-            <!-- 2. Antecedentes -->
-            <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-5">
-               <h4 class="text-sm font-bold text-brand-500 mb-4 uppercase tracking-wider">2. Antecedentes Clínicos</h4>
-               <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div>
-                    <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Patologías</p>
-                    <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.patologias || 'Ninguna reportada' }}</p>
-                  </div>
-                  <div>
-                    <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Antecedentes Familiares</p>
-                    <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.antecedentes_familiares || 'Ninguno reportado' }}</p>
-                  </div>
-                  <div>
-                    <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Datos Bioquímicos Recientes</p>
-                    <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.bioquimicos || 'No presentados' }}</p>
-                  </div>
-                  <div>
-                    <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Fármacos Actuales</p>
-                    <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.farmacos || 'No reportados' }}</p>
-                  </div>
-                  <div class="col-span-1 sm:col-span-2">
-                    <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Salud Digestiva</p>
-                    <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.digestiva || 'Normal / No especificada' }}</p>
-                  </div>
-               </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <!-- 3. Antropometría -->
-              <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-5">
-                <h4 class="text-sm font-bold text-brand-500 mb-4 uppercase tracking-wider">3. Antropometría</h4>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div>
-                      <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Peso</p>
-                      <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.peso ? clienteSeleccionado.peso + ' kg' : '-' }}</p>
-                    </div>
-                    <div>
-                      <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Estatura</p>
-                      <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.estatura ? clienteSeleccionado.estatura + ' m' : '-' }}</p>
-                    </div>
-                    <div>
-                      <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Circunferencias</p>
-                      <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.circunferencias || '-' }}</p>
-                    </div>
-                    <div>
-                      <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Composición Corporal</p>
-                      <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.composicion || '-' }}</p>
-                    </div>
-                </div>
-              </div>
-
-              <!-- 5. Cita -->
-              <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-5">
-                <h4 class="text-sm font-bold text-brand-500 mb-4 uppercase tracking-wider">5. Cita Solicitada</h4>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div>
-                      <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Atención Previa</p>
-                      <span :class="['inline-block rounded-full px-2 py-0.5 text-[11px] font-bold uppercase', clienteSeleccionado.atencionPrevia === 'si' ? 'bg-orange-100 text-orange-700' : 'bg-gray-200 text-gray-700']">
-                        {{ clienteSeleccionado.atencionPrevia === 'si' ? 'Sí' : 'No' }}
-                      </span>
-                    </div>
-                    <div></div>
-                    <div>
-                      <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Fecha</p>
-                      <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.fecha || 'Sin asignar' }}</p>
-                    </div>
-                    <div>
-                      <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Horario</p>
-                      <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.horario ? clienteSeleccionado.horario + ' hrs' : 'Sin asignar' }}</p>
-                    </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 4. Estilo de Vida y Dieta -->
-            <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-5">
-               <h4 class="text-sm font-bold text-brand-500 mb-4 uppercase tracking-wider">4. Dieta y Estilo de Vida</h4>
-               <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div class="col-span-1 sm:col-span-2">
-                    <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Recordatorio 24h</p>
-                    <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.recordatorio_24h || '-' }}</p>
-                  </div>
-                  <div>
-                    <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Alergias</p>
-                    <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.alergias || 'Ninguna' }}</p>
-                  </div>
-                  <div>
-                    <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Consumo de Ultraprocesados</p>
-                    <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.ultraprocesados || '-' }}</p>
-                  </div>
-                  <div>
-                    <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Gustos / Aversiones</p>
-                    <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.gustos || '-' }}</p>
-                  </div>
-                  <div>
-                    <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Logística de Cocina</p>
-                    <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.logistica_cocina || '-' }}</p>
-                  </div>
-                  <div class="col-span-1 sm:col-span-2">
-                    <p class="text-[11px] uppercase text-gray-500 dark:text-gray-400 mb-1 font-semibold">Actividad Física / Estilo de Vida</p>
-                    <p class="font-medium text-gray-800 dark:text-white/90 text-sm">{{ clienteSeleccionado.estilo_vida || '-' }}</p>
-                  </div>
-               </div>
-            </div>
-
-          </div>
-
-          <div class="mt-6 flex justify-end">
-            <button @click="cerrarDetalles"
-              class="rounded-lg bg-brand-500 px-6 py-2.5 text-sm font-bold text-white hover:bg-brand-600 focus:ring-4 focus:ring-brand-200 transition-colors">
-              Cerrar Expediente
-            </button>
-          </div>
-        </div>
-      </template>
-    </Modal>
 
     <!-- ── Modal Formulario (Agregar / Editar) ── -->
     <Modal v-if="modalFormVisible" :fullScreenBackdrop="true" @close="cerrarFormulario">
@@ -464,6 +281,7 @@ import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import Modal from '@/components/ui/Modal.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { citasApi, clientesApi } from '@/api/index.js'
@@ -511,56 +329,48 @@ const initForm = () => ({
 // Estado de modales y de la tabla
 const form = reactive({ ...initForm() })
 const modalFormVisible = ref(false)
-const modalDetallesVisible = ref(false)
 const isEditing = ref(false)
 const guardando = ref(false)
 const cargando = ref(false)
 const errorGuardado = ref('')
-const clienteSeleccionado = ref<any>(null)
 
 // Expedientes clínicos desde la API
 const clientes = ref<any[]>([])
 
-// Búsqueda y Paginación
+// Búsqueda y Paginación Server-Side
 const searchQuery = ref('')
 const currentPage = ref(1)
 const itemsPerPage = 10
-
-const filteredClientes = computed(() => {
-  if (!searchQuery.value) return clientes.value
-  const q = searchQuery.value.toLowerCase()
-  return clientes.value.filter(c => 
-    (c.nombre && c.nombre.toLowerCase().includes(q)) || 
-    (c.telefono && c.telefono.includes(q))
-  )
-})
-
-const totalPages = computed(() => Math.ceil(filteredClientes.value.length / itemsPerPage) || 1)
-
-const paginatedClientes = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage
-  const end = start + itemsPerPage
-  return filteredClientes.value.slice(start, end)
-})
-
-const prevPage = () => { if (currentPage.value > 1) currentPage.value-- }
-const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.value++ }
-
-watch(searchQuery, () => {
-  currentPage.value = 1
-})
+const totalPages = ref(1)
+const totalRecords = ref(0)
+let searchTimeout: any = null
 
 async function cargarClientes() {
   cargando.value = true
   try {
-    const data = await clientesApi.getAll()
-    clientes.value = data
+    const res = await clientesApi.getAll(currentPage.value, itemsPerPage, searchQuery.value)
+    clientes.value = res.data || []
+    totalPages.value = res.meta?.totalPages || 1
+    totalRecords.value = res.meta?.totalRecords || 0
   } catch (e: any) {
     console.error('Error al cargar expedientes:', e.message)
   } finally {
     cargando.value = false
   }
 }
+
+function cambiarPagina(page: number) {
+  currentPage.value = page
+  cargarClientes()
+}
+
+watch(searchQuery, () => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    currentPage.value = 1
+    cargarClientes()
+  }, 300)
+})
 
 onMounted(cargarClientes)
 
@@ -628,15 +438,6 @@ const guardarCliente = async () => {
   } finally {
     guardando.value = false
   }
-}
-
-const abrirDetalles = (cliente: any) => {
-  clienteSeleccionado.value = { ...cliente }
-  modalDetallesVisible.value = true
-}
-
-const cerrarDetalles = () => {
-  modalDetallesVisible.value = false
 }
 
 const eliminar = async (id: string) => {

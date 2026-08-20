@@ -4,12 +4,42 @@ import { generarIdUnico } from '../utils/generarId.js'
 // GET /api/clientes — Listar todos los clientes / expedientes activos
 export async function getClientes(req, res) {
   try {
-    const result = await pool.query(
-      `SELECT * FROM clientes
-       WHERE deleted_at IS NULL
-       ORDER BY created_at DESC`
-    )
-    res.json(result.rows)
+    const { page = 1, limit = 10, search = '' } = req.query
+    const offset = (page - 1) * limit
+
+    let query = `
+      SELECT id, cita_id, nombre, correo, telefono, edad, ocupacion, fecha, horario, TO_CHAR(created_at, 'YYYY-MM-DD') AS created_at
+      FROM clientes
+      WHERE deleted_at IS NULL
+    `
+    const params = []
+
+    if (search) {
+      params.push(`%${search}%`)
+      query += ` AND (nombre ILIKE $${params.length} OR telefono ILIKE $${params.length})`
+    }
+
+    // Cuenta total
+    const countQuery = `SELECT COUNT(*) FROM (${query}) AS count_q`
+    const countResult = await pool.query(countQuery, params)
+    const totalRecords = parseInt(countResult.rows[0].count, 10)
+    const totalPages = Math.ceil(totalRecords / limit) || 1
+
+    // Consulta de datos
+    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`
+    params.push(limit, offset)
+
+    const result = await pool.query(query, params)
+
+    res.json({
+      data: result.rows,
+      meta: {
+        totalRecords,
+        totalPages,
+        currentPage: parseInt(page, 10),
+        limit: parseInt(limit, 10)
+      }
+    })
   } catch (err) {
     console.error('getClientes error:', err.message)
     res.status(500).json({ error: 'Error al obtener los expedientes de clientes', detalle: err.message })

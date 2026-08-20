@@ -5,14 +5,32 @@ import bcrypt from 'bcrypt'
 // GET /api/usuarios — Listar todos los usuarios activos (sin deleted_at)
 export async function getUsuarios(req, res) {
   try {
-    const result = await pool.query(
-      `SELECT id, nombre, usuario, correo, contrasena, rol,
-              TO_CHAR(fecha_alta, 'YYYY-MM-DD') AS "fechaAlta",
-              updated_at AS "updatedAt"
-       FROM usuarios
-       WHERE deleted_at IS NULL
-       ORDER BY id ASC`
-    )
+    const { page = 1, limit = 10, search = '' } = req.query
+    const offset = (page - 1) * limit
+
+    let query = `
+      SELECT id, nombre, usuario, correo, contrasena, rol,
+             TO_CHAR(fecha_alta, 'YYYY-MM-DD') AS "fechaAlta",
+             updated_at AS "updatedAt"
+      FROM usuarios
+      WHERE deleted_at IS NULL
+    `
+    const params = []
+
+    if (search) {
+      params.push(`%${search}%`)
+      query += ` AND (nombre ILIKE $${params.length} OR usuario ILIKE $${params.length} OR correo ILIKE $${params.length})`
+    }
+
+    const countQuery = `SELECT COUNT(*) FROM (${query}) AS count_q`
+    const countResult = await pool.query(countQuery, params)
+    const totalRecords = parseInt(countResult.rows[0].count, 10)
+    const totalPages = Math.ceil(totalRecords / limit) || 1
+
+    query += ` ORDER BY id ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`
+    params.push(limit, offset)
+
+    const result = await pool.query(query, params)
 
     // Si el usuario no es Administrador, ocultamos la contraseña
     const usuarios = result.rows.map(u => {
@@ -20,7 +38,15 @@ export async function getUsuarios(req, res) {
       return req.usuario.rol === 'Administrador' ? u : resto
     })
 
-    res.json(usuarios)
+    res.json({
+      data: usuarios,
+      meta: {
+        totalRecords,
+        totalPages,
+        currentPage: parseInt(page, 10),
+        limit: parseInt(limit, 10)
+      }
+    })
   } catch (err) {
     console.error('getUsuarios error:', err.message)
     res.status(500).json({ error: 'Error al obtener usuarios' })

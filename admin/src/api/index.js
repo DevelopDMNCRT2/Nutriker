@@ -72,7 +72,7 @@ export const blogApi = {
 
 // --- Usuarios ---
 export const usuariosApi = {
-  getAll:  ()         => request('GET',    '/usuarios'),
+  getAll:  (page = 1, limit = 10, search = '') => request('GET', `/usuarios?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`),
   getById: (id)       => request('GET',    `/usuarios/${id}`),
   create:  (body)     => request('POST',   '/usuarios', body),
   update:  (id, body) => request('PUT',    `/usuarios/${id}`, body),
@@ -119,7 +119,7 @@ export const citasApi = {
 
 // --- Clientes ---
 export const clientesApi = {
-  getAll:  ()         => request('GET',    '/clientes'),
+  getAll:  (page = 1, limit = 10, search = '') => request('GET', `/clientes?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`),
   getById: (id)       => request('GET',    `/clientes/${id}`),
   create:  (body)     => request('POST',   '/clientes', body),
   update:  (id, body) => request('PUT',    `/clientes/${id}`, body),
