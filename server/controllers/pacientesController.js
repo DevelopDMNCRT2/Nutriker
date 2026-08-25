@@ -74,8 +74,8 @@ export async function createPaciente(req, res) {
     ultraprocesados, gustos, logistica_cocina, estilo_vida, fecha, horario, atencion_previa, sexo
   } = req.body
 
-  if (!nombre || !telefono) {
-    return res.status(400).json({ error: 'Nombre y teléfono son obligatorios' })
+  if (!nombre || !telefono || !sexo) {
+    return res.status(400).json({ error: 'Nombre, teléfono y sexo son obligatorios' })
   }
 
   try {
@@ -119,8 +119,8 @@ export async function updatePaciente(req, res) {
     ultraprocesados, gustos, logistica_cocina, estilo_vida, fecha, horario, atencion_previa, sexo
   } = req.body
 
-  if (!nombre || !telefono) {
-    return res.status(400).json({ error: 'Nombre y teléfono son obligatorios' })
+  if (!nombre || !telefono || !sexo) {
+    return res.status(400).json({ error: 'Nombre, teléfono y sexo son obligatorios' })
   }
 
   try {
