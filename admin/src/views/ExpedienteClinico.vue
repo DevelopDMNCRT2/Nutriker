@@ -139,43 +139,194 @@
 
       <!-- Tabla Histórica de Mediciones -->
       <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <div class="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
-          <h3 class="text-sm font-bold text-gray-900 dark:text-white">Registro Detallado de Consultas</h3>
-          <span class="text-xs text-gray-500">{{ mediciones.length }} consulta(s) evaluada(s)</span>
+        <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+          <div>
+            <h3 class="text-sm font-bold text-gray-900 dark:text-white">Historial de Consultas</h3>
+            <p class="text-xs text-gray-400 mt-0.5">{{ mediciones.length }} consulta(s) registrada(s) — ordenadas de más reciente a más antigua</p>
+          </div>
         </div>
 
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs">
-            <thead class="bg-gray-50 text-gray-500 dark:bg-gray-800/50 dark:text-gray-400 uppercase font-semibold">
+            <thead class="bg-gray-50 dark:bg-gray-800/50 text-gray-400 uppercase font-semibold tracking-wider">
               <tr>
-                <th class="px-4 py-3">Fecha</th>
-                <th class="px-4 py-3">Peso (kg)</th>
-                <th class="px-4 py-3">Grasa (%)</th>
-                <th class="px-4 py-3">Músculo (kg)</th>
-                <th class="px-4 py-3">Agua (%)</th>
-                <th class="px-4 py-3">Cintura / Cadera</th>
-                <th class="px-4 py-3">Observaciones</th>
+                <th class="px-4 py-3 whitespace-nowrap">#</th>
+                <th class="px-4 py-3 whitespace-nowrap">Fecha</th>
+                <th class="px-4 py-3 whitespace-nowrap">Peso (kg)</th>
+                <th class="px-4 py-3 whitespace-nowrap">Talla (m)</th>
+                <th class="px-4 py-3 whitespace-nowrap">Cintura (cm)</th>
+                <th class="px-4 py-3 whitespace-nowrap">Cadera (cm)</th>
+                <th class="px-4 py-3 whitespace-nowrap">Abdomen (cm)</th>
+                <th class="px-4 py-3 whitespace-nowrap">Muslo (cm)</th>
+                <th class="px-4 py-3 whitespace-nowrap">Brazo relaj. (cm)</th>
+                <th class="px-4 py-3 whitespace-nowrap">Brazo flex. (cm)</th>
+                <th class="px-4 py-3 whitespace-nowrap">Pantorrilla (cm)</th>
+                <th class="px-4 py-3 whitespace-nowrap">Observaciones</th>
+                <th class="px-4 py-3 text-center whitespace-nowrap">Acciones</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-              <tr v-if="mediciones.length === 0" class="text-center">
-                <td colspan="7" class="py-6 text-gray-400">Sin mediciones registradas.</td>
+              <tr v-if="medicionesOrdenadas.length === 0" class="text-center">
+                <td colspan="13" class="py-10 text-gray-400">Sin consultas registradas.</td>
               </tr>
-              <tr v-for="m in mediciones" :key="m.id" class="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
-                <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">{{ m.fecha }}</td>
-                <td class="px-4 py-3 font-bold text-brand-600 dark:text-brand-400">{{ m.peso }} kg</td>
-                <td class="px-4 py-3 font-semibold text-amber-600 dark:text-amber-400">{{ m.porcentajeGrasa ? `${m.porcentajeGrasa}%` : '-' }}</td>
-                <td class="px-4 py-3 font-semibold text-indigo-600 dark:text-indigo-400">{{ m.cintura ? `${m.cintura}cm` : '-' }}</td>
-                <td class="px-4 py-3 text-gray-600 dark:text-gray-300">{{ m.abdomen ? `${m.abdomen}cm` : '-' }}</td>
-                <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
-                  {{ m.cintura ? `${m.cintura}cm` : '-' }} / {{ m.cadera ? `${m.cadera}cm` : '-' }}
+              <tr
+                v-for="(m, idx) in medicionesOrdenadas"
+                :key="m.id"
+                class="hover:bg-gray-50/60 dark:hover:bg-gray-800/40 transition-colors"
+              >
+                <td class="px-4 py-3 text-gray-400 font-mono">{{ medicionesOrdenadas.length - idx }}</td>
+                <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white whitespace-nowrap">{{ m.fecha }}</td>
+                <td class="px-4 py-3 font-bold text-brand-600 dark:text-brand-400">{{ m.peso ?? '-' }}</td>
+                <td class="px-4 py-3 text-gray-600 dark:text-gray-300">{{ m.talla ?? '-' }}</td>
+                <td class="px-4 py-3 text-amber-600 dark:text-amber-400 font-semibold">{{ m.cintura ?? '-' }}</td>
+                <td class="px-4 py-3 text-violet-600 dark:text-violet-400 font-semibold">{{ m.cadera ?? '-' }}</td>
+                <td class="px-4 py-3 text-pink-600 dark:text-pink-400 font-semibold">{{ m.abdomen ?? '-' }}</td>
+                <td class="px-4 py-3 text-cyan-600 dark:text-cyan-400">{{ m.muslo ?? '-' }}</td>
+                <td class="px-4 py-3 text-emerald-600 dark:text-emerald-400">{{ m.brazo_relajado ?? '-' }}</td>
+                <td class="px-4 py-3 text-orange-600 dark:text-orange-400">{{ m.brazo_flexionado ?? '-' }}</td>
+                <td class="px-4 py-3 text-indigo-600 dark:text-indigo-400">{{ m.pantorrilla ?? '-' }}</td>
+                <td class="px-4 py-3 text-gray-400 max-w-[140px] truncate">{{ m.observaciones || '-' }}</td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center justify-center gap-1.5">
+                    <!-- Ver -->
+                    <button
+                      @click="abrirVerMedicion(m)"
+                      title="Ver detalles"
+                      class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 text-gray-500 hover:bg-brand-50 hover:text-brand-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-brand-500/10 dark:hover:text-brand-400 transition-colors"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    </button>
+                    <!-- Editar -->
+                    <button
+                      @click="abrirEditarMedicion(m)"
+                      title="Editar"
+                      class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 text-gray-500 hover:bg-blue-50 hover:text-blue-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-400 transition-colors"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </button>
+                    <!-- Eliminar -->
+                    <button
+                      @click="eliminarMedicion(m.id)"
+                      title="Eliminar"
+                      class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 text-gray-500 hover:bg-rose-50 hover:text-rose-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 transition-colors"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                  </div>
                 </td>
-                <td class="px-4 py-3 text-gray-500 truncate max-w-xs">{{ m.observaciones || '-' }}</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
+
+      <!-- Modal Ver / Editar Medición -->
+      <Teleport to="body">
+        <Transition name="fade">
+          <div v-if="modalVerEditarVisible" class="fixed inset-0 z-99999 flex items-center justify-center p-4">
+            <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" @click="cerrarVerEditar"></div>
+            <div class="relative w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900 dark:border dark:border-gray-800 z-10 max-h-[90vh] overflow-y-auto">
+
+              <!-- Header -->
+              <div class="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800 mb-4">
+                <h3 class="text-base font-bold text-gray-900 dark:text-white">
+                  {{ modoModal === 'ver' ? 'Detalle de Medición' : 'Editar Medición' }}
+                </h3>
+                <div class="flex items-center gap-2">
+                  <button
+                    v-if="modoModal === 'ver'"
+                    @click="modoModal = 'editar'"
+                    class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 text-xs font-semibold hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 transition-colors"
+                  >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    Editar
+                  </button>
+                  <button @click="cerrarVerEditar" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg leading-none">✕</button>
+                </div>
+              </div>
+
+              <!-- MODO VER -->
+              <div v-if="modoModal === 'ver'" class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                <div class="bg-brand-50 dark:bg-brand-500/10 rounded-xl p-3 text-center">
+                  <span class="block text-[10px] text-brand-500 font-semibold uppercase tracking-wider">Fecha</span>
+                  <span class="block text-sm font-bold text-brand-700 dark:text-brand-300 mt-0.5">{{ medicionActual?.fecha }}</span>
+                </div>
+                <div v-for="campo in camposDetalle" :key="campo.key" class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 text-center">
+                  <span class="block text-[10px] text-gray-400 font-semibold uppercase tracking-wider">{{ campo.label }}</span>
+                  <span class="block text-sm font-bold text-gray-700 dark:text-gray-200 mt-0.5">
+                    {{ medicionActual?.[campo.db] ?? '-' }}
+                    <span v-if="medicionActual?.[campo.db]" class="text-xs font-normal">{{ campo.unidad }}</span>
+                  </span>
+                </div>
+                <div v-if="medicionActual?.observaciones" class="col-span-2 sm:col-span-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl px-4 py-3">
+                  <span class="font-semibold text-gray-600 dark:text-gray-300">Observaciones: </span>
+                  <span class="text-gray-500 dark:text-gray-400">{{ medicionActual.observaciones }}</span>
+                </div>
+              </div>
+
+              <!-- MODO EDITAR -->
+              <div v-if="modoModal === 'editar'" class="space-y-3 text-xs">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha *</label>
+                    <input v-model="formEditar.fecha" type="date" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  </div>
+                  <div>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Peso (kg)</label>
+                    <input v-model="formEditar.peso" type="number" step="0.1" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  </div>
+                  <div>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Talla (m)</label>
+                    <input v-model="formEditar.talla" type="number" step="0.01" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  </div>
+                  <div>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Cintura (cm)</label>
+                    <input v-model="formEditar.cintura" type="number" step="0.1" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  </div>
+                  <div>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Cadera (cm)</label>
+                    <input v-model="formEditar.cadera" type="number" step="0.1" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  </div>
+                  <div>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Abdomen (cm)</label>
+                    <input v-model="formEditar.abdomen" type="number" step="0.1" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  </div>
+                  <div>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Muslo (cm)</label>
+                    <input v-model="formEditar.muslo" type="number" step="0.1" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  </div>
+                  <div>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Brazo relajado (cm)</label>
+                    <input v-model="formEditar.brazoRelajado" type="number" step="0.1" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  </div>
+                  <div>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Brazo flexionado (cm)</label>
+                    <input v-model="formEditar.brazoFlexionado" type="number" step="0.1" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  </div>
+                  <div>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Pantorrilla (cm)</label>
+                    <input v-model="formEditar.pantorrilla" type="number" step="0.1" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  </div>
+                  <div class="sm:col-span-2">
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Observaciones</label>
+                    <input v-model="formEditar.observaciones" type="text" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                  </div>
+                </div>
+
+                <div class="flex justify-end gap-3 border-t border-gray-100 pt-4 dark:border-gray-800 mt-2">
+                  <button @click="modoModal = 'ver'" class="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg dark:text-gray-300 dark:hover:bg-gray-800">
+                    Cancelar
+                  </button>
+                  <button @click="guardarEdicion" :disabled="saving" class="px-5 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors disabled:opacity-50">
+                    {{ saving ? 'Guardando...' : 'Guardar cambios' }}
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
 
       <!-- Modal Registrar Nueva Medición (Wizard 2 Pasos) -->
       <Teleport to="body">
@@ -526,6 +677,95 @@ async function guardarMedicion() {
     alert(err.message || 'Error al guardar la medición')
   } finally {
     saving.value = false
+  }
+}
+
+// --- Mediciones ordenadas de más reciente a más antigua ---
+const medicionesOrdenadas = computed(() =>
+  [...mediciones.value].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+)
+
+// --- Modal Ver / Editar ---
+const modalVerEditarVisible = ref(false)
+const modoModal = ref<'ver' | 'editar'>('ver')
+const medicionActual = ref<any>(null)
+const formEditar = ref<any>({})
+
+const camposDetalle = [
+  { key: 'peso',            label: 'Peso',             db: 'peso',             unidad: 'kg' },
+  { key: 'talla',           label: 'Talla',            db: 'talla',            unidad: 'm'  },
+  { key: 'cintura',         label: 'Cintura',          db: 'cintura',          unidad: 'cm' },
+  { key: 'cadera',          label: 'Cadera',           db: 'cadera',           unidad: 'cm' },
+  { key: 'abdomen',         label: 'Abdomen',          db: 'abdomen',          unidad: 'cm' },
+  { key: 'muslo',           label: 'Muslo',            db: 'muslo',            unidad: 'cm' },
+  { key: 'brazoRelajado',   label: 'Brazo relajado',   db: 'brazo_relajado',   unidad: 'cm' },
+  { key: 'brazoFlexionado', label: 'Brazo flexionado', db: 'brazo_flexionado', unidad: 'cm' },
+  { key: 'pantorrilla',     label: 'Pantorrilla',      db: 'pantorrilla',      unidad: 'cm' },
+]
+
+function abrirVerMedicion(m: any) {
+  medicionActual.value = m
+  modoModal.value = 'ver'
+  modalVerEditarVisible.value = true
+}
+
+function abrirEditarMedicion(m: any) {
+  medicionActual.value = m
+  formEditar.value = {
+    fecha: m.fecha,
+    peso: m.peso,
+    talla: m.talla,
+    cintura: m.cintura,
+    cadera: m.cadera,
+    abdomen: m.abdomen,
+    muslo: m.muslo,
+    brazoRelajado: m.brazo_relajado,
+    brazoFlexionado: m.brazo_flexionado,
+    pantorrilla: m.pantorrilla,
+    observaciones: m.observaciones,
+  }
+  modoModal.value = 'editar'
+  modalVerEditarVisible.value = true
+}
+
+function cerrarVerEditar() {
+  modalVerEditarVisible.value = false
+  medicionActual.value = null
+}
+
+async function guardarEdicion() {
+  if (!medicionActual.value?.id) return
+  saving.value = true
+  try {
+    await expedientesApi.updateMedicion(medicionActual.value.id, {
+      fecha: formEditar.value.fecha,
+      peso: formEditar.value.peso ? parseFloat(formEditar.value.peso) : null,
+      talla: formEditar.value.talla ? parseFloat(formEditar.value.talla) : null,
+      cintura: formEditar.value.cintura ? parseFloat(formEditar.value.cintura) : null,
+      cadera: formEditar.value.cadera ? parseFloat(formEditar.value.cadera) : null,
+      abdomen: formEditar.value.abdomen ? parseFloat(formEditar.value.abdomen) : null,
+      muslo: formEditar.value.muslo ? parseFloat(formEditar.value.muslo) : null,
+      brazoRelajado: formEditar.value.brazoRelajado ? parseFloat(formEditar.value.brazoRelajado) : null,
+      brazoFlexionado: formEditar.value.brazoFlexionado ? parseFloat(formEditar.value.brazoFlexionado) : null,
+      pantorrilla: formEditar.value.pantorrilla ? parseFloat(formEditar.value.pantorrilla) : null,
+      observaciones: formEditar.value.observaciones || '',
+    })
+    cerrarVerEditar()
+    await cargarExpediente()
+  } catch (err: any) {
+    alert(err.message || 'Error al guardar los cambios')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function eliminarMedicion(id: string) {
+  if (!confirm('¿Eliminar esta medición? Esta acción no se puede deshacer.')) return
+  try {
+    await expedientesApi.deleteMedicion(id)
+    await cargarExpediente()
+  } catch (err: any) {
+    alert(err.message || 'Error al eliminar la medición')
   }
 }
 
