@@ -197,31 +197,31 @@
                     <input v-model="formMedicion.fecha" type="date" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                   </div>
                   <div>
-                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Peso en Kg *</label>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Peso (kg) *</label>
                     <input v-model="formMedicion.peso" type="number" step="0.1" placeholder="Ej. 72.5" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                   </div>
                   <div>
-                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Talla en mts</label>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Talla (m)</label>
                     <input v-model="formMedicion.talla" type="number" step="0.01" placeholder="Ej. 1.68" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                   </div>
                   <div>
-                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Brazo relaj (cm)</label>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Brazo relajado (cm)</label>
                     <input v-model="formMedicion.brazoRelajado" type="number" step="0.1" placeholder="Ej. 28" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                   </div>
                   <div>
-                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Brazo flex (cm)</label>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Brazo flexionado (cm)</label>
                     <input v-model="formMedicion.brazoFlexionado" type="number" step="0.1" placeholder="Ej. 30" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                   </div>
                   <div>
-                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Cintura en cm</label>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Cintura (cm)</label>
                     <input v-model="formMedicion.cintura" type="number" step="0.1" placeholder="Ej. 84.0" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                   </div>
                   <div>
-                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Abdómen en cms</label>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Abdomen (cm)</label>
                     <input v-model="formMedicion.abdomen" type="number" step="0.1" placeholder="Ej. 88.0" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                   </div>
                   <div>
-                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Cadera en cms</label>
+                    <label class="block font-medium text-gray-700 dark:text-gray-300 mb-1">Cadera (cm)</label>
                     <input v-model="formMedicion.cadera" type="number" step="0.1" placeholder="Ej. 97.5" class="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-gray-800 outline-none focus:border-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                   </div>
                   <div>
