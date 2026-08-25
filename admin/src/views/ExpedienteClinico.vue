@@ -28,7 +28,7 @@
             class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-brand-700 transition-colors"
           >
             <PlusIcon class="w-4 h-4" />
-            <span>Nueva Medición / Consulta</span>
+            <span>Nueva Medición</span>
           </button>
         </div>
       </div>
@@ -166,7 +166,7 @@
             <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" @click="cerrarModalMedicion"></div>
             <div class="relative w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900 dark:border dark:border-gray-800 z-10 max-h-[90vh] overflow-y-auto">
               <div class="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
-                <h3 class="text-base font-bold text-gray-900 dark:text-white">Nueva Medición Antropométrica</h3>
+                <h3 class="text-base font-bold text-gray-900 dark:text-white">Nueva Medición</h3>
                 <button @click="cerrarModalMedicion" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
               </div>
 
@@ -374,6 +374,11 @@ async function cargarExpediente() {
     paciente.value = pacienteRes
     expediente.value = expRes.expediente
     mediciones.value = expRes.mediciones || []
+    
+    // Auto-abrir el modal si es la primera vez (0 mediciones)
+    if (mediciones.value.length === 0) {
+      abrirModalMedicion()
+    }
   } catch (err) {
     console.error('Error al cargar expediente clínico:', err)
   } finally {
