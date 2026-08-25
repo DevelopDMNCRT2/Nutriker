@@ -135,6 +135,12 @@ onMounted(async () => {
 
 async function guardar() {
   errorMsg.value = ''
+  
+  if (!form.value.nombre || !form.value.telefono || !form.value.sexo) {
+    errorMsg.value = 'Por favor completa todos los campos requeridos (*), incluyendo el sexo.'
+    return
+  }
+
   saving.value = true
   try {
     if (isEditing.value) {
