@@ -12,8 +12,9 @@
           {{ errorMsg }}
         </div>
 
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div class="sm:col-span-2">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-12">
+          <!-- FILA 1 -->
+          <div class="sm:col-span-8">
             <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Nombre Completo del Paciente *</label>
             <input
               v-model="form.nombre"
@@ -24,7 +25,19 @@
             />
           </div>
 
-          <div>
+          <div class="sm:col-span-4">
+            <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Edad</label>
+            <input
+              v-model.number="form.edad"
+              type="number"
+              min="1"
+              placeholder="Ej. 28"
+              class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            />
+          </div>
+
+          <!-- FILA 2 -->
+          <div class="sm:col-span-4">
             <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Sexo *</label>
             <select
               v-model="form.sexo"
@@ -37,7 +50,7 @@
             </select>
           </div>
 
-          <div>
+          <div class="sm:col-span-4">
             <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Teléfono *</label>
             <input
               v-model="form.telefono"
@@ -48,7 +61,7 @@
             />
           </div>
 
-          <div>
+          <div class="sm:col-span-4">
             <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Correo Electrónico</label>
             <input
               v-model="form.correo"
@@ -58,25 +71,14 @@
             />
           </div>
 
-          <div>
-            <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Edad</label>
-            <input
-              v-model.number="form.edad"
-              type="number"
-              min="1"
-              placeholder="Ej. 28"
-              class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-            />
-          </div>
-
-          <div>
+          <!-- FILA 3 -->
+          <div class="sm:col-span-12">
             <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Ocupación / Notas</label>
-            <input
+            <textarea
               v-model="form.ocupacion"
-              type="text"
-              placeholder="Ej. Ingeniera de Software"
-              class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-            />
+              placeholder="Ej. Ingeniera de Software. Alérgica a las nueces..."
+              class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white min-h-[80px]"
+            ></textarea>
           </div>
         </div>
       </FormSection>
