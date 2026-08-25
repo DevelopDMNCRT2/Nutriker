@@ -248,42 +248,61 @@
                 </div>
               </div>
 
-              <!-- PASO 2: FÓRMULAS Y RESULTADOS -->
-              <div v-if="stepMedicion === 2" class="space-y-4 text-sm py-4">
-                <p class="text-brand-600 font-semibold mb-4 border-l-4 border-brand-500 pl-3">Paso 2: Aplicación de Fórmulas y Diagnóstico</p>
-                <div class="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700 space-y-3">
-                  <p class="text-xs text-gray-500 dark:text-gray-400">
-                    <em>Nota: Los valores aquí mostrados son placeholders (N/D) hasta que la Dra. nos confirme la fórmula exacta que utiliza para calcular los índices y riesgos dependiendo de los datos del paciente.</em>
-                  </p>
-                  <div class="grid grid-cols-2 gap-4 mt-2">
-                    <div>
-                      <span class="block text-gray-500 text-xs uppercase tracking-wider font-bold">IMC Calculado:</span>
-                      <span class="text-lg font-bold text-gray-900 dark:text-white">N/D</span>
-                    </div>
-                    <div>
-                      <span class="block text-gray-500 text-xs uppercase tracking-wider font-bold">Índice C/C:</span>
-                      <span class="text-lg font-bold text-gray-900 dark:text-white">N/D</span>
-                    </div>
-                    <div>
-                      <span class="block text-gray-500 text-xs uppercase tracking-wider font-bold">Riesgo de IMC:</span>
-                      <span class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">Pendiente de fórmula</span>
-                    </div>
-                    <div>
-                      <span class="block text-gray-500 text-xs uppercase tracking-wider font-bold">Riesgo de C/C:</span>
-                      <span class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">Pendiente de fórmula</span>
-                    </div>
+              <!-- PASO 2: RESUMEN Y GUARDAR -->
+              <div v-if="stepMedicion === 2" class="space-y-4 text-xs py-4">
+                <p class="text-brand-600 font-semibold mb-1 border-l-4 border-brand-500 pl-3 text-sm">Paso 2: Confirmar y guardar</p>
+                <p class="text-gray-400 pl-3 mb-4">Revisa los datos capturados. Las fórmulas e índices se integrarán próximamente.</p>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div v-if="formMedicion.peso" class="bg-brand-50 dark:bg-brand-500/10 rounded-xl p-3 text-center">
+                    <span class="block text-[10px] text-brand-500 font-semibold uppercase tracking-wider">Peso</span>
+                    <span class="block text-lg font-bold text-brand-700 dark:text-brand-300 mt-0.5">{{ formMedicion.peso }} <span class="text-xs font-normal">kg</span></span>
+                  </div>
+                  <div v-if="formMedicion.talla" class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 text-center">
+                    <span class="block text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Talla</span>
+                    <span class="block text-lg font-bold text-gray-700 dark:text-gray-200 mt-0.5">{{ formMedicion.talla }} <span class="text-xs font-normal">m</span></span>
+                  </div>
+                  <div v-if="formMedicion.cintura" class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 text-center">
+                    <span class="block text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Cintura</span>
+                    <span class="block text-lg font-bold text-gray-700 dark:text-gray-200 mt-0.5">{{ formMedicion.cintura }} <span class="text-xs font-normal">cm</span></span>
+                  </div>
+                  <div v-if="formMedicion.cadera" class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 text-center">
+                    <span class="block text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Cadera</span>
+                    <span class="block text-lg font-bold text-gray-700 dark:text-gray-200 mt-0.5">{{ formMedicion.cadera }} <span class="text-xs font-normal">cm</span></span>
+                  </div>
+                  <div v-if="formMedicion.abdomen" class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 text-center">
+                    <span class="block text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Abdomen</span>
+                    <span class="block text-lg font-bold text-gray-700 dark:text-gray-200 mt-0.5">{{ formMedicion.abdomen }} <span class="text-xs font-normal">cm</span></span>
+                  </div>
+                  <div v-if="formMedicion.muslo" class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 text-center">
+                    <span class="block text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Muslo</span>
+                    <span class="block text-lg font-bold text-gray-700 dark:text-gray-200 mt-0.5">{{ formMedicion.muslo }} <span class="text-xs font-normal">cm</span></span>
+                  </div>
+                  <div v-if="formMedicion.brazoRelajado" class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 text-center">
+                    <span class="block text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Brazo relajado</span>
+                    <span class="block text-lg font-bold text-gray-700 dark:text-gray-200 mt-0.5">{{ formMedicion.brazoRelajado }} <span class="text-xs font-normal">cm</span></span>
+                  </div>
+                  <div v-if="formMedicion.brazoFlexionado" class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 text-center">
+                    <span class="block text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Brazo flexionado</span>
+                    <span class="block text-lg font-bold text-gray-700 dark:text-gray-200 mt-0.5">{{ formMedicion.brazoFlexionado }} <span class="text-xs font-normal">cm</span></span>
+                  </div>
+                  <div v-if="formMedicion.pantorrilla" class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 text-center">
+                    <span class="block text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Pantorrilla</span>
+                    <span class="block text-lg font-bold text-gray-700 dark:text-gray-200 mt-0.5">{{ formMedicion.pantorrilla }} <span class="text-xs font-normal">cm</span></span>
                   </div>
                 </div>
 
-                <div class="flex justify-between border-t border-gray-100 pt-4 mt-4 dark:border-gray-800">
+                <div v-if="formMedicion.observaciones" class="bg-gray-50 dark:bg-gray-800/50 rounded-xl px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
+                  <span class="font-semibold text-gray-600 dark:text-gray-300">Observaciones: </span>{{ formMedicion.observaciones }}
+                </div>
+
+                <div class="flex justify-between border-t border-gray-100 pt-4 mt-2 dark:border-gray-800">
                   <button @click="stepMedicion = 1" class="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg dark:text-gray-300 dark:hover:bg-gray-800">
                     ← Volver
                   </button>
-                  <div class="flex gap-2">
-                    <button @click="guardarMedicion" :disabled="saving" class="px-4 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors shadow-theme-sm">
-                      {{ saving ? 'Guardando...' : 'Aplicar Fórmula y Guardar' }}
-                    </button>
-                  </div>
+                  <button @click="guardarMedicion" :disabled="saving" class="px-5 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors shadow-sm disabled:opacity-50">
+                    {{ saving ? 'Guardando...' : 'Guardar Medición' }}
+                  </button>
                 </div>
               </div>
 
