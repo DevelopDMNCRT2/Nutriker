@@ -56,7 +56,8 @@ export async function getExpedienteByCliente(req, res) {
 // ─── POST /api/expedientes/mediciones ──────────────────────────────────────
 export async function createMedicion(req, res) {
   const {
-    clienteId,
+    pacienteId,
+    clienteId,  // retrocompatibilidad
     fecha = new Date().toISOString().split('T')[0],
     peso, talla = null,
     brazoRelajado = null, brazoFlexionado = null,
@@ -67,8 +68,10 @@ export async function createMedicion(req, res) {
     observaciones = '',
   } = req.body
 
-  if (!clienteId || peso === undefined) {
-    return res.status(400).json({ error: 'clienteId y peso son obligatorios' })
+  const idPaciente = pacienteId || clienteId
+
+  if (!idPaciente || peso === undefined) {
+    return res.status(400).json({ error: 'pacienteId y peso son obligatorios' })
   }
 
   try {
@@ -80,11 +83,11 @@ export async function createMedicion(req, res) {
        )
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        RETURNING id, TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha", peso, talla,
-                 brazo_relajado AS "brazoRelajado", brazo_flexionado AS "brazoFlexionado",
+                 brazo_relajado AS "brazo_relajado", brazo_flexionado AS "brazo_flexionado",
                  cintura, abdomen, cadera, muslo, pantorrilla,
                  imc, indice_cc AS "indiceCC", riesgo_imc AS "riesgoImc", riesgo_cc AS "riesgoCc", observaciones`,
       [
-        newId, clienteId, fecha, peso, talla, brazoRelajado, brazoFlexionado,
+        newId, idPaciente, fecha, peso, talla, brazoRelajado, brazoFlexionado,
         cintura, abdomen, cadera, muslo, pantorrilla, imc, indiceCC, riesgoImc, riesgoCc, observaciones,
       ]
     )
