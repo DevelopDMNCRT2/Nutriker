@@ -1,50 +1,44 @@
 import pool from '../db/pool.js'
 import { generarIdUnico } from '../utils/generarId.js'
 
-// ─── GET /api/expedientes/cliente/:clienteId ───────────────────────────────
+// ─── GET /api/expedientes/paciente/:pacienteId ──────────────────────────────
 export async function getExpedienteByCliente(req, res) {
-  const { clienteId } = req.params
+  const pacienteId = req.params.clienteId || req.params.pacienteId
   try {
-    // 1. Obtener o crear el expediente del cliente
+    // 1. Obtener o crear el expediente del paciente
     let expResult = await pool.query(
-      `SELECT e.id, e.cliente_id AS "clienteId", e.diagnostico, e.objetivo_nutricional AS "objetivoNutricional",
+      `SELECT e.id, e.paciente_id AS "pacienteId", e.diagnostico, e.objetivo_nutricional AS "objetivoNutricional",
               e.notas_medicas AS "notasMedicas", TO_CHAR(e.creado_en, 'YYYY-MM-DD') AS "fechaAlta"
        FROM expedientes_clinicos e
-       WHERE e.cliente_id = $1`,
-      [clienteId]
-    )
+       WHERE e.paciente_id = $1`,
+      [pacienteId]
+    ).catch(() => ({ rows: [] }))
 
+    // Fallback: intentar con cliente_id si la tabla aún tiene esa columna
     if (!expResult.rows.length) {
-      // Si aún no tiene expediente creado, generar uno básico por defecto
-      const newExpId = await generarIdUnico('expedientes_clinicos')
-      await pool.query(
-        `INSERT INTO expedientes_clinicos (id, cliente_id, diagnostico, objetivo_nutricional, notas_medicas)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [newExpId, clienteId, 'Paciente en seguimiento nutricional continuo.', 'Mejorar composición corporal y hábitos de salud.', 'Acepta plan de alimentación personalizado.']
-      )
       expResult = await pool.query(
-        `SELECT e.id, e.cliente_id AS "clienteId", e.diagnostico, e.objetivo_nutricional AS "objetivoNutricional",
+        `SELECT e.id, e.diagnostico, e.objetivo_nutricional AS "objetivoNutricional",
                 e.notas_medicas AS "notasMedicas", TO_CHAR(e.creado_en, 'YYYY-MM-DD') AS "fechaAlta"
          FROM expedientes_clinicos e
          WHERE e.cliente_id = $1`,
-        [clienteId]
-      )
+        [pacienteId]
+      ).catch(() => ({ rows: [] }))
     }
 
-    // 2. Obtener el historial de mediciones antropométricas
+    // 2. Obtener historial de mediciones
     const medicionesResult = await pool.query(
       `SELECT id, TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha", peso, talla,
-              brazo_relajado AS "brazoRelajado", brazo_flexionado AS "brazoFlexionado",
+              brazo_relajado, brazo_flexionado,
               cintura, abdomen, cadera, muslo, pantorrilla,
               imc, indice_cc AS "indiceCC", riesgo_imc AS "riesgoImc", riesgo_cc AS "riesgoCc", observaciones
        FROM mediciones_antropometricas
-       WHERE cliente_id = $1
+       WHERE paciente_id = $1
        ORDER BY fecha ASC`,
-      [clienteId]
+      [pacienteId]
     )
 
     res.json({
-      expediente: expResult.rows[0],
+      expediente: expResult.rows[0] || {},
       mediciones: medicionesResult.rows,
     })
   } catch (err) {
@@ -78,12 +72,12 @@ export async function createMedicion(req, res) {
     const newId = await generarIdUnico('mediciones_antropometricas')
     const result = await pool.query(
       `INSERT INTO mediciones_antropometricas (
-        id, cliente_id, fecha, peso, talla, brazo_relajado, brazo_flexionado,
+        id, paciente_id, fecha, peso, talla, brazo_relajado, brazo_flexionado,
         cintura, abdomen, cadera, muslo, pantorrilla, imc, indice_cc, riesgo_imc, riesgo_cc, observaciones
        )
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        RETURNING id, TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha", peso, talla,
-                 brazo_relajado AS "brazo_relajado", brazo_flexionado AS "brazo_flexionado",
+                 brazo_relajado, brazo_flexionado,
                  cintura, abdomen, cadera, muslo, pantorrilla,
                  imc, indice_cc AS "indiceCC", riesgo_imc AS "riesgoImc", riesgo_cc AS "riesgoCc", observaciones`,
       [
@@ -94,51 +88,123 @@ export async function createMedicion(req, res) {
     res.status(201).json(result.rows[0])
   } catch (err) {
     console.error('createMedicion:', err.message)
-    res.status(500).json({ error: 'Error al registrar la medición antropométrica' })
+    res.status(500).json({ error: 'Error al registrar la medición antropométrica', detalle: err.message })
   }
 }
 
-// ─── PUT /api/expedientes/cliente/:clienteId ───────────────────────────────
+// ─── PUT /api/expedientes/mediciones/:id ───────────────────────────────────
+export async function updateMedicion(req, res) {
+  const { id } = req.params
+  const {
+    fecha, peso, talla,
+    brazoRelajado, brazoFlexionado,
+    cintura, abdomen, cadera, muslo, pantorrilla,
+    imc, indiceCC, riesgoImc, riesgoCc, observaciones,
+  } = req.body
+
+  try {
+    const result = await pool.query(
+      `UPDATE mediciones_antropometricas SET
+        fecha = COALESCE($1, fecha),
+        peso = COALESCE($2, peso),
+        talla = COALESCE($3, talla),
+        brazo_relajado = COALESCE($4, brazo_relajado),
+        brazo_flexionado = COALESCE($5, brazo_flexionado),
+        cintura = COALESCE($6, cintura),
+        abdomen = COALESCE($7, abdomen),
+        cadera = COALESCE($8, cadera),
+        muslo = COALESCE($9, muslo),
+        pantorrilla = COALESCE($10, pantorrilla),
+        imc = COALESCE($11, imc),
+        indice_cc = COALESCE($12, indice_cc),
+        riesgo_imc = COALESCE($13, riesgo_imc),
+        riesgo_cc = COALESCE($14, riesgo_cc),
+        observaciones = COALESCE($15, observaciones)
+       WHERE id = $16
+       RETURNING id, TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha", peso, talla,
+                 brazo_relajado, brazo_flexionado,
+                 cintura, abdomen, cadera, muslo, pantorrilla, observaciones`,
+      [
+        fecha || null, peso ? parseFloat(peso) : null, talla ? parseFloat(talla) : null,
+        brazoRelajado ? parseFloat(brazoRelajado) : null, brazoFlexionado ? parseFloat(brazoFlexionado) : null,
+        cintura ? parseFloat(cintura) : null, abdomen ? parseFloat(abdomen) : null,
+        cadera ? parseFloat(cadera) : null, muslo ? parseFloat(muslo) : null,
+        pantorrilla ? parseFloat(pantorrilla) : null,
+        imc || null, indiceCC || null, riesgoImc || null, riesgoCc || null,
+        observaciones !== undefined ? observaciones : null,
+        id,
+      ]
+    )
+    if (!result.rows.length) return res.status(404).json({ error: 'Medición no encontrada' })
+    res.json(result.rows[0])
+  } catch (err) {
+    console.error('updateMedicion:', err.message)
+    res.status(500).json({ error: 'Error al actualizar la medición', detalle: err.message })
+  }
+}
+
+// ─── DELETE /api/expedientes/mediciones/:id ────────────────────────────────
+export async function deleteMedicion(req, res) {
+  const { id } = req.params
+  try {
+    const result = await pool.query(
+      'DELETE FROM mediciones_antropometricas WHERE id = $1 RETURNING id',
+      [id]
+    )
+    if (!result.rows.length) return res.status(404).json({ error: 'Medición no encontrada' })
+    res.json({ message: 'Medición eliminada', id: result.rows[0].id })
+  } catch (err) {
+    console.error('deleteMedicion:', err.message)
+    res.status(500).json({ error: 'Error al eliminar la medición' })
+  }
+}
+
+// ─── PUT /api/expedientes/paciente/:pacienteId ─────────────────────────────
 export async function updateExpediente(req, res) {
-  const { clienteId } = req.params
+  const pacienteId = req.params.clienteId || req.params.pacienteId
   const { diagnostico, objetivoNutricional, notasMedicas } = req.body
 
   try {
-    // 1. Verificar si ya existe un expediente registrado para el cliente
+    // Intentar con paciente_id primero, luego cliente_id
     const checkResult = await pool.query(
-      'SELECT id FROM expedientes_clinicos WHERE cliente_id = $1',
-      [clienteId]
+      `SELECT id FROM expedientes_clinicos 
+       WHERE paciente_id = $1 OR cliente_id = $1 
+       LIMIT 1`,
+      [pacienteId]
     )
 
     let result
     if (checkResult.rows.length === 0) {
-      // 2. Si no existe, crear el expediente inicial con los datos provistos
       const newExpId = await generarIdUnico('expedientes_clinicos')
       result = await pool.query(
-        `INSERT INTO expedientes_clinicos (id, cliente_id, diagnostico, objetivo_nutricional, notas_medicas)
+        `INSERT INTO expedientes_clinicos (id, paciente_id, diagnostico, objetivo_nutricional, notas_medicas)
          VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, cliente_id AS "clienteId", diagnostico, objetivo_nutricional AS "objetivoNutricional",
-                   notas_medicas AS "notasMedicas"`,
-        [newExpId, clienteId, diagnostico || null, objetivoNutricional || null, notasMedicas || null]
-      )
+         RETURNING id, diagnostico, objetivo_nutricional AS "objetivoNutricional", notas_medicas AS "notasMedicas"`,
+        [newExpId, pacienteId, diagnostico || null, objetivoNutricional || null, notasMedicas || null]
+      ).catch(async () => {
+        // Si falla paciente_id, intentar con cliente_id (migración parcial)
+        return pool.query(
+          `INSERT INTO expedientes_clinicos (id, cliente_id, diagnostico, objetivo_nutricional, notas_medicas)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING id, diagnostico, objetivo_nutricional AS "objetivoNutricional", notas_medicas AS "notasMedicas"`,
+          [newExpId, pacienteId, diagnostico || null, objetivoNutricional || null, notasMedicas || null]
+        )
+      })
     } else {
-      // 3. Si ya existe, actualizar únicamente los datos provistos
       result = await pool.query(
         `UPDATE expedientes_clinicos
          SET diagnostico = COALESCE($1, diagnostico),
              objetivo_nutricional = COALESCE($2, objetivo_nutricional),
-             notas_medicas = COALESCE($3, notas_medicas),
-             updated_at = NOW()
-         WHERE cliente_id = $4
-         RETURNING id, cliente_id AS "clienteId", diagnostico, objetivo_nutricional AS "objetivoNutricional",
-                   notas_medicas AS "notasMedicas"`,
-        [diagnostico, objetivoNutricional, notasMedicas, clienteId]
+             notas_medicas = COALESCE($3, notas_medicas)
+         WHERE id = $4
+         RETURNING id, diagnostico, objetivo_nutricional AS "objetivoNutricional", notas_medicas AS "notasMedicas"`,
+        [diagnostico, objetivoNutricional, notasMedicas, checkResult.rows[0].id]
       )
     }
 
     res.json(result.rows[0])
   } catch (err) {
     console.error('updateExpediente:', err.message)
-    res.status(500).json({ error: 'Error al actualizar el expediente' })
+    res.status(500).json({ error: 'Error al actualizar el expediente', detalle: err.message })
   }
 }
