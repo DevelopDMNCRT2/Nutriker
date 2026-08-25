@@ -71,7 +71,8 @@ export async function createPaciente(req, res) {
     cita_id, nombre, telefono, correo, edad, ocupacion, motivo_consulta,
     patologias, antecedentes_familiares, bioquimicos, farmacos, digestiva,
     peso, estatura, circunferencias, composicion, recordatorio_24h, alergias,
-    ultraprocesados, gustos, logistica_cocina, estilo_vida, fecha, horario, atencion_previa, sexo
+    ultraprocesados, gustos, logistica_cocina, estilo_vida, fecha, horario, atencion_previa, sexo,
+    ginecologicos, notas
   } = req.body
 
   if (!nombre || !telefono || !sexo) {
@@ -86,9 +87,10 @@ export async function createPaciente(req, res) {
         id, cita_id, nombre, telefono, correo, edad, ocupacion, motivo_consulta,
         patologias, antecedentes_familiares, bioquimicos, farmacos, digestiva,
         peso, estatura, circunferencias, composicion, recordatorio_24h, alergias,
-        ultraprocesados, gustos, logistica_cocina, estilo_vida, fecha, horario, atencion_previa, sexo
+        ultraprocesados, gustos, logistica_cocina, estilo_vida, fecha, horario, atencion_previa, sexo,
+        ginecologicos, notas
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
       ) RETURNING *`,
       [
         newId, cita_id || null, nombre, telefono, correo || null, edad || null,
@@ -98,7 +100,8 @@ export async function createPaciente(req, res) {
         circunferencias || null, composicion || null, recordatorio_24h || null,
         alergias || null, ultraprocesados || null, gustos || null,
         logistica_cocina || null, estilo_vida || null, fecha || null,
-        horario || null, atencion_previa || 'no', sexo || null
+        horario || null, atencion_previa || 'no', sexo || null,
+        ginecologicos || null, notas || null
       ]
     )
 
@@ -116,7 +119,8 @@ export async function updatePaciente(req, res) {
     cita_id, nombre, telefono, correo, edad, ocupacion, motivo_consulta,
     patologias, antecedentes_familiares, bioquimicos, farmacos, digestiva,
     peso, estatura, circunferencias, composicion, recordatorio_24h, alergias,
-    ultraprocesados, gustos, logistica_cocina, estilo_vida, fecha, horario, atencion_previa, sexo
+    ultraprocesados, gustos, logistica_cocina, estilo_vida, fecha, horario, atencion_previa, sexo,
+    ginecologicos, notas
   } = req.body
 
   if (!nombre || !telefono || !sexo) {
@@ -133,8 +137,9 @@ export async function updatePaciente(req, res) {
         composicion = $16, recordatorio_24h = $17, alergias = $18,
         ultraprocesados = $19, gustos = $20, logistica_cocina = $21,
         estilo_vida = $22, fecha = $23, horario = $24, atencion_previa = $25, sexo = $26,
+        ginecologicos = $27, notas = $28,
         updated_at = NOW()
-       WHERE id = $27 AND deleted_at IS NULL
+       WHERE id = $29 AND deleted_at IS NULL
        RETURNING *`,
       [
         cita_id || null, nombre, telefono, correo || null, edad || null,
@@ -144,7 +149,8 @@ export async function updatePaciente(req, res) {
         circunferencias || null, composicion || null, recordatorio_24h || null,
         alergias || null, ultraprocesados || null, gustos || null,
         logistica_cocina || null, estilo_vida || null, fecha || null,
-        horario || null, atencion_previa || 'no', sexo || null, id
+        horario || null, atencion_previa || 'no', sexo || null,
+        ginecologicos || null, notas || null, id
       ]
     )
 
