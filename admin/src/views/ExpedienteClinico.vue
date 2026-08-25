@@ -90,26 +90,50 @@
       </div>
 
       <!-- Gráfica de Evolución Antropométrica (ApexCharts) -->
-      <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <h3 class="text-base font-bold text-gray-900 dark:text-white">
-              Evolución Histórica (Peso, Grasa & Músculo)
-            </h3>
+      <div class="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 overflow-hidden">
+        <!-- Header -->
+        <div class="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-800">
+          <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div>
+              <h3 class="text-base font-bold text-gray-900 dark:text-white">Evolución Histórica de Mediciones</h3>
+              <p class="text-xs text-gray-400 mt-0.5">Haz clic en las etiquetas para activar o desactivar cada línea</p>
+            </div>
+            <!-- Legend / Toggles -->
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="serie in definicionSeries"
+                :key="serie.key"
+                @click="toggleSerie(serie.key)"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all duration-200"
+                :style="seriesActivas[serie.key]
+                  ? { backgroundColor: serie.color + '18', borderColor: serie.color, color: serie.color }
+                  : { backgroundColor: '#f3f4f6', borderColor: '#e5e7eb', color: '#9ca3af' }"
+              >
+                <span
+                  class="w-2 h-2 rounded-full transition-all"
+                  :style="{ backgroundColor: seriesActivas[serie.key] ? serie.color : '#d1d5db' }"
+                ></span>
+                {{ serie.label }}
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Renderizado de Gráfica ApexCharts -->
-        <div v-if="seriesGráfica[0].data.length > 0" class="w-full h-72">
-          <apexchart
-            type="line"
-            height="280"
-            :options="opcionesGrafica"
-            :series="seriesGráfica"
-          />
-        </div>
-        <div v-else class="py-12 text-center text-xs text-gray-400">
-          No hay mediciones suficientes para generar la gráfica de evolución.
+        <!-- Chart -->
+        <div class="px-2 pb-4">
+          <div v-if="mediciones.length > 0">
+            <apexchart
+              type="line"
+              height="340"
+              :options="opcionesGrafica"
+              :series="seriesGráfica"
+            />
+          </div>
+          <div v-else class="py-16 text-center">
+            <svg class="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+            <p class="text-sm text-gray-400 font-medium">Sin mediciones para graficar</p>
+            <p class="text-xs text-gray-300 mt-1">Registra la primera medición para ver la evolución aquí</p>
+          </div>
         </div>
       </div>
 
@@ -318,41 +342,91 @@ const ultimoPeso = computed(() => {
   return paciente.value?.peso || 'N/D'
 })
 
-// Opciones de configuración para ApexCharts
+// Definición de todas las series disponibles con su color y campo de dato
+const definicionSeries = [
+  { key: 'peso',            label: 'Peso (kg)',         color: '#4A8C5B', campo: 'peso' },
+  { key: 'cintura',         label: 'Cintura (cm)',       color: '#D97706', campo: 'cintura' },
+  { key: 'cadera',          label: 'Cadera (cm)',        color: '#7C3AED', campo: 'cadera' },
+  { key: 'abdomen',         label: 'Abdomen (cm)',       color: '#DB2777', campo: 'abdomen' },
+  { key: 'muslo',           label: 'Muslo (cm)',         color: '#0891B2', campo: 'muslo' },
+  { key: 'brazoRelajado',   label: 'Brazo relaj. (cm)', color: '#059669', campo: 'brazo_relajado' },
+  { key: 'brazoFlexionado', label: 'Brazo flex. (cm)',  color: '#EA580C', campo: 'brazo_flexionado' },
+  { key: 'pantorrilla',     label: 'Pantorrilla (cm)',   color: '#6366F1', campo: 'pantorrilla' },
+]
+
+// Estado de cada serie (activa/inactiva)
+const seriesActivas = ref<Record<string, boolean>>(
+  Object.fromEntries(definicionSeries.map(s => [s.key, true]))
+)
+
+function toggleSerie(key: string) {
+  seriesActivas.value[key] = !seriesActivas.value[key]
+}
+
+// Genera las series activas para ApexCharts
+const seriesGráfica = computed(() =>
+  definicionSeries
+    .filter(s => seriesActivas.value[s.key])
+    .map(s => ({
+      name: s.label,
+      color: s.color,
+      data: mediciones.value.map(m => {
+        const val = m[s.campo]
+        return val !== null && val !== undefined && val !== '' ? parseFloat(val) : null
+      }),
+    }))
+)
+
+// Opciones premium para ApexCharts
 const opcionesGrafica = computed(() => ({
   chart: {
     type: 'line',
-    toolbar: { show: false },
+    toolbar: {
+      show: true,
+      tools: { download: true, selection: false, zoom: true, zoomin: true, zoomout: true, pan: true, reset: true },
+    },
     fontFamily: 'Inter, sans-serif',
+    animations: { enabled: true, easing: 'easeinout', speed: 600 },
+    background: 'transparent',
   },
-  colors: ['#4A8C5B', '#D97706', '#4F46E5'],
-  stroke: { curve: 'smooth', width: 3 },
-  markers: { size: 5 },
+  stroke: { curve: 'smooth', width: 2.5 },
+  markers: {
+    size: 5,
+    strokeWidth: 2,
+    strokeColors: '#fff',
+    hover: { size: 8 },
+  },
   xaxis: {
     categories: mediciones.value.map(m => m.fecha),
-    labels: { style: { colors: '#6B7280', fontSize: '11px' } },
+    labels: { style: { colors: '#9CA3AF', fontSize: '11px', fontFamily: 'Inter, sans-serif' } },
+    axisBorder: { show: false },
+    axisTicks: { show: false },
   },
   yaxis: {
-    labels: { style: { colors: '#6B7280', fontSize: '11px' } },
+    labels: {
+      style: { colors: '#9CA3AF', fontSize: '11px', fontFamily: 'Inter, sans-serif' },
+      formatter: (val: number) => val ? val.toFixed(1) : '',
+    },
   },
-  grid: { borderColor: '#F3F4F6' },
-  tooltip: { theme: 'light' },
+  grid: {
+    borderColor: '#F3F4F6',
+    strokeDashArray: 4,
+    xaxis: { lines: { show: false } },
+  },
+  tooltip: {
+    theme: 'light',
+    shared: true,
+    intersect: false,
+    style: { fontSize: '12px', fontFamily: 'Inter, sans-serif' },
+    y: { formatter: (val: number) => val !== null && val !== undefined ? `${val.toFixed(1)}` : 'N/D' },
+  },
+  legend: { show: false }, // La usamos custom
+  fill: {
+    type: 'gradient',
+    gradient: { shade: 'light', type: 'vertical', shadeIntensity: 0.1, opacityFrom: 0.15, opacityTo: 0 },
+  },
+  dataLabels: { enabled: false },
 }))
-
-const seriesGráfica = computed(() => [
-  {
-    name: 'Peso (kg)',
-    data: mediciones.value.map(m => parseFloat(m.peso)),
-  },
-  {
-    name: 'Cintura (cm)',
-    data: mediciones.value.map(m => parseFloat(m.cintura || 0)),
-  },
-  {
-    name: 'Cadera (cm)',
-    data: mediciones.value.map(m => parseFloat(m.cadera || 0)),
-  },
-])
 
 async function cargarExpediente() {
   loading.value = true
