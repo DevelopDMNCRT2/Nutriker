@@ -245,7 +245,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -257,6 +257,7 @@ import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { citasApi, pacientesApi } from '@/api/index.js'
 
 const router = useRouter()
+const route = useRoute()
 
 // --- State ---
 const loading = ref(true)
@@ -471,7 +472,8 @@ const calendarEvents = computed(() => {
 const calendarOptions = computed(() => ({
   plugins: [dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin],
   locale: esLocale,
-  initialView: 'dayGridMonth',
+  initialView: route.query.vista === 'hoy' ? 'listDay' : 'dayGridMonth',
+  initialDate: new Date().toISOString().split('T')[0],
   displayEventTime: false,
   slotDuration: '00:30:00',
   slotMinTime: '08:00:00',
@@ -480,13 +482,14 @@ const calendarOptions = computed(() => ({
   headerToolbar: {
     left: 'prev,next today',
     center: 'title',
-    right: 'dayGridMonth,timeGridWeek,listWeek',
+    right: 'dayGridMonth,timeGridWeek,listWeek,listDay',
   },
   buttonText: {
     today: 'Hoy',
     month: 'Mes',
     week: 'Semana',
     list: 'Lista',
+    day: 'Día',
   },
   events: calendarEvents.value,
   eventContent: (arg: any) => {

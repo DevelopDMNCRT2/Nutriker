@@ -19,11 +19,11 @@
           
           <div class="flex items-center gap-3">
             <router-link
-              to="/citas"
+              :to="{ path: '/citas', query: { vista: 'hoy' } }"
               class="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-brand-600 shadow-sm hover:bg-brand-50 transition-colors"
             >
               <CalenderIcon class="w-4 h-4 text-brand-600" />
-              <span>Ver Calendario</span>
+              <span>Ver Agenda</span>
             </router-link>
             <router-link
               to="/pacientes"
