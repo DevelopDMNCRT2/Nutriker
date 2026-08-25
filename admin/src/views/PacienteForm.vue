@@ -25,6 +25,19 @@
           </div>
 
           <div>
+            <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Sexo *</label>
+            <select
+              v-model="form.sexo"
+              required
+              class="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            >
+              <option value="" disabled>Seleccionar sexo</option>
+              <option value="Femenino">Femenino</option>
+              <option value="Masculino">Masculino</option>
+            </select>
+          </div>
+
+          <div>
             <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Teléfono *</label>
             <input
               v-model="form.telefono"
@@ -88,6 +101,7 @@ const isEditing = computed(() => !!pacienteId.value)
 
 const form = ref({
   nombre: '',
+  sexo: '',
   telefono: '',
   correo: '',
   edad: null as number | null,
@@ -101,6 +115,7 @@ onMounted(async () => {
       const data = await pacientesApi.getById(pacienteId.value)
       if (data) {
         form.value.nombre = data.nombre || ''
+        form.value.sexo = data.sexo || ''
         form.value.telefono = data.telefono || ''
         form.value.correo = data.correo || ''
         form.value.edad = data.edad || null
