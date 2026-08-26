@@ -13,6 +13,12 @@ const router = createRouter({
       meta: { title: 'Iniciar Sesión' },
     },
     {
+      path: '/reservar',
+      name: 'AgendarPublico',
+      component: () => import('../views/AgendarPublico.vue'),
+      meta: { title: 'Reservar Cita - NutriKer' },
+    },
+    {
       path: '/',
       redirect: '/dashboard',
     },

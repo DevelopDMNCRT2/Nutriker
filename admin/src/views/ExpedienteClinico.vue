@@ -89,6 +89,60 @@
         </div>
       </div>
 
+      <!-- Resumen de Historia Clínica -->
+      <div v-if="paciente" class="mb-6 rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 p-6">
+        <h3 class="text-base font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Historia Clínica
+        </h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          
+          <!-- Padecimientos -->
+          <div>
+            <span class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Padecimientos</span>
+            <div v-if="padecimientosActivos.length > 0" class="flex flex-wrap gap-1.5">
+              <span v-for="pad in padecimientosActivos" :key="pad" class="px-2 py-1 bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 text-[11px] font-semibold rounded-md border border-red-100 dark:border-red-800">
+                {{ pad }}
+              </span>
+            </div>
+            <p v-else class="text-sm text-gray-400 italic">Ninguno registrado</p>
+          </div>
+
+          <!-- Medicamentos -->
+          <div>
+            <span class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Medicamentos</span>
+            <div v-if="farmacosParsed?.toma" class="bg-gray-50 dark:bg-gray-800/50 p-2 rounded-lg text-sm text-gray-700 dark:text-gray-300">
+              {{ farmacosParsed.cuales }}
+            </div>
+            <p v-else class="text-sm text-gray-400 italic">No toma medicamentos</p>
+          </div>
+
+          <!-- Ginecología (Mujeres) -->
+          <div v-if="paciente.sexo === 'Femenino'">
+            <span class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Ginecología</span>
+            <ul class="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+              <li v-if="ginecologiaParsed?.fum"><span class="font-semibold">FUM:</span> {{ ginecologiaParsed.fum }}</li>
+              <li v-if="ginecologiaParsed?.anticonceptivo"><span class="font-semibold">Método:</span> {{ ginecologiaParsed.anticonceptivo }}</li>
+              <li>
+                <span v-if="ginecologiaParsed?.lactando" class="inline-block px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-xs mt-1">Lactando</span>
+                <span v-if="ginecologiaParsed?.menopausia" class="inline-block px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded text-xs mt-1 ml-1">Menopausia</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Estilo de Vida -->
+          <div>
+            <span class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Estilo de Vida</span>
+            <ul class="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+              <li v-if="estiloVidaParsed?.actividad_diaria"><span class="font-semibold">Actividad:</span> {{ estiloVidaParsed.actividad_diaria }}</li>
+              <li v-if="estiloVidaParsed?.deporte"><span class="font-semibold">Deporte:</span> {{ estiloVidaParsed.cual_deporte }} <span class="text-xs text-gray-400">({{ estiloVidaParsed.frecuencia_deporte }})</span></li>
+              <li v-if="!estiloVidaParsed?.deporte"><span class="font-semibold text-gray-400">Sin actividad deportiva</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       <!-- Gráfica de Evolución Antropométrica (ApexCharts) -->
       <div class="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 overflow-hidden">
         <!-- Header -->
@@ -504,6 +558,24 @@ const formMedicion = ref({
   pantorrilla: '',
   observaciones: '',
 })
+
+// --- Computed properties para Historia Clínica ---
+function parseJSON(str: string | null | undefined) {
+  if (!str) return null
+  try { return JSON.parse(str) } catch (e) { return null }
+}
+
+const patologiasParsed = computed(() => parseJSON(paciente.value?.patologias) || {})
+const bioquimicosParsed = computed(() => parseJSON(paciente.value?.bioquimicos) || null)
+const farmacosParsed = computed(() => parseJSON(paciente.value?.farmacos) || null)
+const ginecologiaParsed = computed(() => parseJSON(paciente.value?.ginecologicos) || null)
+const estiloVidaParsed = computed(() => parseJSON(paciente.value?.estilo_vida) || null)
+
+const padecimientosActivos = computed(() => {
+  const obj = patologiasParsed.value
+  return Object.keys(obj).filter(k => obj[k] === true)
+})
+// ------------------------------------------------
 
 const ultimoPeso = computed(() => {
   if (mediciones.value.length > 0) {

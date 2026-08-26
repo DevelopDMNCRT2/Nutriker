@@ -317,10 +317,10 @@ async function uploadImportFile() {
 }
 
 const HORARIOS = [
-  '08:00','08:30','09:00','09:30','10:00','10:30',
-  '11:00','11:30','12:00','12:30','13:00','13:30',
-  '14:00','14:30','15:00','15:30','16:00','16:30',
-  '17:00','17:30'
+  '07:00', '07:40', '08:20', '09:00', '09:40', '10:20',
+  '11:00', '11:40', '12:20', '13:00', '13:40', '14:20',
+  '15:00', '15:40', '16:20', '17:00', '17:40', '18:20',
+  '19:00', '19:40', '20:20'
 ]
 
 const defaultForm = () => ({
@@ -475,9 +475,9 @@ const calendarOptions = computed(() => ({
   initialView: route.query.vista === 'hoy' ? 'listDay' : 'dayGridMonth',
   initialDate: new Date().toISOString().split('T')[0],
   displayEventTime: false,
-  slotDuration: '00:30:00',
-  slotMinTime: '08:00:00',
-  slotMaxTime: '18:00:00',
+  slotDuration: '00:40:00',
+  slotMinTime: '07:00:00',
+  slotMaxTime: '21:00:00',
   slotEventOverlap: false,
   headerToolbar: {
     left: 'prev,next today',

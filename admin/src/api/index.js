@@ -115,6 +115,7 @@ export const citasApi = {
   update:   (id, body) => request('PUT',    `/citas/${id}`, body),
   delete:   (id)       => request('DELETE', `/citas/${id}`),
   importar: (formData) => requestForm('POST', '/citas/importar', formData),
+  getHorariosOcupados: (fecha) => request('GET', `/citas/horarios-ocupados?fecha=${fecha}`),
 }
 
 // --- Pacientes ---
