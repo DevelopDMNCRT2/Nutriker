@@ -65,8 +65,15 @@
           <!-- Selección de Fecha y Hora -->
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Selecciona una Fecha *</label>
-              <input v-model="form.fecha" type="date" required :min="today" @change="fetchHorariosOcupados" class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm bg-gray-50 focus:bg-white transition-colors dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:bg-gray-900">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Selecciona una Fecha *</label>
+              <div class="flatpickr-wrapper bg-white dark:bg-gray-800 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 w-full flex justify-center py-2 shadow-sm">
+                <flat-pickr
+                  v-model="form.fecha"
+                  :config="fpConfig"
+                  class="hidden"
+                  @on-change="fetchHorariosOcupados"
+                />
+              </div>
             </div>
 
             <div v-if="form.fecha">
@@ -114,8 +121,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { citasApi } from '@/api/index.js'
+import flatPickr from 'vue-flatpickr-component'
+import 'flatpickr/dist/flatpickr.css'
+// @ts-ignore
+import { Spanish } from 'flatpickr/dist/l10n/es.js'
+
+// Flatpickr inline config
+const fpConfig = {
+  locale: Spanish,
+  minDate: 'today',
+  dateFormat: 'Y-m-d',
+  inline: true,
+  disableMobile: true,
+  theme: 'light'
+}
 
 // 40 min blocks
 const HORARIOS_DISPONIBLES = [
@@ -218,3 +239,29 @@ onMounted(() => {
   generateCaptcha()
 })
 </script>
+
+<style>
+/* Personalización de Flatpickr para que luzca integrado */
+.flatpickr-wrapper .flatpickr-calendar {
+  box-shadow: none !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 auto;
+}
+.flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange, .flatpickr-day.selected.inRange, .flatpickr-day.startRange.inRange, .flatpickr-day.endRange.inRange, .flatpickr-day.selected:focus, .flatpickr-day.startRange:focus, .flatpickr-day.endRange:focus, .flatpickr-day.selected:hover, .flatpickr-day.startRange:hover, .flatpickr-day.endRange:hover, .flatpickr-day.selected.prevMonthDay, .flatpickr-day.startRange.prevMonthDay, .flatpickr-day.endRange.prevMonthDay, .flatpickr-day.selected.nextMonthDay, .flatpickr-day.startRange.nextMonthDay, .flatpickr-day.endRange.nextMonthDay {
+  background: #10b981 !important;
+  border-color: #10b981 !important;
+}
+.flatpickr-day {
+  border-radius: 8px !important;
+}
+.flatpickr-months .flatpickr-month {
+  height: 48px;
+}
+.flatpickr-current-month {
+  font-size: 1.1rem;
+  font-weight: 700;
+  padding-top: 10px;
+}
+</style>
