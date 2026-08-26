@@ -133,6 +133,26 @@
                   class="form-input"
                 />
               </div>
+
+              <div class="form-group">
+                <label>Contraseña para Portal *</label>
+                <input
+                  v-model="form.password"
+                  type="password"
+                  placeholder="Mínimo 6 caracteres"
+                  class="form-input"
+                />
+              </div>
+
+              <div class="form-group">
+                <label>Confirmar Contraseña *</label>
+                <input
+                  v-model="form.confirmPassword"
+                  type="password"
+                  placeholder="Repite tu contraseña"
+                  class="form-input"
+                />
+              </div>
             </div>
 
             <div class="wizard-actions flex-end">
@@ -148,7 +168,7 @@
             <p class="step-desc">Selecciona el día y la hora en que deseas asistir a tu consulta.</p>
 
             <div class="form-grid">
-              <div class="form-group full-width">
+              <div class="form-group">
                 <label>Fecha de la Cita *</label>
                 <input
                   v-model="form.fecha"
@@ -158,7 +178,7 @@
                 />
               </div>
 
-              <div class="form-group full-width">
+              <div class="form-group">
                 <label>Horario Disponible *</label>
                 <select v-model="form.horario" class="form-input form-select" @change="errorMsg = ''">
                   <option value="" disabled>Selecciona un horario disponible</option>
@@ -295,7 +315,9 @@ const form = ref({
   peso: '',
   estatura: '',
   fecha: new Date().toISOString().split('T')[0],
-  horario: ''
+  horario: '',
+  password: '',
+  confirmPassword: ''
 })
 
 watch(() => form.value.fecha, (nuevaFecha) => {
@@ -319,6 +341,14 @@ const irAlPaso2 = () => {
   }
   if (form.value.paciente_telefono.replace(/\D/g, '').length !== 10) {
     errorMsg.value = 'El número de teléfono debe contener exactamente 10 dígitos.'
+    return
+  }
+  if (!form.value.password || form.value.password.length < 6) {
+    errorMsg.value = 'Por favor crea una contraseña de al menos 6 caracteres.'
+    return
+  }
+  if (form.value.password !== form.value.confirmPassword) {
+    errorMsg.value = 'Las contraseñas no coinciden.'
     return
   }
   pasoActual.value = 2
@@ -349,7 +379,8 @@ const confirmarYGuardarCita = async () => {
       horario: form.value.horario,
       atencion_previa: form.value.atencion_previa,
       peso: form.value.peso || null,
-      estatura: form.value.estatura || null
+      estatura: form.value.estatura || null,
+      password: form.value.password
     }
 
     const res = await api.post('/public/citas', payload)
@@ -372,7 +403,9 @@ const reiniciarWizard = () => {
     peso: '',
     estatura: '',
     fecha: new Date().toISOString().split('T')[0],
-    horario: ''
+    horario: '',
+    password: '',
+    confirmPassword: ''
   }
 }
 
