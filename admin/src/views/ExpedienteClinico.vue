@@ -124,6 +124,7 @@
             </div>
           </div>
         </div>
+      </div>
 
       <!-- Gráfica de Evolución Antropométrica (ApexCharts) -->
       <div class="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 overflow-hidden">
