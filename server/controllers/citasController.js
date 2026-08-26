@@ -99,7 +99,7 @@ export const getHorariosOcupados = async (req, res) => {
 // ─── POST /api/citas ───────────────────────────────────────────────────────
 export const createCita = async (req, res) => {
   try {
-    const { nombre, cliente_nombre, correo, cliente_correo, telefono, cliente_telefono, fecha, horario, notas, servicio, tipo, atencion_previa, peso, estatura } = req.body
+    const { nombre, cliente_nombre, correo, cliente_correo, telefono, cliente_telefono, fecha, horario, notas, servicio, tipo, atencion_previa, peso, estatura, password } = req.body
 
     const patientName = cliente_nombre || nombre
     const patientPhone = cliente_telefono || telefono
@@ -125,8 +125,8 @@ export const createCita = async (req, res) => {
 
     const newId = await generarIdUnico('citas')
     const insertQuery = `
-      INSERT INTO citas (id, cliente_nombre, cliente_telefono, correo, fecha, horario, atencion_previa, peso, estatura, notas, servicio, tipo, estado)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'Confirmada')
+      INSERT INTO citas (id, cliente_nombre, cliente_telefono, correo, fecha, horario, atencion_previa, peso, estatura, notas, servicio, tipo, estado, password)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'Confirmada', $13)
       RETURNING *, cliente_nombre AS "nombre", cliente_telefono AS "telefono", TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha"
     `
     const { rows } = await pool.query(insertQuery, [
@@ -136,7 +136,8 @@ export const createCita = async (req, res) => {
       estatura ? parseFloat(estatura) : null,
       notas || null,
       servicio || 'Consulta Nutricional',
-      tipo || (atencion_previa === 'si' ? 'Subsecuente' : 'Primera Vez')
+      tipo || (atencion_previa === 'si' ? 'Subsecuente' : 'Primera Vez'),
+      password || null
     ])
 
     res.status(201).json(rows[0])

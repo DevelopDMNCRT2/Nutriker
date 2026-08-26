@@ -57,6 +57,18 @@
                   <input v-model="form.correo" type="email" required class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm bg-gray-50 focus:bg-white transition-colors dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:bg-gray-900" placeholder="correo@ejemplo.com">
                 </div>
               </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Contraseña *</label>
+                <div class="mt-1">
+                  <input v-model="form.password" type="password" required class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm bg-gray-50 focus:bg-white transition-colors dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:bg-gray-900" placeholder="Crea una contraseña">
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirmar Contraseña *</label>
+                <div class="mt-1">
+                  <input v-model="form.confirmPassword" type="password" required class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm bg-gray-50 focus:bg-white transition-colors dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:bg-gray-900" placeholder="Confirma tu contraseña">
+                </div>
+              </div>
             </div>
           </div>
 
@@ -150,6 +162,8 @@ const form = ref({
   nombre: '',
   telefono: '',
   correo: '',
+  password: '',
+  confirmPassword: '',
   fecha: '',
   horario: ''
 })
@@ -194,6 +208,11 @@ async function fetchHorariosOcupados() {
 async function handleSubmit() {
   errorMsg.value = ''
   
+  if (form.value.password !== form.value.confirmPassword) {
+    errorMsg.value = 'Las contraseñas no coinciden.'
+    return
+  }
+  
   if (!form.value.horario) {
     errorMsg.value = 'Por favor selecciona un horario disponible.'
     return
@@ -212,6 +231,7 @@ async function handleSubmit() {
       cliente_nombre: form.value.nombre,
       cliente_telefono: form.value.telefono,
       correo: form.value.correo,
+      password: form.value.password,
       fecha: form.value.fecha,
       horario: form.value.horario,
       tipo: 'Primera Vez', // Por defecto
