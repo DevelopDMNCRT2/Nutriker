@@ -38,6 +38,11 @@ const routes = [
     component: () => import('../views/Portal.vue')
   },
   {
+    path: '/royal-canin',
+    name: 'RoyalCanin',
+    component: () => import('../views/RoyalCanin.vue')
+  },
+  {
     path: '/login',
     name: 'Login',
     component: () => import('../views/Login.vue')
