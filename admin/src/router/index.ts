@@ -196,6 +196,12 @@ const router = createRouter({
       component: () => import('../views/BlogPostForm.vue'),
       meta: { title: 'Editar Artículo de Blog' },
     },
+    {
+      path: '/royal-canin',
+      name: 'RoyalCanin',
+      component: () => import('../views/RoyalCanin.vue'),
+      meta: { title: 'Royal Canin' },
+    },
   ],
 })
 
@@ -215,7 +221,7 @@ router.beforeEach((to, from, next) => {
   
   // BLINDAJE FRONTEND PARA RRHH
   if (isAuthenticated && userRol === 'RRHH') {
-    const allowedForRRHH = to.path.startsWith('/citas') || to.path === '/login'
+    const allowedForRRHH = to.path.startsWith('/citas') || to.path === '/login' || to.path === '/royal-canin'
     if (!allowedForRRHH) {
       return next('/citas')
     }
