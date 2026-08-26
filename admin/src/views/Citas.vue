@@ -317,10 +317,8 @@ async function uploadImportFile() {
 }
 
 const HORARIOS = [
-  '07:00', '07:40', '08:20', '09:00', '09:40', '10:20',
-  '11:00', '11:40', '12:20', '13:00', '13:40', '14:20',
-  '15:00', '15:40', '16:20', '17:00', '17:40', '18:20',
-  '19:00', '19:40', '20:20'
+  '08:40', '09:20', '10:00', '10:40', '11:20', '12:00', '12:40', '13:20', '14:00',
+  '15:20', '16:00', '16:40'
 ]
 
 const defaultForm = () => ({
@@ -476,8 +474,8 @@ const calendarOptions = computed(() => ({
   initialDate: new Date().toISOString().split('T')[0],
   displayEventTime: false,
   slotDuration: '00:40:00',
-  slotMinTime: '07:00:00',
-  slotMaxTime: '21:00:00',
+  slotMinTime: '08:40:00',
+  slotMaxTime: '17:20:00',
   slotEventOverlap: false,
   headerToolbar: {
     left: 'prev,next today',

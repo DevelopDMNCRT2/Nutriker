@@ -5,12 +5,10 @@ import { generarIdUnico } from '../utils/generarId.js'
  * Controlador de Citas Médicas y Prevención de Traslapes de Horarios
  */
 
-// Horarios disponibles de la clínica NutriKer (Bloques de 40 mins, 7:00 AM a 9:00 PM)
+// Horarios disponibles de la clínica NutriKer (Bloques de 40 mins, 8:40 AM a 5:20 PM con receso)
 const HORARIOS_DISPONIBLES = [
-  '07:00', '07:40', '08:20', '09:00', '09:40', '10:20',
-  '11:00', '11:40', '12:20', '13:00', '13:40', '14:20',
-  '15:00', '15:40', '16:20', '17:00', '17:40', '18:20',
-  '19:00', '19:40', '20:20'
+  '08:40', '09:20', '10:00', '10:40', '11:20', '12:00', '12:40', '13:20', '14:00',
+  '15:20', '16:00', '16:40'
 ]
 
 // ─── GET /api/citas ────────────────────────────────────────────────────────
