@@ -60,13 +60,13 @@
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Contraseña *</label>
                 <div class="mt-1">
-                  <input v-model="form.password" type="password" required class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm bg-gray-50 focus:bg-white transition-colors dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:bg-gray-900" placeholder="Crea una contraseña">
+                  <input v-model="form.password" type="password" required class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm bg-gray-50 focus:bg-white transition-colors dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:bg-gray-900" placeholder="Crea una contraseña" />
                 </div>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirmar Contraseña *</label>
                 <div class="mt-1">
-                  <input v-model="form.confirmPassword" type="password" required class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm bg-gray-50 focus:bg-white transition-colors dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:bg-gray-900" placeholder="Confirma tu contraseña">
+                  <input v-model="form.confirmPassword" type="password" required class="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm bg-gray-50 focus:bg-white transition-colors dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:bg-gray-900" placeholder="Confirma tu contraseña" />
                 </div>
               </div>
             </div>
