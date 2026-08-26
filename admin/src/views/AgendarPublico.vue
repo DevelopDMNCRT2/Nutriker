@@ -249,7 +249,7 @@ async function handleSubmit() {
 }
 
 function resetForm() {
-  form.value = { nombre: '', telefono: '', correo: '', fecha: '', horario: '' }
+  form.value = { nombre: '', telefono: '', correo: '', password: '', confirmPassword: '', fecha: '', horario: '' }
   success.value = false
   horariosOcupados.value = []
   generateCaptcha()
