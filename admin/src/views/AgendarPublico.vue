@@ -78,13 +78,15 @@
           <div class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Selecciona una Fecha *</label>
-              <div class="flatpickr-wrapper bg-white dark:bg-gray-800 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 w-full flex justify-center py-2 shadow-sm">
-                <flat-pickr
-                  v-model="form.fecha"
-                  :config="fpConfig"
-                  class="hidden"
-                  @on-change="fetchHorariosOcupados"
-                />
+              <div class="flex justify-center">
+                <div class="flatpickr-wrapper bg-white dark:bg-gray-800 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 inline-block p-2 shadow-sm">
+                  <flat-pickr
+                    v-model="form.fecha"
+                    :config="fpConfig"
+                    class="hidden"
+                    @on-change="fetchHorariosOcupados"
+                  />
+                </div>
               </div>
             </div>
 
