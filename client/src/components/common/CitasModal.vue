@@ -31,7 +31,6 @@
                   </div>
                 </div>
 
-                <div class="form-row">
                   <div class="form-group flex-1">
                     <label>Correo Electrónico *</label>
                     <input type="email" v-model="formData.correo" placeholder="ana@ejemplo.com" required />
@@ -39,6 +38,17 @@
                   <div class="form-group" style="width: 120px;">
                     <label>Edad</label>
                     <input type="number" v-model="formData.edad" placeholder="Años" min="10" max="100" />
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group flex-1">
+                    <label>Contraseña para tu Portal *</label>
+                    <input type="password" v-model="formData.password" placeholder="Mínimo 6 caracteres" required />
+                  </div>
+                  <div class="form-group flex-1">
+                    <label>Confirmar Contraseña *</label>
+                    <input type="password" v-model="formData.confirmPassword" placeholder="Confirma tu contraseña" required />
                   </div>
                 </div>
 
@@ -144,8 +154,8 @@
                 
                 <div class="divider">Selecciona la Fecha *</div>
 
-                <div class="form-row">
-                  <div class="form-group flex-1">
+                <div class="form-row" style="gap: 2rem;">
+                  <div class="form-group flex-1" style="max-width: 200px;">
                     <label>Día Deseado</label>
                     <div class="input-with-icon">
                       <CalendarDays :size="16" class="input-icon" />
@@ -153,7 +163,7 @@
                     </div>
                   </div>
 
-                  <div class="form-group flex-1">
+                  <div class="form-group flex-1" style="max-width: 200px;">
                     <label>Horario</label>
                     <div class="input-with-icon">
                       <Clock :size="16" class="input-icon" />
@@ -205,6 +215,7 @@
 import { ref, computed } from 'vue'
 import { useAppStore } from '../../stores/app'
 import { X, CalendarDays, Clock, ArrowRight, CheckCircle } from 'lucide-vue-next'
+import api from '../../services/api'
 
 const appStore = useAppStore()
 
@@ -231,7 +242,8 @@ const formData = ref({
   recordatorio_24h: '', alergias: '', ultraprocesados: '', gustos: '', logistica_cocina: '',
   estilo_vida: '',
   fecha: '', horario: '',
-  atencionPrevia: 'no'
+  atencionPrevia: 'no',
+  password: '', confirmPassword: ''
 })
 
 const fechaMinima = computed(() => {
@@ -247,7 +259,9 @@ const closeModal = () => {
 
 const canProceed = computed(() => {
   if (step.value === 1) {
-    return formData.value.nombre && formData.value.telefono && formData.value.correo && formData.value.motivo_consulta
+    const isBasicValid = formData.value.nombre && formData.value.telefono && formData.value.correo && formData.value.motivo_consulta
+    const isPasswordValid = formData.value.password && formData.value.password.length >= 6 && formData.value.password === formData.value.confirmPassword
+    return isBasicValid && isPasswordValid
   }
   if (step.value === 5) {
     return formData.value.fecha && formData.value.horario
@@ -263,21 +277,59 @@ const isSubmitting = ref(false)
 const showSuccess = ref(false)
 
 const submitForm = async () => {
-  isSubmitting.value = true
-  // Guardar localmente (sin base de datos)
-  await new Promise(r => setTimeout(r, 800)) // Pequeño delay para sentido de carga
-  isSubmitting.value = false
-  showSuccess.value = true
-  // Guardar en localStorage como copia local para la nutrióloga si lo quiere revisar
-  const citas = JSON.parse(localStorage.getItem('citas_locales') || '[]')
-  citas.push({ ...formData.value, guardado_en: new Date().toISOString() })
-  localStorage.setItem('citas_locales', JSON.stringify(citas))
-  setTimeout(() => {
-    showSuccess.value = false
-    closeModal()
-    Object.keys(formData.value).forEach(k => formData.value[k] = '')
-    formData.value.atencionPrevia = 'no'
-  }, 2500)
+  try {
+    isSubmitting.value = true
+    
+    // Empaquetar toda la información extra en "notas"
+    const extraInfo = {
+      edad: formData.value.edad,
+      ocupacion: formData.value.ocupacion,
+      motivo_consulta: formData.value.motivo_consulta,
+      patologias: formData.value.patologias,
+      antecedentes_familiares: formData.value.antecedentes_familiares,
+      bioquimicos: formData.value.bioquimicos,
+      farmacos: formData.value.farmacos,
+      digestiva: formData.value.digestiva,
+      circunferencias: formData.value.circunferencias,
+      composicion: formData.value.composicion,
+      recordatorio_24h: formData.value.recordatorio_24h,
+      alergias: formData.value.alergias,
+      ultraprocesados: formData.value.ultraprocesados,
+      gustos: formData.value.gustos,
+      logistica_cocina: formData.value.logistica_cocina,
+      estilo_vida: formData.value.estilo_vida
+    }
+    const notasString = JSON.stringify(extraInfo, null, 2)
+
+    const payload = {
+      paciente_nombre: formData.value.nombre.trim(),
+      paciente_telefono: formData.value.telefono.replace(/\D/g, ''),
+      correo: formData.value.correo.trim(),
+      fecha: formData.value.fecha,
+      horario: formData.value.horario,
+      peso: formData.value.peso ? parseFloat(formData.value.peso) : null,
+      estatura: formData.value.estatura ? (parseFloat(formData.value.estatura) > 3 ? parseFloat(formData.value.estatura)/100 : parseFloat(formData.value.estatura)) : null,
+      notas: notasString,
+      password: formData.value.password,
+      atencion_previa: formData.value.atencionPrevia
+    }
+
+    await api.post('/public/citas', payload)
+
+    isSubmitting.value = false
+    showSuccess.value = true
+    
+    setTimeout(() => {
+      showSuccess.value = false
+      closeModal()
+      Object.keys(formData.value).forEach(k => formData.value[k] = '')
+      formData.value.atencionPrevia = 'no'
+    }, 2500)
+  } catch (err) {
+    console.error('Error al guardar la cita:', err)
+    alert(err.response?.data?.error || 'Error al agendar la cita. Es posible que el horario ya se haya ocupado.')
+    isSubmitting.value = false
+  }
 }
 </script>
 
