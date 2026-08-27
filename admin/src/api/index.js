@@ -175,3 +175,8 @@ export const ordenesApi = {
   updateEstadoEnvio: (id, body) => request('PUT',    `/ordenes/${id}/estado-envio`, body),
   delete:            (id)       => request('DELETE', `/ordenes/${id}`),
 }
+
+// --- Rutas Públicas ---
+export const publicApi = {
+  createCita: (body) => request('POST', '/public/citas', body),
+}
