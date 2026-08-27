@@ -8,10 +8,7 @@
           <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Gestión de agenda y citas de la clínica</p>
         </div>
         <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-          <button class="w-full sm:w-auto shrink-0 rounded-lg bg-indigo-500 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-indigo-600 focus:outline-none transition-colors flex items-center justify-center gap-2" @click="openImportModal">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Importar Lista (IA)
-          </button>
+
           <button class="w-full sm:w-auto shrink-0 rounded-lg bg-brand-500 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-brand-600 focus:outline-none transition-colors flex items-center justify-center gap-2" @click="openCreateModal">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Nueva Cita
@@ -48,40 +45,7 @@
       </div>
     </div>
 
-    <!-- Modal Importar Citas IA -->
-    <Teleport to="body">
-      <Transition name="modal">
-        <div v-if="showImportModal" class="modal-overlay" @click.self="closeImportModal">
-          <div class="modal-card">
-            <div class="modal-header">
-              <h2 class="modal-title" style="color: #6366f1;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                Importador Mágico con IA
-              </h2>
-              <button class="modal-close" @click="closeImportModal" :disabled="importing">✕</button>
-            </div>
-            <div class="modal-body">
-              <p style="font-size: 13px; color: #64748b; margin-bottom: 16px;">Sube un documento (PDF, Excel, Word o CSV) con la lista de personas a agendar. La IA de Gemini analizará el documento y acomodará las citas automáticamente en los horarios libres.</p>
-              
-              <div v-if="importing" class="flex flex-col items-center justify-center py-8">
-                <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-indigo-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                <p class="text-sm font-semibold text-indigo-600">La IA está analizando el documento y agendando...</p>
-              </div>
 
-              <div v-else class="form-group full-width">
-                <input type="file" @change="handleFileUpload" accept=".pdf,.xlsx,.xls,.csv,.docx" class="form-input" style="padding: 12px;" />
-              </div>
-            </div>
-            <div class="modal-footer" v-if="!importing">
-              <button class="btn-cancel" @click="closeImportModal">Cancelar</button>
-              <button class="btn-submit" @click="uploadImportFile" :disabled="!importFile" style="background-color: #6366f1;">
-                Procesar Documento
-              </button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
 
     <!-- Modal Cita -->
     <Teleport to="body">
@@ -312,51 +276,12 @@ const showDropdownPacientes = ref(false)
 const actionModalVisible = ref(false)
 const selectedEvent = ref<any>(null)
 
-// Estado del Importador IA
-const showImportModal = ref(false)
-const importFile = ref<File | null>(null)
-const importing = ref(false)
-
 // Estado validación de duplicados
 const showDuplicateWarning = ref(false)
 const duplicateCandidates = ref<any[]>([])
 const proceedAsNew = ref(false)
 const patientSelectedFromDropdown = ref(false)
 
-function openImportModal() {
-  importFile.value = null
-  showImportModal.value = true
-}
-
-function closeImportModal() {
-  if (importing.value) return
-  showImportModal.value = false
-}
-
-function handleFileUpload(e: Event) {
-  const target = e.target as HTMLInputElement
-  if (target.files && target.files.length > 0) {
-    importFile.value = target.files[0]
-  }
-}
-
-async function uploadImportFile() {
-  if (!importFile.value) return
-  importing.value = true
-  try {
-    const formData = new FormData()
-    formData.append('archivo', importFile.value)
-    const result = await citasApi.importar(formData)
-    alert(result.message || 'Importación exitosa.')
-    closeImportModal()
-    await loadCitas()
-  } catch (err: any) {
-    console.error('Error importando:', err)
-    alert(err.message || 'Error al importar archivo.')
-  } finally {
-    importing.value = false
-  }
-}
 
 const HORARIOS = [
   '08:40', '09:20', '10:00', '10:40', '11:20', '12:00', '12:40', '13:20', '14:00',
