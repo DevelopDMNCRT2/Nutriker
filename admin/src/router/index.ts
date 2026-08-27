@@ -19,6 +19,12 @@ const router = createRouter({
       meta: { title: 'Reservar Cita - NutriKer' },
     },
     {
+      path: '/aviso-privacidad',
+      name: 'AvisoPrivacidad',
+      component: () => import('../views/AvisoPrivacidad.vue'),
+      meta: { title: 'Aviso de Privacidad - NutriKer' },
+    },
+    {
       path: '/',
       redirect: '/dashboard',
     },
