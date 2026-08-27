@@ -166,6 +166,10 @@
                   <label>Teléfono * <span style="font-weight:400;font-size:11px;color:#94a3b8;">(10 dígitos)</span></label>
                   <input v-model="form.paciente_telefono" type="tel" placeholder="0000000000" class="form-input" maxlength="10" @input="sanitizeTelefono" />
                 </div>
+                <div class="form-group full-width">
+                  <label>Correo Electrónico</label>
+                  <input v-model="form.paciente_correo" type="email" placeholder="ejemplo@correo.com" class="form-input" />
+                </div>
                 <div class="form-group">
                   <label>Fecha *</label>
                   <input v-model="form.fecha" type="date" class="form-input" @change="onFechaChange" />
@@ -368,6 +372,7 @@ const defaultForm = () => ({
   id: null as string | null,
   paciente_nombre: '',
   paciente_telefono: '',
+  paciente_correo: '',
   fecha: '',
   horario: '',
   atencion_previa: 'no',
@@ -412,8 +417,10 @@ const pacientesFiltrados = computed(() => {
 function seleccionarPaciente(paciente: any) {
   form.value.paciente_nombre = paciente.nombre
   if (paciente.telefono) form.value.paciente_telefono = paciente.telefono
+  if (paciente.correo) form.value.paciente_correo = paciente.correo
   if (paciente.peso) form.value.peso = String(paciente.peso)
   if (paciente.estatura) form.value.estatura = String(paciente.estatura)
+  form.value.atencion_previa = 'si'
   showDropdownPacientes.value = false
   patientSelectedFromDropdown.value = true
 }
@@ -774,6 +781,7 @@ async function saveCita() {
     const payload = {
       paciente_nombre: form.value.paciente_nombre,
       paciente_telefono: form.value.paciente_telefono,
+      correo: form.value.paciente_correo || '',
       fecha: form.value.fecha,
       horario: form.value.horario,
       atencion_previa: form.value.atencion_previa,
