@@ -1,18 +1,18 @@
 <template>
   <AdminLayout>
-    <div class="citas-container">
-      <!-- Header -->
-      <div class="citas-header">
-        <div class="header-left">
-          <h1 class="page-title">Citas</h1>
-          <p class="page-subtitle">Gestión de agenda y citas de la clínica</p>
+    <div class="flex flex-col gap-5">
+      <!-- Header estandarizado con Tailwind -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-4 mt-1">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800 dark:text-white/90">Citas</h2>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Gestión de agenda y citas de la clínica</p>
         </div>
-        <div class="header-right">
-          <button class="btn-importar" @click="openImportModal" style="margin-right: 12px; background-color: #6366f1; color: white; padding: 10px 16px; border-radius: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
+        <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+          <button class="w-full sm:w-auto shrink-0 rounded-lg bg-indigo-500 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-indigo-600 focus:outline-none transition-colors flex items-center justify-center gap-2" @click="openImportModal">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             Importar Lista (IA)
           </button>
-          <button class="btn-nueva-cita" @click="openCreateModal">
+          <button class="w-full sm:w-auto shrink-0 rounded-lg bg-brand-500 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-brand-600 focus:outline-none transition-colors flex items-center justify-center gap-2" @click="openCreateModal">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Nueva Cita
           </button>
@@ -756,7 +756,6 @@ onMounted(loadCitas)
 <style scoped>
 /* ======== CONTAINER ======== */
 .citas-container {
-  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -764,33 +763,7 @@ onMounted(loadCitas)
 }
 
 /* ======== HEADER ======== */
-.citas-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-.page-title {
-  font-size: 26px;
-  font-weight: 700;
-  color: #1a202c;
-  margin: 0;
-  line-height: 1.2;
-}
-.dark .page-title { color: #f1f5f9; }
-.page-subtitle {
-  font-size: 13px;
-  color: #64748b;
-  margin: 4px 0 0;
-}
-.dark .page-subtitle { color: #94a3b8; }
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
+/* Las clases de cabecera antiguas fueron eliminadas a favor de Tailwind */
 
 .btn-nueva-cita {
   display: flex;
