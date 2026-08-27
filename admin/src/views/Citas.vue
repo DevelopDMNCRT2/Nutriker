@@ -5,7 +5,6 @@
       <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-4 mt-1">
         <div>
           <h2 class="text-2xl font-bold text-gray-800 dark:text-white/90">Citas</h2>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Gestión de agenda y citas de la clínica</p>
         </div>
         <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
 
