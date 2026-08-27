@@ -198,15 +198,6 @@
                     <option value="si">Sí</option>
                   </select>
                 </div>
-                
-                <div>
-                  <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Peso (kg)</label>
-                  <input v-model="form.peso" type="number" step="0.1" min="0" max="999" placeholder="Ej. 65" class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" @input="sanitizePeso" />
-                </div>
-                <div>
-                  <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Estatura (cm)</label>
-                  <input v-model="form.estatura" type="number" step="1" min="0" max="999" placeholder="Ej. 165" class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" @input="sanitizeEstatura" />
-                </div>
               </div>
             </div>
 
@@ -379,9 +370,7 @@ const defaultForm = () => ({
   paciente_correo: '',
   fecha: '',
   horario: '',
-  atencion_previa: 'no',
-  peso: '',
-  estatura: '',
+  atencion_previa: 'no'
 })
 const form = ref(defaultForm())
 const horariosDisponibles = ref([...HORARIOS])
@@ -422,8 +411,6 @@ function seleccionarPaciente(paciente: any) {
   form.value.paciente_nombre = paciente.nombre
   if (paciente.telefono) form.value.paciente_telefono = paciente.telefono
   if (paciente.correo) form.value.paciente_correo = paciente.correo
-  if (paciente.peso) form.value.peso = String(paciente.peso)
-  if (paciente.estatura) form.value.estatura = String(paciente.estatura)
   form.value.atencion_previa = 'si'
   showDropdownPacientes.value = false
   patientSelectedFromDropdown.value = true
@@ -477,8 +464,6 @@ const citasDemo = [
     fecha: '2026-04-14',
     horario: '10:30',
     atencion_previa: 'no',
-    peso: 72.5,
-    estatura: 163,
     _demo: true,
   },
   {
@@ -488,8 +473,6 @@ const citasDemo = [
     fecha: '2026-04-17',
     horario: '14:00',
     atencion_previa: 'si',
-    peso: 88.0,
-    estatura: 180,
     _demo: true,
   },
 ]
@@ -721,8 +704,6 @@ async function handleEventDrop(dropInfo: any) {
     fecha: newFecha,
     horario: newHorario,
     atencion_previa: props.atencion_previa || 'no',
-    peso: props.peso || null,
-    estatura: props.estatura || null,
   }
 
   try {
@@ -789,8 +770,6 @@ async function saveCita() {
       fecha: form.value.fecha,
       horario: form.value.horario,
       atencion_previa: form.value.atencion_previa,
-      peso: form.value.peso || null,
-      estatura: form.value.estatura || null,
     }
     if (isEditing.value && form.value.id) {
       await citasApi.update(form.value.id, payload)
@@ -835,20 +814,6 @@ function formatDateDisplay(fecha: string) {
 // --- Sanitizers de campos ---
 function sanitizeTelefono() {
   form.value.paciente_telefono = form.value.paciente_telefono.replace(/[^0-9]/g, '').slice(0, 10)
-}
-
-function sanitizePeso() {
-  const parts = String(form.value.peso).split('.')
-  if (parts[0].length > 3) {
-    form.value.peso = parts[0].slice(0, 3) + (parts[1] !== undefined ? '.' + parts[1] : '')
-  }
-}
-
-function sanitizeEstatura() {
-  const val = String(form.value.estatura).split('.')[0]
-  if (val.length > 3) {
-    form.value.estatura = val.slice(0, 3)
-  }
 }
 
 onMounted(loadCitas)
