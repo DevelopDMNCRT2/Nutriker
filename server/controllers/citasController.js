@@ -32,6 +32,27 @@ export const getCitas = async (req, res) => {
              updated_at
       FROM citas 
       WHERE deleted_at IS NULL 
+      
+      UNION ALL
+      
+      SELECT id, 
+             COALESCE(paciente_nombre, '') AS "paciente_nombre",
+             COALESCE(paciente_nombre, '') AS "nombre",
+             COALESCE(paciente_telefono, '') AS "paciente_telefono",
+             COALESCE(paciente_telefono, '') AS "telefono",
+             COALESCE(correo, '') AS "correo",
+             TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha",
+             horario,
+             'no' AS "atencion_previa",
+             COALESCE(estado, 'Confirmada') AS "estado",
+             'Consulta Nutricional' AS "servicio",
+             'Presencial' AS "tipo",
+             'Registrado vía web' AS "notas",
+             created_at,
+             updated_at
+      FROM citas_monex 
+      WHERE deleted_at IS NULL 
+      
       ORDER BY fecha ASC, horario ASC
     `
     const { rows } = await pool.query(query)

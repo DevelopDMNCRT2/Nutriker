@@ -133,6 +133,21 @@ export const agendarCitaPublica = async (req, res) => {
       })
     }
 
+    // Verificar si el teléfono ya existe en alguna de las tablas
+    const telefonoConflictoQuery = `
+      SELECT id FROM citas WHERE paciente_telefono = $1 AND deleted_at IS NULL
+      UNION
+      SELECT id FROM citas_monex WHERE paciente_telefono = $1 AND deleted_at IS NULL
+    `
+    const telefonoConflicto = await pool.query(telefonoConflictoQuery, [paciente_telefono])
+    
+    if (telefonoConflicto.rows.length > 0) {
+      return res.status(409).json({
+        error: 'Este número de teléfono ya se encuentra registrado. Solo se permite un registro por paciente.',
+        codigo: 'TELEFONO_DUPLICADO'
+      })
+    }
+
     // Verificar si el horario ya está ocupado para esa fecha
     const conflictoQuery = `
       SELECT id FROM citas

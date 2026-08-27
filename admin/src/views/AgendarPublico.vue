@@ -97,9 +97,8 @@
                 <svg class="animate-spin h-6 w-6 text-brand-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
               </div>
               <div v-else class="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-1">
-                <template v-for="hora in HORARIOS_DISPONIBLES" :key="hora">
+                <template v-for="hora in horariosVisibles" :key="hora">
                   <button 
-                    v-if="!horariosOcupados.includes(hora)"
                     type="button"
                     @click="form.horario = hora"
                     :class="[
@@ -183,9 +182,34 @@ const horariosOcupados = ref<string[]>([])
 
 const captcha = ref({ a: 0, b: 0, answer: null as number | null })
 
+const horariosVisibles = computed(() => {
+  if (!form.value.fecha) return []
+  
+  const formatter = new Intl.DateTimeFormat('es-MX', {
+    timeZone: 'America/Mexico_City',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false
+  })
+  
+  const parts = formatter.formatToParts(new Date())
+  const getPart = (type: string) => parts.find(p => p.type === type)?.value
+  const cdmxTodayStr = `${getPart('year')}-${getPart('month')}-${getPart('day')}`
+  const cdmxTimeStr = `${getPart('hour')}:${getPart('minute')}`
+
+  return HORARIOS_DISPONIBLES.filter(hora => {
+    if (horariosOcupados.value.includes(hora)) return false
+    
+    // Si la fecha seleccionada es hoy en CDMX, ocultar horas pasadas
+    if (form.value.fecha === cdmxTodayStr) {
+      if (hora < cdmxTimeStr) return false
+    }
+    return true
+  })
+})
+
 const todosOcupados = computed(() => {
-  if (!form.value.fecha || horariosOcupados.value.length === 0) return false
-  return HORARIOS_DISPONIBLES.every(h => horariosOcupados.value.includes(h))
+  if (!form.value.fecha) return false
+  return horariosVisibles.value.length === 0
 })
 
 function generateCaptcha() {
