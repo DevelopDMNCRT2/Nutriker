@@ -23,7 +23,7 @@
               placeholder="Escribe para buscar paciente o ingresar nuevo..."
               class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
               @focus="showDropdownPacientes = true"
-              @input="showDropdownPacientes = true"
+              @input="showDropdownPacientes = true; patientSelectedFromDropdown = false; proceedAsNew = false"
             />
             <div
               v-if="showDropdownPacientes && pacientesFiltrados.length > 0"
@@ -52,6 +52,16 @@
               required
               maxlength="10"
               placeholder="0000000000"
+              class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            />
+          </div>
+
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Correo Electrónico</label>
+            <input
+              v-model="form.paciente_correo"
+              type="email"
+              placeholder="ejemplo@correo.com"
               class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             />
           </div>
@@ -91,6 +101,44 @@
         </div>
       </FormSection>
     </div>
+
+    <!-- Duplicate Warning Modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showDuplicateWarning" class="fixed inset-0 z-[100000] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm p-4" @click.self="showDuplicateWarning = false">
+          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg p-6 transform transition-all">
+            <div class="flex items-center gap-4 mb-4 text-amber-600">
+              <div class="p-3 bg-amber-100 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <h2 class="text-xl font-bold">Paciente Posiblemente Duplicado</h2>
+            </div>
+            <p class="text-gray-600 dark:text-gray-300 text-sm mb-4">
+              Hemos encontrado pacientes ya registrados con un nombre muy similar al que introdujiste. Para mantener tu base de datos limpia y no duplicar expedientes, te sugerimos seleccionar uno de la lista si se trata de la misma persona:
+            </p>
+            <div class="flex flex-col gap-2 mb-6 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+              <div v-for="candidato in duplicateCandidates" :key="candidato.id" class="flex flex-col sm:flex-row sm:items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-amber-50 transition-colors">
+                <div class="mb-2 sm:mb-0">
+                  <p class="font-bold text-gray-800 dark:text-white">{{ candidato.nombre }}</p>
+                  <p class="text-xs text-gray-500">{{ candidato.telefono }} <span v-if="candidato.correo">• {{ candidato.correo }}</span></p>
+                </div>
+                <button @click="usarPacienteSugerido(candidato)" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap">
+                  Usar este paciente
+                </button>
+              </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+              <button @click="showDuplicateWarning = false" class="px-5 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors">
+                Volver
+              </button>
+              <button @click="ignorarAdvertencia" class="px-5 py-2 text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-lg text-sm font-bold transition-colors">
+                Ignorar y crear nuevo
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </AdminLayout>
 </template>
 
@@ -119,34 +167,65 @@ const showDropdownPacientes = ref(false)
 const citaId = computed(() => route.params.id as string)
 const isEditing = computed(() => !!citaId.value)
 
+// Estado validación de duplicados
+const showDuplicateWarning = ref(false)
+const duplicateCandidates = ref<any[]>([])
+const proceedAsNew = ref(false)
+const patientSelectedFromDropdown = ref(false)
+
 const form = ref({
   paciente_nombre: '',
   paciente_telefono: '',
+  paciente_correo: '',
   fecha: new Date().toISOString().split('T')[0],
   horario: '10:00',
   atencion_previa: 'no'
 })
 
 const pacientesFiltrados = computed(() => {
-  if (!form.value.paciente_nombre || form.value.paciente_nombre.trim() === '') {
-    return listaPacientes.value.slice(0, 5)
+  try {
+    const nombre = form.value.paciente_nombre || ''
+    const query = String(nombre).toLowerCase().trim()
+    const lista = Array.isArray(listaPacientes.value) ? listaPacientes.value : (listaPacientes.value.data || [])
+    
+    if (!query) return lista.slice(0, 5)
+    
+    return lista.filter(c => {
+      const nom = c.nombre ? String(c.nombre).toLowerCase() : ''
+      const tel = c.telefono ? String(c.telefono) : ''
+      return nom.includes(query) || tel.includes(query)
+    }).slice(0, 5)
+  } catch (e) {
+    return []
   }
-  const q = form.value.paciente_nombre.toLowerCase()
-  return listaPacientes.value.filter(c => 
-    (c.nombre && c.nombre.toLowerCase().includes(q)) || 
-    (c.telefono && c.telefono.includes(q))
-  ).slice(0, 5)
 })
 
 function seleccionarPaciente(paciente: any) {
   form.value.paciente_nombre = paciente.nombre || ''
   form.value.paciente_telefono = paciente.telefono || ''
+  form.value.paciente_correo = paciente.correo || ''
+  form.value.atencion_previa = 'si'
   showDropdownPacientes.value = false
+  patientSelectedFromDropdown.value = true
+}
+
+function usarPacienteSugerido(paciente: any) {
+  seleccionarPaciente(paciente)
+  showDuplicateWarning.value = false
+  proceedAsNew.value = true
+  guardar()
+}
+
+function ignorarAdvertencia() {
+  showDuplicateWarning.value = false
+  proceedAsNew.value = true
+  guardar()
 }
 
 onMounted(async () => {
   try {
-    listaPacientes.value = await pacientesApi.getAll()
+    const data = await pacientesApi.getAll(1, 1000)
+    listaPacientes.value = data.data || data || []
   } catch (e) {}
 
   if (isEditing.value) {
@@ -168,11 +247,36 @@ onMounted(async () => {
 async function guardar() {
   saving.value = true
   errorMsg.value = ''
+  
+  // Validación de duplicados (solo al crear)
+  if (!isEditing.value && !proceedAsNew.value && !patientSelectedFromDropdown.value) {
+    const query = String(form.value.paciente_nombre).toLowerCase().trim()
+    const lista = Array.isArray(listaPacientes.value) ? listaPacientes.value : (listaPacientes.value.data || [])
+    
+    const posibles = lista.filter(c => {
+      const nom = c.nombre ? String(c.nombre).toLowerCase() : ''
+      return nom.includes(query) || query.includes(nom)
+    })
+    
+    if (posibles.length > 0) {
+      duplicateCandidates.value = posibles.slice(0, 5)
+      showDuplicateWarning.value = true
+      saving.value = false
+      return
+    }
+  }
+
   try {
-    if (isEditing.value) {
-      await citasApi.update(citaId.value, form.value)
+    const payload = { ...form.value }
+    if (!payload.paciente_correo) {
+      delete payload.paciente_correo
     } else {
-      await citasApi.create(form.value)
+      payload.correo = payload.paciente_correo
+    }
+    if (isEditing.value) {
+      await citasApi.update(citaId.value, payload)
+    } else {
+      await citasApi.create(payload)
     }
     router.push('/citas')
   } catch (e: any) {
