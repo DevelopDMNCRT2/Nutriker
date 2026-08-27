@@ -338,7 +338,9 @@ const horariosDisponibles = ref([...HORARIOS])
 async function loadPacientesSearch() {
   if (listaPacientes.value.length === 0) {
     try {
-      listaPacientes.value = await pacientesApi.getAll()
+      const data = await pacientesApi.getAll(1, 1000) // Traer un lote grande para el buscador
+      // La API de pacientes devuelve { data: [...], meta: {...} }
+      listaPacientes.value = data.data || data || []
     } catch {
       listaPacientes.value = []
     }
@@ -346,12 +348,22 @@ async function loadPacientesSearch() {
 }
 
 const pacientesFiltrados = computed(() => {
-  const query = form.value.paciente_nombre.toLowerCase().trim()
-  if (!query || !showDropdownPacientes.value) return []
-  return listaPacientes.value.filter(c =>
-    (c.nombre && c.nombre.toLowerCase().includes(query)) ||
-    (c.telefono && c.telefono.includes(query))
-  ).slice(0, 5)
+  try {
+    const nombre = form.value.paciente_nombre || ''
+    const query = String(nombre).toLowerCase().trim()
+    if (!query || !showDropdownPacientes.value) return []
+    
+    const lista = Array.isArray(listaPacientes.value) ? listaPacientes.value : (listaPacientes.value.data || [])
+    
+    return lista.filter(c => {
+      const nom = c.nombre ? String(c.nombre).toLowerCase() : ''
+      const tel = c.telefono ? String(c.telefono) : ''
+      return nom.includes(query) || tel.includes(query)
+    }).slice(0, 5)
+  } catch (e) {
+    console.error('Error al filtrar pacientes:', e)
+    return []
+  }
 })
 
 function seleccionarPaciente(paciente: any) {
