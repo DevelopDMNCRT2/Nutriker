@@ -132,6 +132,21 @@
               </div>
             </div>
           </div>
+
+          <!-- Cirugías -->
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-5 rounded-2xl border border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between mb-4">
+              <label class="text-sm font-semibold text-gray-800 dark:text-gray-200">¿Se ha realizado alguna cirugía?</label>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" v-model="form.cirugiaObj.tuvo" class="sr-only peer">
+                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 dark:peer-focus:ring-emerald-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-500"></div>
+              </label>
+            </div>
+            <div v-if="form.cirugiaObj.tuvo" class="animate-in fade-in slide-in-from-top-2">
+              <label class="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">¿Cuáles cirugías?</label>
+              <textarea v-model="form.cirugiaObj.cuales" rows="3" placeholder="Ej. Apendicectomía, Cesárea, Colecistectomía..." class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"></textarea>
+            </div>
+          </div>
         </div>
 
         <!-- STEP 3: Antecedentes Ginecológicos (Solo Mujeres) -->
@@ -201,6 +216,23 @@
                 <option value="Moderada">Moderada (De pie mucho tiempo, caminatas regulares)</option>
                 <option value="Activa">Activa (Trabajo físico pesado, movimiento constante)</option>
               </select>
+            </div>
+
+            <!-- Consumo de Agua -->
+            <div>
+              <label class="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-300">¿Cuánta agua consume al día?</label>
+              <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                <label v-for="lt in ['0.5 L', '1 L', '1.5 L', '2 L', '3 L', '4 L o más']" :key="lt"
+                  class="flex flex-col items-center justify-center p-3 rounded-xl border-2 cursor-pointer transition-all text-center"
+                  :class="form.estilo_vidaObj.agua_diaria === lt
+                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 font-bold'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300 text-gray-600 dark:text-gray-400'"
+                >
+                  <input type="radio" v-model="form.estilo_vidaObj.agua_diaria" :value="lt" class="sr-only" />
+                  <span class="text-lg">💧</span>
+                  <span class="text-sm mt-1">{{ lt }}</span>
+                </label>
+              </div>
             </div>
 
             <div class="bg-gray-50 dark:bg-gray-900/50 p-5 rounded-2xl border border-gray-200 dark:border-gray-700">
@@ -345,7 +377,8 @@ const form = ref({
   bioquimicosObj: { tiene: false, fecha: '', valores: '' },
   farmacosObj: { toma: false, cuales: '' },
   ginecologicosObj: { fum: '', regular: null as boolean | null, anticonceptivo: '', embarazos: null as number | null, lactando: false, menopausia: false },
-  estilo_vidaObj: { actividad_diaria: '', deporte: false, cual_deporte: '', frecuencia_deporte: '' }
+  cirugiaObj: { tuvo: false, cuales: '' },
+  estilo_vidaObj: { actividad_diaria: '', deporte: false, cual_deporte: '', frecuencia_deporte: '', agua_diaria: '' }
 })
 
 // Navigation logic
@@ -400,6 +433,7 @@ onMounted(async () => {
         try { if (data.farmacos) form.value.farmacosObj = JSON.parse(data.farmacos) } catch(e){}
         try { if (data.ginecologicos) form.value.ginecologicosObj = JSON.parse(data.ginecologicos) } catch(e){}
         try { if (data.estilo_vida) form.value.estilo_vidaObj = JSON.parse(data.estilo_vida) } catch(e){}
+        try { if (data.cirugia) form.value.cirugiaObj = JSON.parse(data.cirugia) } catch(e){}
       }
     } catch (e: any) {
       errorMsg.value = 'Error al cargar los datos del paciente'
@@ -430,7 +464,8 @@ async function guardar() {
     bioquimicos: JSON.stringify(form.value.bioquimicosObj),
     farmacos: JSON.stringify(form.value.farmacosObj),
     ginecologicos: form.value.sexo === 'Femenino' ? JSON.stringify(form.value.ginecologicosObj) : null,
-    estilo_vida: JSON.stringify(form.value.estilo_vidaObj)
+    estilo_vida: JSON.stringify(form.value.estilo_vidaObj),
+    cirugia: JSON.stringify(form.value.cirugiaObj)
   }
 
   try {
