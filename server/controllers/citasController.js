@@ -86,6 +86,9 @@ export const getHorariosOcupados = async (req, res) => {
     const query = `
       SELECT horario FROM citas 
       WHERE fecha = $1 AND deleted_at IS NULL AND COALESCE(estado, 'Confirmada') != 'Cancelada'
+      UNION
+      SELECT horario FROM citas_monex
+      WHERE fecha = $1 AND deleted_at IS NULL AND COALESCE(estado, 'Confirmada') != 'Cancelada'
     `
     const { rows } = await pool.query(query, [fecha])
     const ocupados = rows.map(r => r.horario)

@@ -97,62 +97,6 @@
                   class="form-input"
                 />
               </div>
-
-              <div class="form-group full-width">
-                <label>¿Has tenido atención previa en NutriKer?</label>
-                <div class="radio-options">
-                  <label class="radio-card" :class="{ selected: form.atencion_previa === 'si' }">
-                    <input type="radio" v-model="form.atencion_previa" value="si" />
-                    <span>Sí, soy paciente previo</span>
-                  </label>
-                  <label class="radio-card" :class="{ selected: form.atencion_previa === 'no' }">
-                    <input type="radio" v-model="form.atencion_previa" value="no" />
-                    <span>No, es mi primera vez</span>
-                  </label>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label>Peso en kg (Opcional)</label>
-                <input
-                  v-model="form.peso"
-                  type="number"
-                  step="0.1"
-                  placeholder="Ej. 68.5"
-                  class="form-input"
-                />
-              </div>
-
-              <div class="form-group">
-                <label>Estatura en metros (Opcional)</label>
-                <input
-                  v-model="form.estatura"
-                  type="number"
-                  step="0.01"
-                  placeholder="Ej. 1.65"
-                  class="form-input"
-                />
-              </div>
-
-              <div class="form-group">
-                <label>Contraseña para Portal *</label>
-                <input
-                  v-model="form.password"
-                  type="password"
-                  placeholder="Mínimo 6 caracteres"
-                  class="form-input"
-                />
-              </div>
-
-              <div class="form-group">
-                <label>Confirmar Contraseña *</label>
-                <input
-                  v-model="form.confirmPassword"
-                  type="password"
-                  placeholder="Repite tu contraseña"
-                  class="form-input"
-                />
-              </div>
             </div>
 
             <div class="wizard-actions flex-end">
@@ -311,13 +255,8 @@ const form = ref({
   paciente_nombre: '',
   paciente_email: '',
   paciente_telefono: '',
-  atencion_previa: 'no',
-  peso: '',
-  estatura: '',
   fecha: new Date().toISOString().split('T')[0],
-  horario: '',
-  password: '',
-  confirmPassword: ''
+  horario: ''
 })
 
 watch(() => form.value.fecha, (nuevaFecha) => {
@@ -343,14 +282,6 @@ const irAlPaso2 = () => {
     errorMsg.value = 'El número de teléfono debe contener exactamente 10 dígitos.'
     return
   }
-  if (!form.value.password || form.value.password.length < 6) {
-    errorMsg.value = 'Por favor crea una contraseña de al menos 6 caracteres.'
-    return
-  }
-  if (form.value.password !== form.value.confirmPassword) {
-    errorMsg.value = 'Las contraseñas no coinciden.'
-    return
-  }
   pasoActual.value = 2
 }
 
@@ -374,13 +305,10 @@ const confirmarYGuardarCita = async () => {
 
     const payload = {
       paciente_nombre: form.value.paciente_nombre.trim(),
+      correo: form.value.paciente_email.trim(),
       paciente_telefono: form.value.paciente_telefono.replace(/\D/g, ''),
       fecha: form.value.fecha,
-      horario: form.value.horario,
-      atencion_previa: form.value.atencion_previa,
-      peso: form.value.peso || null,
-      estatura: form.value.estatura || null,
-      password: form.value.password
+      horario: form.value.horario
     }
 
     const res = await api.post('/public/citas', payload)
@@ -399,13 +327,8 @@ const reiniciarWizard = () => {
     paciente_nombre: '',
     paciente_email: '',
     paciente_telefono: '',
-    atencion_previa: 'no',
-    peso: '',
-    estatura: '',
     fecha: new Date().toISOString().split('T')[0],
-    horario: '',
-    password: '',
-    confirmPassword: ''
+    horario: ''
   }
 }
 

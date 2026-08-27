@@ -124,20 +124,22 @@ export const procesarCheckoutPublico = async (req, res) => {
 export const agendarCitaPublica = async (req, res) => {
   try {
     const { 
-      paciente_nombre, paciente_telefono, fecha, horario,
-      atencion_previa, peso, estatura 
+      paciente_nombre, correo, paciente_telefono, fecha, horario
     } = req.body
 
-    if (!paciente_nombre || !paciente_telefono || !fecha || !horario) {
+    if (!paciente_nombre || !correo || !paciente_telefono || !fecha || !horario) {
       return res.status(400).json({ 
-        error: 'Todos los campos obligatorios deben estar completos (nombre, teléfono, fecha y horario).' 
+        error: 'Todos los campos obligatorios deben estar completos (nombre, correo, teléfono, fecha y horario).' 
       })
     }
 
     // Verificar si el horario ya está ocupado para esa fecha
     const conflictoQuery = `
       SELECT id FROM citas
-      WHERE fecha = $1 AND horario = $2 AND deleted_at IS NULL
+      WHERE fecha = $1 AND horario = $2 AND deleted_at IS NULL AND COALESCE(estado, 'Confirmada') != 'Cancelada'
+      UNION
+      SELECT id FROM citas_monex
+      WHERE fecha = $1 AND horario = $2 AND deleted_at IS NULL AND COALESCE(estado, 'Confirmada') != 'Cancelada'
     `
     const conflicto = await pool.query(conflictoQuery, [fecha, horario])
 
@@ -151,18 +153,14 @@ export const agendarCitaPublica = async (req, res) => {
     const newId = await generarIdUnico('citas')
 
     const query = `
-      INSERT INTO citas (
-        id, paciente_nombre, paciente_telefono, fecha, horario,
-        atencion_previa, peso, estatura
+      INSERT INTO citas_monex (
+        id, paciente_nombre, correo, paciente_telefono, fecha, horario, empresa, estado
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2, $3, $4, $5, $6, 'Monex', 'Confirmada')
       RETURNING *
     `
     const values = [
-      newId, paciente_nombre, paciente_telefono, fecha, horario,
-      atencion_previa || 'no', 
-      peso ? parseFloat(peso) : null, 
-      estatura ? parseFloat(estatura) : null
+      newId, paciente_nombre, correo, paciente_telefono, fecha, horario
     ]
 
     const { rows } = await pool.query(query, values)
