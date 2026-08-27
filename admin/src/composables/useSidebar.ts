@@ -39,7 +39,7 @@ interface SidebarContextType {
 const SidebarSymbol = Symbol()
 
 export function useSidebarProvider() {
-  const isExpanded = ref(true)
+  const isExpanded = ref(false)
   const isMobileOpen = ref(false)
   const isMobile = ref(false)
   const isHovered = ref(false)
