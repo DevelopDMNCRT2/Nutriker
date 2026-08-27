@@ -124,12 +124,12 @@ export const procesarCheckoutPublico = async (req, res) => {
 export const agendarCitaPublica = async (req, res) => {
   try {
     const { 
-      paciente_nombre, correo, paciente_telefono, fecha, horario
+      paciente_nombre, correo, paciente_telefono, fecha, horario, password
     } = req.body
 
-    if (!paciente_nombre || !correo || !paciente_telefono || !fecha || !horario) {
+    if (!paciente_nombre || !correo || !paciente_telefono || !fecha || !horario || !password) {
       return res.status(400).json({ 
-        error: 'Todos los campos obligatorios deben estar completos (nombre, correo, teléfono, fecha y horario).' 
+        error: 'Todos los campos obligatorios deben estar completos (nombre, correo, teléfono, contraseña, fecha y horario).' 
       })
     }
 
@@ -154,13 +154,13 @@ export const agendarCitaPublica = async (req, res) => {
 
     const query = `
       INSERT INTO citas_monex (
-        id, paciente_nombre, correo, paciente_telefono, fecha, horario, empresa, estado
+        id, paciente_nombre, correo, paciente_telefono, fecha, horario, empresa, estado, password
       )
-      VALUES ($1, $2, $3, $4, $5, $6, 'Monex', 'Confirmada')
+      VALUES ($1, $2, $3, $4, $5, $6, 'Monex', 'Confirmada', $7)
       RETURNING *
     `
     const values = [
-      newId, paciente_nombre, correo, paciente_telefono, fecha, horario
+      newId, paciente_nombre, correo, paciente_telefono, fecha, horario, password
     ]
 
     const { rows } = await pool.query(query, values)
