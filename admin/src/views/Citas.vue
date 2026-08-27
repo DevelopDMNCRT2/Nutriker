@@ -492,7 +492,7 @@ const calendarOptions = computed(() => ({
   headerToolbar: {
     left: 'prev,next today',
     center: 'title',
-    right: 'dayGridMonth,timeGridWeek,listWeek',
+    right: 'dayGridMonth,timeGridWeek,listDay',
   },
   buttonText: {
     today: 'Hoy',
