@@ -10,8 +10,6 @@
         'lg:translate-x-0': true,
       },
     ]"
-    @mouseenter="!isExpanded && (isHovered = true)"
-    @mouseleave="isHovered = false"
   >
     <div
       :class="[
