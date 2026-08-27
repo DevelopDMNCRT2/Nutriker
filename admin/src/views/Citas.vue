@@ -132,51 +132,53 @@
             <div class="modal-body">
               <div v-if="modalError" class="form-error-banner">{{ modalError }}</div>
 
-              <div class="form-grid">
-                <div class="form-group full-width relative">
-                  <label>Nombre del Paciente *</label>
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 mt-4">
+                <div class="sm:col-span-2 relative">
+                  <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Nombre del Paciente *</label>
                   <input
                     v-model="form.paciente_nombre"
                     type="text"
                     placeholder="Ej. Ana Sofía Montenegro"
-                    class="form-input"
+                    class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                     @focus="showDropdownPacientes = true; loadPacientesSearch()"
                     @input="showDropdownPacientes = true; patientSelectedFromDropdown = false; proceedAsNew = false"
                   />
                   <!-- Dropdown de búsqueda de pacientes -->
                   <div
-                    v-if="pacientesFiltrados.length > 0"
-                    class="absolute left-0 right-0 top-[100%] mt-1 z-50 rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 max-h-48 overflow-y-auto"
+                    v-if="showDropdownPacientes && pacientesFiltrados.length > 0"
+                    class="absolute left-0 right-0 top-[100%] mt-1 z-50 rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 max-h-48 overflow-y-auto"
                   >
                     <div
                       v-for="paciente in pacientesFiltrados"
                       :key="paciente.id"
                       @mousedown.prevent="seleccionarPaciente(paciente)"
-                      class="cursor-pointer px-4 py-2.5 hover:bg-brand-50 dark:hover:bg-gray-700/60 border-b border-gray-100 dark:border-gray-700/50 last:border-0 flex items-center justify-between transition-colors"
+                      class="cursor-pointer px-4 py-2.5 hover:bg-emerald-50 dark:hover:bg-gray-700/60 border-b border-gray-100 dark:border-gray-700/50 last:border-0 flex items-center justify-between transition-colors"
                     >
                       <div>
-                        <p class="text-sm font-semibold text-gray-800 dark:text-white">{{ paciente.nombre }}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ paciente.telefono }} <span v-if="paciente.correo">• {{ paciente.correo }}</span></p>
+                        <p class="text-xs font-bold text-gray-800 dark:text-white">{{ paciente.nombre }}</p>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ paciente.telefono }} <span v-if="paciente.correo">• {{ paciente.correo }}</span></p>
                       </div>
-                      <span class="text-xs font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/10 px-2 py-0.5 rounded-full">Paciente Registrado</span>
+                      <span class="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 rounded-full">Paciente Registrado</span>
                     </div>
                   </div>
                 </div>
-                <div class="form-group full-width">
-                  <label>Teléfono * <span style="font-weight:400;font-size:11px;color:#94a3b8;">(10 dígitos)</span></label>
-                  <input v-model="form.paciente_telefono" type="tel" placeholder="0000000000" class="form-input" maxlength="10" @input="sanitizeTelefono" />
+
+                <div>
+                  <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Teléfono * <span class="font-normal text-[10px] text-gray-400">(10 dígitos)</span></label>
+                  <input v-model="form.paciente_telefono" type="tel" placeholder="0000000000" class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" maxlength="10" @input="sanitizeTelefono" />
                 </div>
-                <div class="form-group full-width">
-                  <label>Correo Electrónico</label>
-                  <input v-model="form.paciente_correo" type="email" placeholder="ejemplo@correo.com" class="form-input" />
+                <div>
+                  <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Correo Electrónico</label>
+                  <input v-model="form.paciente_correo" type="email" placeholder="ejemplo@correo.com" class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                 </div>
-                <div class="form-group">
-                  <label>Fecha *</label>
-                  <input v-model="form.fecha" type="date" class="form-input" @change="onFechaChange" />
+                
+                <div>
+                  <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Fecha *</label>
+                  <input v-model="form.fecha" type="date" class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" @change="onFechaChange" />
                 </div>
-                <div class="form-group">
-                  <label>Horario *</label>
-                  <select v-model="form.horario" class="form-input form-select">
+                <div>
+                  <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Horario *</label>
+                  <select v-model="form.horario" class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
                     <option value="" disabled>Seleccionar horario</option>
                     <option
                       v-for="h in horariosDisponibles"
@@ -188,20 +190,22 @@
                     </option>
                   </select>
                 </div>
-                <div class="form-group">
-                  <label>Atención Previa</label>
-                  <select v-model="form.atencion_previa" class="form-input form-select">
+                
+                <div>
+                  <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Atención Previa</label>
+                  <select v-model="form.atencion_previa" class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
                     <option value="no">No</option>
                     <option value="si">Sí</option>
                   </select>
                 </div>
-                <div class="form-group">
-                  <label>Peso (kg)</label>
-                  <input v-model="form.peso" type="number" step="0.1" min="0" max="999" placeholder="Ej. 65" class="form-input" @input="sanitizePeso" />
+                
+                <div>
+                  <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Peso (kg)</label>
+                  <input v-model="form.peso" type="number" step="0.1" min="0" max="999" placeholder="Ej. 65" class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" @input="sanitizePeso" />
                 </div>
-                <div class="form-group">
-                  <label>Estatura (cm)</label>
-                  <input v-model="form.estatura" type="number" step="1" min="0" max="999" placeholder="Ej. 165" class="form-input" @input="sanitizeEstatura" />
+                <div>
+                  <label class="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">Estatura (cm)</label>
+                  <input v-model="form.estatura" type="number" step="1" min="0" max="999" placeholder="Ej. 165" class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white" @input="sanitizeEstatura" />
                 </div>
               </div>
             </div>
