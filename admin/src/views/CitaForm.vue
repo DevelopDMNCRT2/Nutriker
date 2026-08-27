@@ -268,10 +268,16 @@ async function guardar() {
 
   try {
     const payload = { ...form.value }
+    payload.nombre = payload.paciente_nombre
+    payload.telefono = payload.paciente_telefono
+    delete payload.paciente_nombre
+    delete payload.paciente_telefono
+    
     if (!payload.paciente_correo) {
       delete payload.paciente_correo
     } else {
       payload.correo = payload.paciente_correo
+      delete payload.paciente_correo
     }
     if (isEditing.value) {
       await citasApi.update(citaId.value, payload)

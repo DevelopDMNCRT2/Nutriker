@@ -783,8 +783,8 @@ async function saveCita() {
   saving.value = true
   try {
     const payload = {
-      paciente_nombre: form.value.paciente_nombre,
-      paciente_telefono: form.value.paciente_telefono,
+      nombre: form.value.paciente_nombre,
+      telefono: form.value.paciente_telefono,
       correo: form.value.paciente_correo || '',
       fecha: form.value.fecha,
       horario: form.value.horario,
