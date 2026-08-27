@@ -16,10 +16,10 @@ export const getCitas = async (req, res) => {
   try {
     const query = `
       SELECT id, 
-             COALESCE(cliente_nombre, '') AS "cliente_nombre",
-             COALESCE(cliente_nombre, '') AS "nombre",
-             COALESCE(cliente_telefono, '') AS "cliente_telefono",
-             COALESCE(cliente_telefono, '') AS "telefono",
+             COALESCE(paciente_nombre, '') AS "paciente_nombre",
+             COALESCE(paciente_nombre, '') AS "nombre",
+             COALESCE(paciente_telefono, '') AS "paciente_telefono",
+             COALESCE(paciente_telefono, '') AS "telefono",
              COALESCE(correo, '') AS "correo",
              TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha",
              horario,
@@ -48,10 +48,10 @@ export const getCitaById = async (req, res) => {
     const { id } = req.params
     const query = `
       SELECT id, 
-             COALESCE(cliente_nombre, '') AS "cliente_nombre",
-             COALESCE(cliente_nombre, '') AS "nombre",
-             COALESCE(cliente_telefono, '') AS "cliente_telefono",
-             COALESCE(cliente_telefono, '') AS "telefono",
+             COALESCE(paciente_nombre, '') AS "paciente_nombre",
+             COALESCE(paciente_nombre, '') AS "nombre",
+             COALESCE(paciente_telefono, '') AS "paciente_telefono",
+             COALESCE(paciente_telefono, '') AS "telefono",
              COALESCE(correo, '') AS "correo",
              TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha",
              horario,
@@ -99,11 +99,11 @@ export const getHorariosOcupados = async (req, res) => {
 // ─── POST /api/citas ───────────────────────────────────────────────────────
 export const createCita = async (req, res) => {
   try {
-    const { nombre, cliente_nombre, correo, cliente_correo, telefono, cliente_telefono, fecha, horario, notas, servicio, tipo, atencion_previa, peso, estatura, password } = req.body
+    const { nombre, paciente_nombre, correo, paciente_correo, telefono, paciente_telefono, fecha, horario, notas, servicio, tipo, atencion_previa, peso, estatura, password } = req.body
 
-    const patientName = cliente_nombre || nombre
-    const patientPhone = cliente_telefono || telefono
-    const patientEmail = cliente_correo || correo || ''
+    const patientName = paciente_nombre || nombre
+    const patientPhone = paciente_telefono || telefono
+    const patientEmail = paciente_correo || correo || ''
 
     if (!patientName || !patientPhone || !fecha || !horario) {
       return res.status(400).json({
@@ -125,9 +125,9 @@ export const createCita = async (req, res) => {
 
     const newId = await generarIdUnico('citas')
     const insertQuery = `
-      INSERT INTO citas (id, cliente_nombre, cliente_telefono, correo, fecha, horario, atencion_previa, peso, estatura, notas, servicio, tipo, estado, password)
+      INSERT INTO citas (id, paciente_nombre, paciente_telefono, correo, fecha, horario, atencion_previa, peso, estatura, notas, servicio, tipo, estado, password)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'Confirmada', $13)
-      RETURNING *, cliente_nombre AS "nombre", cliente_telefono AS "telefono", TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha"
+      RETURNING *, paciente_nombre AS "nombre", paciente_telefono AS "telefono", TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha"
     `
     const { rows } = await pool.query(insertQuery, [
       newId, patientName, patientPhone, patientEmail, fecha, horario,
@@ -151,7 +151,7 @@ export const createCita = async (req, res) => {
 export const updateCita = async (req, res) => {
   try {
     const { id } = req.params
-    const { nombre, cliente_nombre, correo, cliente_correo, telefono, cliente_telefono, fecha, horario, estado, notas, servicio, tipo, atencion_previa } = req.body
+    const { nombre, paciente_nombre, correo, paciente_correo, telefono, paciente_telefono, fecha, horario, estado, notas, servicio, tipo, atencion_previa } = req.body
 
     const existing = await pool.query('SELECT * FROM citas WHERE id = $1 AND deleted_at IS NULL', [id])
     if (existing.rows.length === 0) {
@@ -174,15 +174,15 @@ export const updateCita = async (req, res) => {
     const current = existing.rows[0]
     const updateQuery = `
       UPDATE citas 
-      SET cliente_nombre = $1, cliente_telefono = $2, correo = $3, fecha = $4, horario = $5,
+      SET paciente_nombre = $1, paciente_telefono = $2, correo = $3, fecha = $4, horario = $5,
           atencion_previa = $6, estado = $7, notas = $8, servicio = $9, tipo = $10, updated_at = NOW()
       WHERE id = $11 AND deleted_at IS NULL
-      RETURNING *, cliente_nombre AS "nombre", cliente_telefono AS "telefono", TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha"
+      RETURNING *, paciente_nombre AS "nombre", paciente_telefono AS "telefono", TO_CHAR(fecha, 'YYYY-MM-DD') AS "fecha"
     `
     const { rows } = await pool.query(updateQuery, [
-      cliente_nombre || nombre || current.cliente_nombre,
-      cliente_telefono || telefono || current.cliente_telefono,
-      cliente_correo || correo || current.correo || '',
+      paciente_nombre || nombre || current.paciente_nombre,
+      paciente_telefono || telefono || current.paciente_telefono,
+      paciente_correo || correo || current.correo || '',
       fecha || current.fecha,
       horario || current.horario,
       atencion_previa || current.atencion_previa || 'no',

@@ -172,7 +172,7 @@ export async function importarCitas(req, res) {
       const notas = pac.notas || 'Importado vía IA'
 
       await pool.query(
-        `INSERT INTO citas (id, cliente_nombre, cliente_telefono, correo, fecha, horario, notas, atencion_previa, estado, servicio, tipo)
+        `INSERT INTO citas (id, paciente_nombre, paciente_telefono, correo, fecha, horario, notas, atencion_previa, estado, servicio, tipo)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [id, clienteNombre, clienteTelefono, correo, finalFecha, finalHorario, notas, 'no', 'Confirmada', 'Consulta Nutricional', 'Presencial']
       )
