@@ -303,7 +303,7 @@ DATOS DEL PACIENTE:
 - Alergias: ${datosPaciente?.alergias || 'Ninguna'}
 - Gustos / Preferencias: ${datosPaciente?.gustos || 'Sin preferencia específica'}
 - Cirugías previas: ${(() => { try { const c = JSON.parse(datosPaciente?.cirugia || '{}'); return c.tuvo ? c.cuales : 'Ninguna' } catch { return 'Ninguna' } })()}
-- Actividad física: ${estiloObj.actividad_diaria || 'No especificada'}, Deporte: ${estiloObj.deporte ? `Sí (${estiloObj.cual_deporte || ''})` : 'No'}
+- Actividad física: ${estiloObj.actividad_diaria || 'No especificada'}, Deporte: ${estiloObj.deporte ? `Sí (${estiloObj.cual_deporte || ''})` : 'No'}, Hidratación: ${estiloObj.agua_diaria || 'No especificada'}
 
 OBJETIVO CLÍNICO:
 - Requerimiento calórico estimado (Harris-Benedict): ${kcalObjetivo}
@@ -316,26 +316,28 @@ CATÁLOGO DE ALIMENTOS SMAE 2024/2026 (alimentos reales disponibles — úsalos 
 ${smaeResumen}
 `
 
-    const PROMPT_MENU = `Eres la asistente nutricional inteligente de NutriKer, trabajando con la Dra. Karla Covarrubias.
-Tu tarea es generar un MENÚ SEMANAL COMPLETO basado en el expediente clínico del paciente y el catálogo SMAE 2024/2026.
+const PROMPT_MENU = `Eres la asistente nutricional inteligente de NutriKer, trabajando directamente con la Dra. Karla Covarrubias.
+Tu tarea es generar un MENÚ SEMANAL COMPLETO y PERSONALIZADO basado en el expediente clínico del paciente y el catálogo SMAE.
 
-REGLAS CLÍNICAS OBLIGATORIAS:
-1. Respeta ESTRICTAMENTE las alergias e intolerancias del paciente.
-2. Usa EXCLUSIVAMENTE alimentos del catálogo SMAE proporcionado — son los que la Dra. Karla usa.
-3. Distribuye los alimentos para acercarte al requerimiento calórico calculado (Harris-Benedict).
-4. Varía los alimentos a lo largo de la semana — no repitas el mismo platillo más de 2 días seguidos.
-5. Incluye alimentos típicos mexicanos cuando sea posible.
-6. Las colaciones deben ser ligeras (frutas, nueces, lácteos descremados).
+REGLAS CLÍNICAS Y PREFERENCIAS DE LA DRA. KARLA (¡INQUEBRANTABLES!):
+1. MACRONUTRIENTES: Si el paciente no tiene patologías graves, tu base de cálculo es 50% Carbohidratos, 20% Proteína y 30% Grasas. Acércate al requerimiento calórico estimado de Harris-Benedict.
+2. ALIMENTOS FAVORITOS: Prioriza incluir aguacate, verdura cruda y pescado en las comidas principales.
+3. ALIMENTOS PROHIBIDOS: NUNCA, bajo ninguna circunstancia, incluyas enlatados, ultraprocesados, pan de dulce o refrescos.
+4. CATÁLOGO: Usa como base los alimentos del catálogo SMAE proporcionado, pero calcula las cantidades para ser exactas.
+5. FORMATO DE CANTIDADES: Exprésate con EXTREMA PRECISIÓN en gramos o mililitros siempre que sea posible (ej. "120 gramos de Pechuga de Pollo", "200 ml de leche"). No uses "una palma" o medidas ambiguas.
+6. NÚMERO DE COMIDAS: La Dra. Karla adapta las comidas según el paciente (de 3 a 6). El sistema de base de datos tiene 5 "cajas" (desayuno, colacion_am, comida, colacion_pm, cena). 
+   - Si el paciente requiere 3 comidas, pon "Ayuno" o "Libre" en las colaciones.
+   - Si el paciente requiere 6 comidas, combina la sexta en la última caja (ej. "Cena + Colación Nocturna: ...").
 
 FORMATO DE RESPUESTA: Devuelve ÚNICAMENTE un objeto JSON válido con exactamente estas 35 claves + notas_ia:
 {
-  "lunes_desayuno": "descripción con cantidades",
-  "lunes_colacion_am": "colación ligera",
-  "lunes_comida": "platillo principal con guarnición",
-  "lunes_colacion_pm": "colación ligera",
-  "lunes_cena": "cena ligera",
+  "lunes_desayuno": "descripción precisa en gramos",
+  "lunes_colacion_am": "...",
+  "lunes_comida": "...",
+  "lunes_colacion_pm": "...",
+  "lunes_cena": "...",
   ... (repite para martes, miercoles, jueves, viernes, sabado, domingo)
-  "notas_ia": "recomendaciones clínicas adicionales para el paciente"
+  "notas_ia": "notas clínicas justificando tus decisiones o explicando la distribución de macros"
 }
 NO escribas texto fuera del JSON. No uses markdown dentro del JSON.`
 
