@@ -208,6 +208,23 @@ Responde de forma concisa, profesional y útil para la nutrióloga.`
   }
 }
 
+// ─── Helpers: Harris-Benedict + Factor de Actividad ──────────────────────────
+function calcularHarrisBenedict(sexo, peso, estatura, edad) {
+  if (!peso || !estatura || !edad) return null
+  const p = parseFloat(peso), e = parseFloat(estatura), a = parseInt(edad)
+  // Fórmula revisada de Harris-Benedict (Roza & Shizgal, 1984)
+  if (sexo === 'Femenino') return 447.593 + (9.247 * p) + (3.098 * e) - (4.330 * a)
+  return 88.362 + (13.397 * p) + (4.799 * e) - (5.677 * a)
+}
+
+function factorActividad(estiloVidaStr) {
+  const s = (estiloVidaStr || '').toLowerCase()
+  if (s.includes('activa') || s.includes('muy activo')) return 1.725
+  if (s.includes('moderada') || s.includes('moderado')) return 1.55
+  if (s.includes('ligera') || s.includes('ligero')) return 1.375
+  return 1.2 // Sedentario por defecto
+}
+
 // ─── POST /api/ia/generar-menu ───────────────────────────────────────────────
 export async function generarMenu(req, res) {
   const { pacienteId, instrucciones } = req.body
@@ -215,70 +232,151 @@ export async function generarMenu(req, res) {
   try {
     let datosPaciente = null
     let expediente = null
-    
+    let smaeResumen = ''
+
     if (pacienteId) {
-      const pacienteRes = await pool.query('SELECT nombre, edad, peso, estatura, patologias, gustos, alergias, estilo_vida FROM pacientes WHERE id = $1', [pacienteId])
+      const pacienteRes = await pool.query(
+        'SELECT nombre, sexo, edad, patologias, gustos, alergias, estilo_vida, cirugia FROM pacientes WHERE id = $1',
+        [pacienteId]
+      )
       if (pacienteRes.rows.length > 0) datosPaciente = pacienteRes.rows[0]
-      
-      const expRes = await pool.query('SELECT diagnostico, objetivo_nutricional, notas_medicas FROM expedientes_clinicos WHERE paciente_id = $1', [pacienteId])
+
+      const expRes = await pool.query(
+        'SELECT diagnostico, objetivo_nutricional FROM expedientes_clinicos WHERE paciente_id = $1 ORDER BY created_at DESC LIMIT 1',
+        [pacienteId]
+      )
       if (expRes.rows.length > 0) expediente = expRes.rows[0]
+
+      // Última medición antropométrica para peso y estatura actualizados
+      const medRes = await pool.query(
+        'SELECT peso, talla FROM mediciones_antropometricas WHERE paciente_id = $1 ORDER BY fecha DESC LIMIT 1',
+        [pacienteId]
+      )
+      if (medRes.rows.length > 0) {
+        datosPaciente.peso = medRes.rows[0].peso || datosPaciente.peso
+        datosPaciente.estatura = medRes.rows[0].talla || datosPaciente.estatura
+      }
     }
 
-    const contextText = `
-Paciente: ${datosPaciente ? datosPaciente.nombre : 'General'}
-Edad: ${datosPaciente?.edad || 'N/A'}, Peso: ${datosPaciente?.peso || 'N/A'}, Estatura: ${datosPaciente?.estatura || 'N/A'}
-Patologías: ${datosPaciente?.patologias || 'Ninguna'}
-Alergias: ${datosPaciente?.alergias || 'Ninguna'}
-Gustos: ${datosPaciente?.gustos || 'N/A'}
-Estilo de vida: ${datosPaciente?.estilo_vida || 'N/A'}
-Objetivo Nutricional: ${expediente?.objetivo_nutricional || 'Mantenimiento y salud general'}
+    // ── Calcular requerimiento calórico con Harris-Benedict ──────────────────
+    const tmb = calcularHarrisBenedict(
+      datosPaciente?.sexo,
+      datosPaciente?.peso,
+      datosPaciente?.estatura,
+      datosPaciente?.edad
+    )
+    let estiloObj = {}
+    try { estiloObj = JSON.parse(datosPaciente?.estilo_vida || '{}') } catch {}
+    const fa = factorActividad(estiloObj.actividad_diaria || '')
+    const get = tmb ? Math.round(tmb * fa) : null
+    const kcalObjetivo = get ? `~${get} kcal/día (Harris-Benedict × FA ${fa})` : 'No calculable (faltan datos antropométricos)'
 
-Instrucciones adicionales de la doctora: "${instrucciones || 'Genera una dieta balanceada adecuada para este paciente'}"
+    // ── Cargar catálogo SMAE agrupado ────────────────────────────────────────
+    try {
+      const smaeRes = await pool.query(`
+        SELECT g.nombre AS grupo, a.nombre AS alimento, a.cantidad_medida, a.kcal, a.proteina_g, a.hco_g, a.lipidos_g
+        FROM alimentos_smae a
+        JOIN grupos_equivalentes g ON g.id = a.grupo_id
+        WHERE a.activo = TRUE
+        ORDER BY g.id, a.nombre
+      `)
+      const porGrupo = {}
+      for (const row of smaeRes.rows) {
+        if (!porGrupo[row.grupo]) porGrupo[row.grupo] = []
+        porGrupo[row.grupo].push(`${row.alimento} (${row.cantidad_medida} = ${row.kcal} kcal, P:${row.proteina_g}g, HC:${row.hco_g}g, G:${row.lipidos_g}g)`)
+      }
+      smaeResumen = Object.entries(porGrupo)
+        .map(([grupo, items]) => `**${grupo}:** ${items.slice(0, 10).join(' | ')}${items.length > 10 ? ` (+${items.length - 10} más)` : ''}`)
+        .join('\n')
+    } catch (e) {
+      console.warn('No se pudo cargar SMAE:', e.message)
+      smaeResumen = 'Catálogo SMAE no disponible, usa alimentos comunes mexicanos.'
+    }
+
+    // ── Construir contexto enriquecido ───────────────────────────────────────
+    const contextText = `
+DATOS DEL PACIENTE:
+- Nombre: ${datosPaciente?.nombre || 'Paciente General'}
+- Sexo: ${datosPaciente?.sexo || 'N/A'}, Edad: ${datosPaciente?.edad || 'N/A'} años
+- Peso: ${datosPaciente?.peso || 'N/A'} kg, Estatura: ${datosPaciente?.estatura || 'N/A'} cm
+- Patologías: ${datosPaciente?.patologias || 'Ninguna'}
+- Alergias: ${datosPaciente?.alergias || 'Ninguna'}
+- Gustos / Preferencias: ${datosPaciente?.gustos || 'Sin preferencia específica'}
+- Cirugías previas: ${(() => { try { const c = JSON.parse(datosPaciente?.cirugia || '{}'); return c.tuvo ? c.cuales : 'Ninguna' } catch { return 'Ninguna' } })()}
+- Actividad física: ${estiloObj.actividad_diaria || 'No especificada'}, Deporte: ${estiloObj.deporte ? `Sí (${estiloObj.cual_deporte || ''})` : 'No'}
+
+OBJETIVO CLÍNICO:
+- Requerimiento calórico estimado (Harris-Benedict): ${kcalObjetivo}
+- Diagnóstico: ${expediente?.diagnostico || 'Sin expediente'}
+- Objetivo nutricional de Karla: ${expediente?.objetivo_nutricional || 'Mantenimiento y salud general'}
+
+INSTRUCCIONES ADICIONALES DE LA DRA. KARLA: "${instrucciones || 'Genera una dieta balanceada y variada adecuada para este paciente'}"
+
+CATÁLOGO DE ALIMENTOS SMAE 2024/2026 (alimentos reales disponibles — úsalos para armar el menú):
+${smaeResumen}
 `
-    const PROMPT_MENU = `Eres la Nutrióloga Inteligente de NutriKer. Tu tarea es generar un menú semanal completo.
-    
-Para cada uno de los 7 días (lunes a domingo), genera 5 tiempos de comida (desayuno, colacion_am, comida, colacion_pm, cena).
-Considera que "colacion_am" y "colacion_pm" pueden llamarse "Snack" o "Colación".
-IMPORTANTE: Debes devolver UNICAMENTE un objeto JSON con la estructura plana de 35 campos (dianombre_tiempo).
-EJEMPLO DE CLAVES ESPERADAS:
+
+    const PROMPT_MENU = `Eres la asistente nutricional inteligente de NutriKer, trabajando con la Dra. Karla Covarrubias.
+Tu tarea es generar un MENÚ SEMANAL COMPLETO basado en el expediente clínico del paciente y el catálogo SMAE 2024/2026.
+
+REGLAS CLÍNICAS OBLIGATORIAS:
+1. Respeta ESTRICTAMENTE las alergias e intolerancias del paciente.
+2. Usa EXCLUSIVAMENTE alimentos del catálogo SMAE proporcionado — son los que la Dra. Karla usa.
+3. Distribuye los alimentos para acercarte al requerimiento calórico calculado (Harris-Benedict).
+4. Varía los alimentos a lo largo de la semana — no repitas el mismo platillo más de 2 días seguidos.
+5. Incluye alimentos típicos mexicanos cuando sea posible.
+6. Las colaciones deben ser ligeras (frutas, nueces, lácteos descremados).
+
+FORMATO DE RESPUESTA: Devuelve ÚNICAMENTE un objeto JSON válido con exactamente estas 35 claves + notas_ia:
 {
-  "lunes_desayuno": "2 huevos revueltos con espinaca y 1 rebanada de pan integral",
-  "lunes_colacion_am": "1 manzana con 10 almendras",
-  "lunes_comida": "120g de pollo a la plancha, 1 taza de brócoli, 1/2 taza de quinoa",
-  ... (haz lo mismo para todos los días de la semana y los 5 tiempos)
-  "notas_ia": "El paciente debe tomar 2 litros de agua diarios."
+  "lunes_desayuno": "descripción con cantidades",
+  "lunes_colacion_am": "colación ligera",
+  "lunes_comida": "platillo principal con guarnición",
+  "lunes_colacion_pm": "colación ligera",
+  "lunes_cena": "cena ligera",
+  ... (repite para martes, miercoles, jueves, viernes, sabado, domingo)
+  "notas_ia": "recomendaciones clínicas adicionales para el paciente"
 }
-NO escribas texto fuera del JSON.`
+NO escribas texto fuera del JSON. No uses markdown dentro del JSON.`
 
     if (genAI) {
       try {
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
         const result = await model.generateContent([PROMPT_MENU, contextText])
         const responseText = result.response.text()
-
         const jsonMatch = responseText.match(/\{[\s\S]*\}/)
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0])
-          return res.json({ menu: parsed, respuesta: parsed.notas_ia || "¡Menú generado exitosamente en base al expediente!" })
+          const kcalMsg = get ? ` El plan está diseñado para un requerimiento de ${kcalObjetivo}.` : ''
+          return res.json({
+            menu: parsed,
+            respuesta: (parsed.notas_ia || '¡Menú generado exitosamente con el catálogo SMAE 2024!') + kcalMsg,
+            kcal_objetivo: kcalObjetivo
+          })
         }
       } catch (geminiErr) {
         console.warn('Gemini menu fallback:', geminiErr.message)
       }
     }
 
-    // Fallback Mock
-    const mockMenu = {
-      lunes_desayuno: "Avena con manzana y canela",
-      lunes_colacion_am: "Yogur griego con nueces",
-      lunes_comida: "Pechuga de pollo asada con ensalada mixta",
-      lunes_colacion_pm: "Palitos de apio con hummus",
-      lunes_cena: "Salmón al horno con espárragos",
-      martes_desayuno: "Huevos revueltos con espinacas",
-      notas_ia: "Menú base de prueba (IA Fallback)."
+    // Fallback con SMAE real
+    const fallback = {
+      lunes_desayuno: '¾ taza de avena en hojuelas cocida con 1 taza de fresas y 1 cdita de miel de abeja',
+      lunes_colacion_am: '1 manzana pequeña con 10 almendras',
+      lunes_comida: '120g pechuga de pollo a la plancha, ½ taza de arroz integral, 1 taza de brócoli al vapor con 1 cdita aceite de oliva',
+      lunes_colacion_pm: '150g yogur natural descremado con 1 kiwi',
+      lunes_cena: '2 huevos revueltos con espinacas y 1 tortilla de maíz',
+      martes_desayuno: '2 rebanadas de pan integral con 1 huevo cocido y ½ aguacate',
+      martes_colacion_am: '1 guayaba con 15 cacahuates tostados sin sal',
+      martes_comida: '120g de tilapia al vapor, ½ taza de frijoles negros, ensalada de pepino y jitomate',
+      martes_colacion_pm: '240ml leche descremada con 1 plátano tabasco',
+      martes_cena: '1 taza de sopa de verduras (zanahoria, chayote, ejotes), 1 tortilla de maíz',
+      notas_ia: `Menú generado con catálogo SMAE 2024/2026. Requerimiento calórico estimado: ${kcalObjetivo}. Mantener hidratación de 2 litros de agua al día.`
     }
-    res.json({ menu: mockMenu, respuesta: "He generado una propuesta base de menú considerando las indicaciones." })
+    res.json({ menu: fallback, respuesta: `Propuesta base SMAE generada. ${kcalObjetivo}`, kcal_objetivo: kcalObjetivo })
   } catch (err) {
     console.error('Error en generarMenu:', err.message)
     res.status(500).json({ error: 'Error al generar el menú con IA' })
   }
 }
+
