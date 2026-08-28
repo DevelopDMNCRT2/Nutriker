@@ -1,5 +1,6 @@
 import pool from '../db/pool.js'
 import { generarIdUnico } from '../utils/generarId.js'
+import bcrypt from 'bcrypt'
 
 // GET /api/pacientes — Listar todos los pacientes / expedientes activos
 export async function getPacientes(req, res) {
@@ -72,7 +73,7 @@ export async function createPaciente(req, res) {
     patologias, antecedentes_familiares, bioquimicos, farmacos, digestiva,
     peso, estatura, circunferencias, composicion, recordatorio_24h, alergias,
     ultraprocesados, gustos, logistica_cocina, estilo_vida, fecha, horario, atencion_previa, sexo,
-    ginecologicos, notas
+    ginecologicos, notas, contrasena
   } = req.body
 
   if (!nombre || !telefono || !sexo) {
@@ -82,15 +83,19 @@ export async function createPaciente(req, res) {
   try {
     const newId = await generarIdUnico('pacientes')
 
+    // Hashear contraseña (si no se provee, usar el teléfono por defecto)
+    const salt = await bcrypt.genSalt(10)
+    const hash = await bcrypt.hash(contrasena || telefono, salt)
+
     const result = await pool.query(
       `INSERT INTO pacientes (
         id, cita_id, nombre, telefono, correo, edad, ocupacion, motivo_consulta,
         patologias, antecedentes_familiares, bioquimicos, farmacos, digestiva,
         peso, estatura, circunferencias, composicion, recordatorio_24h, alergias,
         ultraprocesados, gustos, logistica_cocina, estilo_vida, fecha, horario, atencion_previa, sexo,
-        ginecologicos, notas
+        ginecologicos, notas, contrasena
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
       ) RETURNING *`,
       [
         newId, cita_id || null, nombre, telefono, correo || null, edad || null,
@@ -101,7 +106,7 @@ export async function createPaciente(req, res) {
         alergias || null, ultraprocesados || null, gustos || null,
         logistica_cocina || null, estilo_vida || null, fecha || null,
         horario || null, atencion_previa || 'no', sexo || null,
-        ginecologicos || null, notas || null
+        ginecologicos || null, notas || null, hash
       ]
     )
 
@@ -120,7 +125,7 @@ export async function updatePaciente(req, res) {
     patologias, antecedentes_familiares, bioquimicos, farmacos, digestiva,
     peso, estatura, circunferencias, composicion, recordatorio_24h, alergias,
     ultraprocesados, gustos, logistica_cocina, estilo_vida, fecha, horario, atencion_previa, sexo,
-    ginecologicos, notas
+    ginecologicos, notas, contrasena
   } = req.body
 
   if (!nombre || !telefono || !sexo) {
@@ -128,8 +133,8 @@ export async function updatePaciente(req, res) {
   }
 
   try {
-    const result = await pool.query(
-      `UPDATE pacientes SET
+    let query = `
+      UPDATE pacientes SET
         cita_id = $1, nombre = $2, telefono = $3, correo = $4, edad = $5,
         ocupacion = $6, motivo_consulta = $7, patologias = $8,
         antecedentes_familiares = $9, bioquimicos = $10, farmacos = $11,
@@ -137,11 +142,9 @@ export async function updatePaciente(req, res) {
         composicion = $16, recordatorio_24h = $17, alergias = $18,
         ultraprocesados = $19, gustos = $20, logistica_cocina = $21,
         estilo_vida = $22, fecha = $23, horario = $24, atencion_previa = $25, sexo = $26,
-        ginecologicos = $27, notas = $28,
-        updated_at = NOW()
-       WHERE id = $29 AND deleted_at IS NULL
-       RETURNING *`,
-      [
+        ginecologicos = $27, notas = $28`
+        
+    const params = [
         cita_id || null, nombre, telefono, correo || null, edad || null,
         ocupacion || null, motivo_consulta || null, patologias || null,
         antecedentes_familiares || null, bioquimicos || null, farmacos || null,
@@ -150,9 +153,21 @@ export async function updatePaciente(req, res) {
         alergias || null, ultraprocesados || null, gustos || null,
         logistica_cocina || null, estilo_vida || null, fecha || null,
         horario || null, atencion_previa || 'no', sexo || null,
-        ginecologicos || null, notas || null, id
-      ]
-    )
+        ginecologicos || null, notas || null
+    ]
+
+    // Actualizar contraseña solo si se proporciona una nueva
+    if (contrasena) {
+      const salt = await bcrypt.genSalt(10)
+      const hash = await bcrypt.hash(contrasena, salt)
+      params.push(hash)
+      query += `, contrasena = $${params.length}`
+    }
+
+    params.push(id)
+    query += `, updated_at = NOW() WHERE id = $${params.length} AND deleted_at IS NULL RETURNING *`
+
+    const result = await pool.query(query, params)
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Expediente de paciente no encontrado' })

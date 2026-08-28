@@ -24,6 +24,17 @@
           />
         </div>
 
+        <div class="form-group">
+          <label>Contraseña *</label>
+          <input
+            v-model="password"
+            type="password"
+            placeholder="Ingresa tu contraseña"
+            class="form-input"
+            required
+          />
+        </div>
+
         <button type="submit" :disabled="cargando" class="btn-login">
           {{ cargando ? 'Verificando Expediente...' : 'Ingresar a mi Portal' }}
         </button>
@@ -44,19 +55,24 @@ import api from '../services/api'
 
 const router = useRouter()
 const identificador = ref('')
+const password = ref('')
 const cargando = ref(false)
 const errorMsg = ref('')
 
 const handleLogin = async () => {
-  if (!identificador.value.trim()) return
+  if (!identificador.value.trim() || !password.value.trim()) return
   try {
     cargando.value = true
     errorMsg.value = ''
-    const res = await api.post('/public/paciente/login', {
-      identificador: identificador.value.trim()
+    const res = await api.post('/auth/login-paciente', {
+      email: identificador.value.trim(),
+      password: password.value.trim()
     })
 
-    if (res.paciente) {
+    if (res.paciente && res.token) {
+      localStorage.setItem('paciente_token', res.token)
+      localStorage.setItem('paciente_data', JSON.stringify(res.paciente))
+      // Mantenemos compatibilidad hacia atrás si hay algo usándolo
       localStorage.setItem('nutriker_paciente', JSON.stringify(res.paciente))
       router.push('/portal')
     }

@@ -69,24 +69,37 @@ export async function login(req, res) {
 export async function loginPaciente(req, res) {
   const { email, password } = req.body
 
-  if (!email) {
-    return res.status(400).json({ error: 'El correo o teléfono es requerido' })
+  if (!email || !password) {
+    return res.status(400).json({ error: 'El identificador y la contraseña son requeridos' })
   }
 
   try {
     // Buscar paciente por correo, teléfono o ID activo
     const result = await pool.query(
-      `SELECT id, nombre, correo, telefono, edad
+      `SELECT id, nombre, correo, telefono, edad, contrasena
        FROM pacientes
-       WHERE (LOWER(correo) = LOWER($1) OR telefono = $1 OR id = $1) AND deleted_at IS NULL`,
+       WHERE (LOWER(correo) = LOWER($1) OR telefono = $1 OR id::text = $1) AND deleted_at IS NULL`,
       [email.trim()]
     )
 
     if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Paciente no encontrado. Verifica tu correo o teléfono registrado.' })
+      return res.status(401).json({ error: 'Credenciales incorrectas. Verifica tu información.' })
     }
 
     const paciente = result.rows[0]
+
+    // Validar contraseña
+    let contrasenaValida = false
+    if (paciente.contrasena && paciente.contrasena.startsWith('$2')) {
+      contrasenaValida = await bcrypt.compare(password, paciente.contrasena)
+    } else if (paciente.contrasena) {
+      // Fallback para texto plano si existiera
+      contrasenaValida = (password === paciente.contrasena)
+    }
+
+    if (!contrasenaValida) {
+      return res.status(401).json({ error: 'Credenciales incorrectas. Verifica tu contraseña.' })
+    }
 
     // Generar Token JWT del paciente
     const tokenPayload = {
