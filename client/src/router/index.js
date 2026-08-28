@@ -43,9 +43,14 @@ const routes = [
     component: () => import('../views/RoyalCanin.vue')
   },
   {
-    path: '/login',
-    name: 'Login',
-    component: () => import('../views/Login.vue')
+    path: '/miperfil',
+    name: 'MiPerfil',
+    component: () => import('../views/MiPerfil.vue')
+  },
+  {
+    path: '/crear-password',
+    name: 'CrearPassword',
+    component: () => import('../views/CrearPassword.vue')
   }
 ]
 

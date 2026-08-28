@@ -1,6 +1,9 @@
 import pool from '../db/pool.js'
 import { generarIdUnico } from '../utils/generarId.js'
 import bcrypt from 'bcrypt'
+import jwt from 'jsonwebtoken'
+
+const JWT_SECRET = process.env.JWT_SECRET || 'nutriker_secreto_super_seguro_2024'
 
 // GET /api/pacientes — Listar todos los pacientes / expedientes activos
 export async function getPacientes(req, res) {
@@ -83,9 +86,20 @@ export async function createPaciente(req, res) {
   try {
     const newId = await generarIdUnico('pacientes')
 
-    // Hashear contraseña (si no se provee, usar el teléfono por defecto)
-    const salt = await bcrypt.genSalt(10)
-    const hash = await bcrypt.hash(contrasena || telefono, salt)
+    let hash = null;
+    let tokenInvitacion = null;
+
+    if (contrasena) {
+      // Si ya trae contraseña (viene de /reservar), la hasheamos normal
+      const salt = await bcrypt.genSalt(10)
+      hash = await bcrypt.hash(contrasena, salt)
+    } else {
+      // Si la Dra. lo registra en admin y no le pone contraseña, generamos una inaccesible
+      // y creamos un token de invitación para que el paciente la defina.
+      const salt = await bcrypt.genSalt(10)
+      hash = await bcrypt.hash(Math.random().toString(36), salt)
+      tokenInvitacion = jwt.sign({ id: newId, type: 'password_create' }, JWT_SECRET, { expiresIn: '7d' })
+    }
 
     const result = await pool.query(
       `INSERT INTO pacientes (
@@ -109,6 +123,18 @@ export async function createPaciente(req, res) {
         ginecologicos || null, notas || null, hash
       ]
     )
+
+    // Si se generó un token de invitación y hay correo, simulamos el envío (Opción B)
+    if (tokenInvitacion && correo) {
+      const link = `http://localhost:5174/crear-password?token=${tokenInvitacion}`
+      console.log('\n=============================================')
+      console.log(`📧 SIMULACIÓN DE CORREO DE INVITACIÓN A: ${correo}`)
+      console.log(`Asunto: ¡Bienvenido a NutriKer! Crea tu contraseña`)
+      console.log(`Hola ${nombre}, la Dra. Karla ha creado tu expediente.`)
+      console.log(`Haz clic en el siguiente enlace para crear tu contraseña y acceder a tu portal:`)
+      console.log(link)
+      console.log('=============================================\n')
+    }
 
     res.status(201).json(result.rows[0])
   } catch (err) {
