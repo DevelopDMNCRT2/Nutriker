@@ -1,622 +1,729 @@
 <template>
-  <div class="portal-container container">
-
-    <!-- ── VISTA DE AUTENTICACIÓN (LOGIN) ── -->
-    <div v-if="!paciente" class="portal-login-card">
-      <div class="portal-header text-center">
-        <div class="portal-icon-wrapper">
-          <svg class="portal-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+  <div class="portal-layout">
+    <!-- ── HEADER FLOTANTE (GLASSMORPHISM) ── -->
+    <header class="glass-header">
+      <div class="header-content">
+        <div class="user-info">
+          <div class="avatar">{{ inicialNombre }}</div>
+          <div>
+            <h1 class="greeting">Hola, {{ nombreCorto }}</h1>
+            <p class="subtitle">Expediente #{{ paciente?.id }}</p>
+          </div>
+        </div>
+        <button @click="cerrarSesion" class="logout-btn" title="Cerrar sesión">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
-        </div>
-        <h1 class="portal-title">Portal del Paciente</h1>
-        <p class="portal-subtitle">Ingresa tu correo registrado, número de teléfono o ID de expediente para consultar tu menú y evolución.</p>
-      </div>
-
-      <form @submit.prevent="iniciarSesion" class="portal-form">
-        <div class="form-group">
-          <label for="identificador-input" class="form-label">Correo, Teléfono o ID de Expediente</label>
-          <input
-            id="identificador-input"
-            v-model="identificador"
-            type="text"
-            required
-            placeholder="ej. correo@ejemplo.com o 5512345678"
-            class="form-input"
-          />
-        </div>
-
-        <div v-if="errorLogin" class="alert-error">
-          {{ errorLogin }}
-        </div>
-
-        <button type="submit" :disabled="cargando" class="btn btn-primary btn-block">
-          {{ cargando ? 'Verificando...' : 'Ingresar a mi Portal' }}
-        </button>
-      </form>
-    </div>
-
-    <!-- ── VISTA DEL PORTAL (PACIENTE AUTENTICADO) ── -->
-    <div v-else class="portal-dashboard">
-      
-      <!-- Encabezado de Bienvenida -->
-      <div class="portal-welcome-header">
-        <div>
-          <span class="badge-paciente">Expediente #{{ paciente.id }}</span>
-          <h1 class="welcome-name">Hola, {{ paciente.nombre }}</h1>
-          <p class="welcome-sub">{{ paciente.correo || paciente.telefono }}</p>
-        </div>
-        <button @click="cerrarSesion" class="btn-logout">
-          Cerrar Sesión
         </button>
       </div>
+    </header>
 
-      <!-- Pestañas -->
+    <!-- ── NAVEGACIÓN POR PESTAÑAS ── -->
+    <nav class="portal-tabs-wrapper">
       <div class="portal-tabs">
-        <button
-          @click="tabActiva = 'menu'"
-          :class="['tab-btn', { active: tabActiva === 'menu' }]"
-        >
-          Mi Menú Semanal
+        <button @click="tabActiva = 'inicio'" :class="['tab-item', { active: tabActiva === 'inicio' }]">
+          <svg class="tab-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+          Inicio
         </button>
-        <button
-          @click="tabActiva = 'expediente'"
-          :class="['tab-btn', { active: tabActiva === 'expediente' }]"
-        >
-          Mi Evolución y Expediente
+        <button @click="tabActiva = 'menu'" :class="['tab-item', { active: tabActiva === 'menu' }]">
+          <svg class="tab-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Mi Menú
+        </button>
+        <button @click="abrirEvolucion" :class="['tab-item', { active: tabActiva === 'evolucion' }]">
+          <svg class="tab-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+          Evolución
         </button>
       </div>
+    </nav>
 
-      <!-- CONTENIDO PESTAÑA 1: MENÚ SEMANAL -->
-      <div v-if="tabActiva === 'menu'" class="tab-content">
-        <div v-if="cargandoMenu" class="loading-state">
-          Cargando tu plan nutricional...
-        </div>
+    <!-- ── ÁREA DE CONTENIDO PRINCIPAL ── -->
+    <main class="portal-main">
+      <div v-if="cargandoGeneral" class="loader-container">
+        <div class="spinner"></div>
+        <p>Cargando tu información...</p>
+      </div>
 
-        <div v-else-if="!menuActivo" class="empty-card text-center">
-          <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-          </svg>
-          <p class="empty-title">Aún no tienes un menú semanal asignado.</p>
-          <p class="empty-sub">Tu nutrióloga lo publicará aquí en tu próxima consulta.</p>
-        </div>
-
-        <div v-else class="menu-wrapper">
-          <div class="menu-banner">
-            <div>
-              <span class="banner-tag">Plan Nutricional Activo</span>
-              <h2 class="banner-title">{{ menuActivo.nombre }}</h2>
-              <p class="banner-sub">Semana de inicio: {{ menuActivo.semanaInicio }}</p>
-            </div>
+      <div v-else class="tab-content-container">
+        
+        <!-- ── PESTAÑA: INICIO ── -->
+        <div v-if="tabActiva === 'inicio'" class="tab-inicio animate-fade-in">
+          
+          <div class="glass-card gradient-card">
+            <div class="card-icon">🎯</div>
+            <h2>Objetivo Nutricional</h2>
+            <p>{{ expediente?.objetivoNutricional || 'Mantenimiento y Salud General' }}</p>
           </div>
 
-          <!-- Días de la semana -->
-          <div class="dias-grid">
-            <div
-              v-for="dia in diasSemana"
-              :key="dia.key"
-              class="dia-card"
-            >
-              <div class="dia-header">
-                <h3>{{ dia.label }}</h3>
-              </div>
+          <div class="metrics-grid mt-4">
+            <div class="glass-card metric-card">
+              <span class="metric-label">Último Peso</span>
+              <span class="metric-value">{{ ultimoPeso }} kg</span>
+            </div>
+            <div class="glass-card metric-card">
+              <span class="metric-label">Estatura</span>
+              <span class="metric-value">{{ datosPaciente?.estatura || '--' }} m</span>
+            </div>
+          </div>
+          
+          <div v-if="expediente?.diagnostico" class="glass-card info-card mt-4">
+            <h3 class="card-title">Diagnóstico Actual</h3>
+            <p class="text-sm text-gray-700 mt-2">{{ expediente.diagnostico }}</p>
+          </div>
 
-              <div class="tiempos-list">
-                <div v-for="tiempo in tiemposComida" :key="tiempo.key" class="tiempo-item">
-                  <span class="tiempo-label">{{ tiempo.label }}</span>
-                  <div class="tiempo-val">
-                    {{ menuActivo[`${dia.key}_${tiempo.key}`] || 'Libre / No especificado' }}
+          <div class="glass-card info-card mt-4 text-center">
+             <div class="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
+               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+             </div>
+             <h3 class="card-title">Seguimiento Clínico</h3>
+             <p class="text-sm text-gray-500 mt-1 mb-4">¿Tienes dudas con tu menú o necesitas agendar tu próxima revisión?</p>
+             <a href="https://wa.me/5211234567890" target="_blank" class="btn-primary">
+               Contactar a la Clínica
+             </a>
+          </div>
+        </div>
+
+        <!-- ── PESTAÑA: MENÚ INTELIGENTE ── -->
+        <div v-if="tabActiva === 'menu'" class="tab-menu animate-fade-in">
+          <div v-if="!menuActivo" class="glass-card text-center py-10">
+            <div class="text-4xl mb-3">🥗</div>
+            <h3 class="text-lg font-bold text-gray-800">No hay un menú activo</h3>
+            <p class="text-sm text-gray-500 mt-2">Tu nutrióloga asignará tu plan nutricional muy pronto.</p>
+          </div>
+
+          <div v-else>
+            <div class="menu-header mb-4">
+              <h2 class="text-xl font-bold text-gray-800">{{ menuActivo.nombre }}</h2>
+              <p class="text-xs text-brand-600 font-semibold bg-brand-50 inline-block px-3 py-1 rounded-full mt-2">Semana del {{ formatFecha(menuActivo.semanaInicio) }}</p>
+            </div>
+
+            <!-- Selector de Días Horizontal -->
+            <div class="day-selector">
+              <button 
+                v-for="dia in diasSemana" 
+                :key="dia.key"
+                @click="diaSeleccionado = dia.key"
+                :class="['day-btn', { active: diaSeleccionado === dia.key }]"
+              >
+                <span class="day-name">{{ dia.corto }}</span>
+              </button>
+            </div>
+
+            <!-- Comidas del Día Seleccionado -->
+            <div class="meals-container mt-4 space-y-3">
+              <template v-for="tiempo in tiemposComida" :key="tiempo.key">
+                <!-- Filtramos los tiempos que dicen "Libre" o "Ayuno" para no mostrarlos y adaptarnos a la estructura dinámica de la doctora -->
+                <div 
+                  v-if="menuActivo[`${diaSeleccionado}_${tiempo.key}`] && !isLibreOAyuno(menuActivo[`${diaSeleccionado}_${tiempo.key}`])"
+                  class="glass-card meal-card"
+                >
+                  <div class="meal-header">
+                    <span class="meal-icon">{{ tiempo.icon }}</span>
+                    <h4 class="meal-title">{{ tiempo.label }}</h4>
+                  </div>
+                  <div class="meal-body">
+                    {{ menuActivo[`${diaSeleccionado}_${tiempo.key}`] }}
                   </div>
                 </div>
+              </template>
+            </div>
+
+            <div v-if="menuActivo.notas" class="glass-card mt-6 border-l-4 border-l-yellow-400 bg-yellow-50/50">
+              <h4 class="text-sm font-bold text-yellow-800 mb-1">Notas de la Nutrióloga</h4>
+              <p class="text-sm text-yellow-700 leading-relaxed">{{ menuActivo.notas }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── PESTAÑA: EVOLUCIÓN (GRÁFICAS) ── -->
+        <div v-if="tabActiva === 'evolucion'" class="tab-evolucion animate-fade-in">
+          <div class="glass-card mb-4">
+            <h3 class="card-title mb-4">Mi Evolución de Peso (kg)</h3>
+            <div v-if="mediciones.length < 2" class="text-center py-6">
+              <p class="text-sm text-gray-500">Se necesitan al menos 2 consultas para generar tu gráfica de evolución.</p>
+            </div>
+            <div class="chart-wrapper" :class="{ 'hidden': mediciones.length < 2 }">
+              <canvas id="evolutionChart"></canvas>
+            </div>
+          </div>
+
+          <h3 class="font-bold text-gray-800 ml-1 mb-3 mt-6">Historial de Consultas</h3>
+          <div class="space-y-3">
+            <div v-for="medicion in [...mediciones].reverse()" :key="medicion.id" class="glass-card history-card">
+              <div class="history-header">
+                <span class="history-date">{{ formatFecha(medicion.fecha) }}</span>
+                <span class="history-weight font-bold text-brand-600">{{ medicion.peso }} kg</span>
+              </div>
+              <div class="history-details mt-2 text-xs text-gray-500 flex gap-4">
+                <span v-if="medicion.imc">IMC: {{ medicion.imc }}</span>
+                <span v-if="medicion.cintura">Cintura: {{ medicion.cintura }} cm</span>
               </div>
             </div>
           </div>
-
-          <div v-if="menuActivo.notas" class="notas-card">
-            <h4>Indicaciones Especiales de la Nutrióloga</h4>
-            <p>{{ menuActivo.notas }}</p>
-          </div>
         </div>
+
       </div>
-
-      <!-- CONTENIDO PESTAÑA 2: EXPEDIENTE -->
-      <div v-if="tabActiva === 'expediente'" class="tab-content">
-        <div class="expediente-card">
-          <h3 class="card-title">Resumen de Expediente Clínico</h3>
-          
-          <div class="info-grid">
-            <div class="info-item">
-              <span class="info-label">Paciente</span>
-              <span class="info-val">{{ datosPaciente?.nombre || paciente.nombre }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Teléfono</span>
-              <span class="info-val">{{ datosPaciente?.telefono || paciente.telefono }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Edad / Estatura</span>
-              <span class="info-val">
-                {{ datosPaciente?.edad ? datosPaciente.edad + ' años' : 'N/A' }} | {{ datosPaciente?.estatura ? datosPaciente.estatura + ' m' : 'N/A' }}
-              </span>
-            </div>
-          </div>
-
-          <div v-if="datosPaciente?.motivo_consulta" class="motivo-card">
-            <h4>Objetivo / Motivo de Consulta</h4>
-            <p>{{ datosPaciente.motivo_consulta }}</p>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
+    </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '../services/api.js'
 
-const identificador = ref('')
-const cargando = ref(false)
-const errorLogin = ref('')
-
+const router = useRouter()
 const paciente = ref(null)
 const datosPaciente = ref(null)
+const expediente = ref(null)
+const mediciones = ref([])
 const menuActivo = ref(null)
-const cargandoMenu = ref(false)
 
-const tabActiva = ref('menu')
+const cargandoGeneral = ref(true)
+const tabActiva = ref('inicio')
 
 const diasSemana = [
-  { key: 'lunes', label: 'Lunes' },
-  { key: 'martes', label: 'Martes' },
-  { key: 'miercoles', label: 'Miércoles' },
-  { key: 'jueves', label: 'Jueves' },
-  { key: 'viernes', label: 'Viernes' },
-  { key: 'sabado', label: 'Sábado' },
-  { key: 'domingo', label: 'Domingo' },
+  { key: 'lunes', label: 'Lunes', corto: 'L' },
+  { key: 'martes', label: 'Martes', corto: 'M' },
+  { key: 'miercoles', label: 'Miércoles', corto: 'M' },
+  { key: 'jueves', label: 'Jueves', corto: 'J' },
+  { key: 'viernes', label: 'Viernes', corto: 'V' },
+  { key: 'sabado', label: 'Sábado', corto: 'S' },
+  { key: 'domingo', label: 'Domingo', corto: 'D' },
 ]
+
+const diaSeleccionado = ref('lunes')
 
 const tiemposComida = [
-  { key: 'desayuno', label: 'Desayuno' },
-  { key: 'colacion_am', label: 'Colación AM' },
-  { key: 'comida', label: 'Comida' },
-  { key: 'colacion_pm', label: 'Colación PM' },
-  { key: 'cena', label: 'Cena' },
+  { key: 'desayuno', label: 'Desayuno', icon: '🌅' },
+  { key: 'colacion_am', label: 'Colación Mañana', icon: '🍎' },
+  { key: 'comida', label: 'Comida', icon: '🍲' },
+  { key: 'colacion_pm', label: 'Colación Tarde', icon: '🍌' },
+  { key: 'cena', label: 'Cena', icon: '🌙' },
 ]
 
-async function iniciarSesion() {
-  if (!identificador.value.trim()) return
-  cargando.value = true
-  errorLogin.value = ''
+const nombreCorto = computed(() => {
+  if (!paciente.value?.nombre) return ''
+  return paciente.value.nombre.split(' ')[0]
+})
 
-  try {
-    const res = await api.post('/auth/login-paciente', {
-      email: identificador.value.trim()
-    })
-    
-    paciente.value = res.paciente
-    localStorage.setItem('paciente_token', res.token)
-    localStorage.setItem('paciente_data', JSON.stringify(res.paciente))
+const inicialNombre = computed(() => {
+  return nombreCorto.value.charAt(0).toUpperCase()
+})
 
-    await cargarDatosPortal(res.paciente.id)
-  } catch (err) {
-    console.error('Error al iniciar sesión:', err)
-    errorLogin.value = err.response?.data?.error || 'No fue posible iniciar sesión. Verifica tu información.'
-  } finally {
-    cargando.value = false
-  }
+const ultimoPeso = computed(() => {
+  if (mediciones.value.length === 0) return '--'
+  return mediciones.value[mediciones.value.length - 1].peso
+})
+
+function formatFecha(fechaStr) {
+  if (!fechaStr) return ''
+  const [y, m, d] = fechaStr.split('-')
+  return `${d}/${m}/${y}`
 }
 
-async function cargarDatosPortal(pacienteId) {
-  cargandoMenu.value = true
-  try {
-    const pacienteRes = await api.get(`/pacientes/${pacienteId}`).catch(() => null)
-    datosPaciente.value = pacienteRes
+function isLibreOAyuno(texto) {
+  if (!texto) return true
+  const lower = texto.toLowerCase()
+  return lower.includes('libre') || lower.includes('ayuno') || lower.includes('no aplica') || lower.trim() === ''
+}
 
+async function cargarDatosGlobales() {
+  cargandoGeneral.value = true
+  try {
+    const pacienteId = paciente.value.id
+    
+    // 1. Obtener Datos Generales
+    const pRes = await api.get(`/pacientes/${pacienteId}`).catch(() => null)
+    if (pRes) datosPaciente.value = pRes
+
+    // 2. Obtener Expediente y Mediciones
+    const expRes = await api.get(`/expedientes/paciente/${pacienteId}`).catch(() => null)
+    if (expRes) {
+      expediente.value = expRes.expediente
+      mediciones.value = expRes.mediciones || []
+    }
+
+    // 3. Obtener Menú Activo
     const menusRes = await api.get(`/menus/paciente/${pacienteId}`).catch(() => [])
     if (Array.isArray(menusRes) && menusRes.length > 0) {
-      menuActivo.value = menusRes[0]
+      menuActivo.value = menusRes[0] // Asumimos que el primero (más reciente) es el activo
     }
+
   } catch (err) {
     console.error('Error cargando portal:', err)
   } finally {
-    cargandoMenu.value = false
+    cargandoGeneral.value = false
   }
 }
 
+let chartInstance = null
+async function abrirEvolucion() {
+  tabActiva.value = 'evolucion'
+  if (mediciones.value.length >= 2) {
+    await nextTick()
+    dibujarGrafica()
+  }
+}
+
+function dibujarGrafica() {
+  const canvas = document.getElementById('evolutionChart')
+  if (!canvas) return
+
+  if (chartInstance) {
+    chartInstance.destroy()
+  }
+
+  const fechas = mediciones.value.map(m => formatFecha(m.fecha))
+  const pesos = mediciones.value.map(m => m.peso)
+
+  const ctx = canvas.getContext('2d')
+  
+  const gradient = ctx.createLinearGradient(0, 0, 0, 300)
+  gradient.addColorStop(0, 'rgba(74, 140, 91, 0.4)')
+  gradient.addColorStop(1, 'rgba(74, 140, 91, 0.0)')
+
+  // @ts-ignore (Chart is global from CDN)
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: fechas,
+      datasets: [{
+        label: 'Peso (kg)',
+        data: pesos,
+        borderColor: '#4a8c5b',
+        backgroundColor: gradient,
+        borderWidth: 3,
+        pointBackgroundColor: '#ffffff',
+        pointBorderColor: '#4a8c5b',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        fill: true,
+        tension: 0.4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1f2937',
+          padding: 10,
+          cornerRadius: 8,
+          displayColors: false,
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: false,
+          grid: { color: '#f3f4f6', borderDash: [5, 5] },
+          ticks: { color: '#6b7280', font: { family: 'Inter' } }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { color: '#6b7280', font: { family: 'Inter' } }
+        }
+      }
+    }
+  })
+}
+
 function cerrarSesion() {
-  paciente.value = null
-  datosPaciente.value = null
-  menuActivo.value = null
   localStorage.removeItem('paciente_token')
   localStorage.removeItem('paciente_data')
+  router.push('/login')
 }
 
 onMounted(() => {
   const saved = localStorage.getItem('paciente_data')
-  if (saved) {
+  const token = localStorage.getItem('paciente_token')
+  
+  if (saved && token) {
     try {
       paciente.value = JSON.parse(saved)
-      cargarDatosPortal(paciente.value.id)
+      cargarDatosGlobales()
     } catch (e) {
-      localStorage.removeItem('paciente_data')
+      cerrarSesion()
     }
+  } else {
+    cerrarSesion()
   }
 })
 </script>
 
 <style scoped>
-.portal-container {
-  padding-top: 3rem;
-  padding-bottom: 5rem;
-  min-height: 70vh;
+/* ── FUENTES Y VARIABLES GLOBALES ── */
+.portal-layout {
+  --brand: #4a8c5b;
+  --brand-light: #eaf3ed;
+  --bg-color: #f7f9f8;
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --shadow-soft: 0 8px 32px rgba(31, 38, 135, 0.04);
+  --shadow-hard: 0 10px 40px rgba(0, 0, 0, 0.08);
+  
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  background-color: var(--bg-color);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(74,140,91,0.06) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(74,140,91,0.03) 0px, transparent 50%);
+  color: #1f2937;
+  padding-bottom: 80px;
 }
 
-/* --- Card Login --- */
-.portal-login-card {
-  max-width: 480px;
+/* ── ANIMACIONES GLOBALES ── */
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── GLASSMORPHISM HEADER ── */
+.glass-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--glass-border);
+  padding: 1rem 1.25rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 600px;
   margin: 0 auto;
-  background-color: var(--color-white);
-  border-radius: var(--radius-lg);
-  padding: 2.5rem;
-  box-shadow: var(--shadow-md);
-  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-.portal-icon-wrapper {
-  width: 56px;
-  height: 56px;
-  background-color: rgba(74, 140, 91, 0.1);
-  color: var(--color-primary);
-  border-radius: var(--radius-full);
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--brand), #346841);
+  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 1rem;
-}
-
-.portal-icon {
-  width: 28px;
-  height: 28px;
-}
-
-.portal-title {
-  font-size: 1.85rem;
-  color: var(--color-secondary);
-  margin-bottom: 0.5rem;
-}
-
-.portal-subtitle {
-  font-size: 0.875rem;
-  color: var(--color-text-light);
-  line-height: 1.5;
-  margin-bottom: 1.5rem;
-}
-
-.portal-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  text-align: left;
-}
-
-.form-label {
-  font-size: 0.8rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  color: var(--color-text);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-family: 'Outfit', sans-serif;
+  box-shadow: 0 4px 12px rgba(74, 140, 91, 0.25);
 }
 
-.form-input {
-  width: 100%;
-  padding: 0.875rem 1.25rem;
-  border-radius: var(--radius-md);
-  border: 1.5px solid #e2ded8;
-  font-family: var(--font-main);
-  font-size: 0.95rem;
-  outline: none;
-  transition: all 0.2s ease;
-  background-color: var(--color-bg);
+.greeting {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.2;
 }
 
-.form-input:focus {
-  border-color: var(--color-primary);
-  background-color: var(--color-white);
-  box-shadow: 0 0 0 3px rgba(74, 140, 91, 0.15);
-}
-
-.btn-block {
-  width: 100%;
-  margin-top: 0.5rem;
-}
-
-.alert-error {
-  padding: 0.75rem 1rem;
-  background-color: #fde8e8;
-  border: 1px solid #f8b4b4;
-  color: #9b1c1c;
-  font-size: 0.85rem;
-  border-radius: var(--radius-md);
-}
-
-/* --- Dashboard --- */
-.portal-dashboard {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.portal-welcome-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background-color: var(--color-white);
-  padding: 1.75rem 2rem;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid rgba(0, 0, 0, 0.04);
-}
-
-.badge-paciente {
+.subtitle {
   font-size: 0.75rem;
-  font-weight: 700;
-  background-color: rgba(168, 74, 84, 0.1);
-  color: var(--color-secondary);
-  padding: 0.25rem 0.75rem;
-  border-radius: var(--radius-full);
+  color: #6b7280;
+  font-weight: 500;
 }
 
-.welcome-name {
-  font-size: 1.75rem;
-  color: var(--color-text);
-  margin-top: 0.25rem;
-}
-
-.welcome-sub {
-  font-size: 0.85rem;
-  color: var(--color-text-light);
-}
-
-.btn-logout {
-  background-color: #fce8e6;
-  color: var(--color-secondary);
-  font-weight: 700;
-  font-size: 0.8rem;
-  padding: 0.6rem 1.25rem;
-  border-radius: var(--radius-full);
+.logout-btn {
+  color: #9ca3af;
+  padding: 8px;
+  border-radius: 12px;
+  transition: all 0.2s;
+  background: transparent;
   border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
 }
 
-.btn-logout:hover {
-  background-color: var(--color-secondary);
-  color: var(--color-white);
+.logout-btn:hover {
+  background: #f3f4f6;
+  color: #ef4444;
 }
 
-/* Tabs */
-.portal-tabs {
-  display: flex;
-  gap: 1.5rem;
-  border-bottom: 2px solid #e8e4dc;
+/* ── MAIN CONTENT ── */
+.portal-main {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1.25rem;
 }
 
-.tab-btn {
-  background: none;
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 1.25rem;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.2s;
+}
+
+/* ── INICIO CARDS ── */
+.gradient-card {
+  background: linear-gradient(135deg, var(--brand) 0%, #346841 100%);
+  color: white;
   border: none;
-  font-family: var(--font-serif);
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--color-text-light);
-  padding-bottom: 0.75rem;
-  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(74, 140, 91, 0.3);
   position: relative;
-  transition: color 0.2s ease;
+  overflow: hidden;
 }
 
-.tab-btn.active {
-  color: var(--color-primary);
-}
-
-.tab-btn.active::after {
+.gradient-card::after {
   content: '';
   position: absolute;
-  bottom: -2px;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background-color: var(--color-primary);
-  border-radius: 3px 3px 0 0;
+  top: -50%;
+  right: -20%;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+  border-radius: 50%;
 }
 
-/* Tab Content */
-.menu-banner {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-  color: var(--color-white);
-  padding: 2rem;
-  border-radius: var(--radius-lg);
-  margin-bottom: 1.5rem;
-}
-
-.banner-tag {
-  font-size: 0.75rem;
-  font-weight: 700;
+.gradient-card h2 {
+  font-size: 0.8rem;
   text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.2);
-  padding: 0.25rem 0.75rem;
-  border-radius: var(--radius-full);
-}
-
-.banner-title {
-  color: var(--color-white);
-  font-size: 1.5rem;
-  margin-top: 0.5rem;
-}
-
-.banner-sub {
-  font-size: 0.85rem;
+  letter-spacing: 0.05em;
   opacity: 0.9;
-}
-
-.dias-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.25rem;
-}
-
-.dia-card {
-  background-color: var(--color-white);
-  border-radius: var(--radius-md);
-  padding: 1.25rem;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.dia-header h3 {
-  font-size: 1.1rem;
-  color: var(--color-primary);
-  border-bottom: 1px solid #f0ece5;
-  padding-bottom: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.tiempos-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.tiempo-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.tiempo-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--color-text-light);
-}
-
-.tiempo-val {
-  font-size: 0.85rem;
-  background-color: var(--color-bg);
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  color: var(--color-text);
-  line-height: 1.4;
-}
-
-.notas-card {
-  background-color: #fff9e6;
-  border: 1px solid #ffe699;
-  border-radius: var(--radius-md);
-  padding: 1.25rem;
-  margin-top: 1.5rem;
-}
-
-.notas-card h4 {
-  font-size: 0.9rem;
-  color: #856404;
+  font-weight: 600;
   margin-bottom: 0.25rem;
 }
 
-.notas-card p {
-  font-size: 0.85rem;
-  color: #533f03;
+.gradient-card p {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
-.expediente-card {
-  background-color: var(--color-white);
-  border-radius: var(--radius-lg);
-  padding: 2rem;
-  box-shadow: var(--shadow-sm);
+.card-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.metric-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.metric-value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--brand);
 }
 
 .card-title {
-  font-size: 1.3rem;
-  color: var(--color-secondary);
-  border-bottom: 1px solid #f0ece5;
-  padding-bottom: 0.75rem;
-  margin-bottom: 1.25rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1f2937;
 }
 
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+.btn-primary {
+  display: inline-block;
+  background: var(--brand);
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  text-decoration: none;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 15px rgba(74, 140, 91, 0.3);
 }
 
-.info-item {
-  background-color: var(--color-bg);
-  padding: 1rem;
-  border-radius: var(--radius-md);
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(74, 140, 91, 0.4);
+}
+
+/* ── MENÚ CARDS ── */
+.day-selector {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scrollbar-width: none; 
+}
+.day-selector::-webkit-scrollbar {
+  display: none;
+}
+
+.day-btn {
+  background: var(--glass-bg);
+  border: 1px solid #e5e7eb;
+  min-width: 44px;
+  height: 50px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #4b5563;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.day-btn.active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(74, 140, 91, 0.25);
+}
+
+.meal-card {
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
+  border-left: 4px solid var(--brand);
 }
 
-.info-label {
+.meal-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.meal-icon {
+  font-size: 1.25rem;
+}
+
+.meal-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #374151;
+}
+
+.meal-body {
+  font-size: 0.9rem;
+  color: #4b5563;
+  line-height: 1.5;
+  margin-left: 2rem;
+}
+
+/* ── EVOLUCIÓN ── */
+.chart-wrapper {
+  height: 250px;
+  width: 100%;
+  position: relative;
+}
+
+.history-card {
+  padding: 1rem;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.history-date {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* ── BOTTOM NAV (TABS) ── */
+.portal-tabs-wrapper {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--glass-border);
+  padding: 0.5rem 1rem 1.5rem 1rem;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.03);
+}
+
+.portal-tabs {
+  display: flex;
+  justify-content: space-around;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
   font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--color-text-light);
+  font-weight: 600;
+  transition: all 0.3s;
 }
 
-.info-val {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--color-text);
-  margin-top: 0.2rem;
+.tab-item.active {
+  color: var(--brand);
 }
 
-.motivo-card {
-  background-color: rgba(74, 140, 91, 0.08);
-  border-radius: var(--radius-md);
-  padding: 1.25rem;
+.tab-icon {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.motivo-card h4 {
+.tab-item.active .tab-icon {
+  transform: translateY(-2px) scale(1.1);
+}
+
+/* ── LOADER ── */
+.loader-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 50vh;
+  color: #6b7280;
   font-size: 0.9rem;
-  color: var(--color-primary);
 }
 
-.motivo-card p {
-  font-size: 0.9rem;
-  color: var(--color-text);
-  margin-top: 0.25rem;
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--brand-light);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
 }
 
-.empty-card {
-  background-color: var(--color-white);
-  padding: 3rem 1.5rem;
-  border-radius: var(--radius-lg);
-}
-
-.empty-icon {
-  width: 48px;
-  height: 48px;
-  color: #ccc;
-}
-
-.empty-title {
-  font-weight: 700;
-  font-size: 1rem;
-  margin-top: 0.5rem;
-}
-
-.empty-sub {
-  font-size: 0.85rem;
-  color: var(--color-text-light);
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>
