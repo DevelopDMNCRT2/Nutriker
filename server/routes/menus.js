@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import {
-  getMenusByCliente,
+  getMenusByPaciente,
   getMenuById,
   createMenu,
   updateMenu,
@@ -9,7 +9,7 @@ import {
 
 const router = Router()
 
-router.get('/cliente/:clienteId', getMenusByCliente)
+router.get('/paciente/:pacienteId', getMenusByPaciente)
 router.get('/:id', getMenuById)
 router.post('/', createMenu)
 router.put('/:id', updateMenu)

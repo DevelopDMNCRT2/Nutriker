@@ -11,27 +11,26 @@ async function generarIdUnico(tabla) {
 const DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
 const TIEMPOS = ['desayuno', 'colacion_am', 'comida', 'colacion_pm', 'cena']
 
-// Genera la lista de columnas del menú para SELECT e INSERT
 const columnasMenu = DIAS.flatMap(dia => TIEMPOS.map(t => `${dia}_${t}`))
 
-// ─── GET /api/menus/cliente/:clienteId ─────────────────────────────────────
-export async function getMenusByCliente(req, res) {
-  const { clienteId } = req.params
+// ─── GET /api/menus/paciente/:pacienteId ───────────────────────────────────
+export async function getMenusByPaciente(req, res) {
+  const { pacienteId } = req.params
   try {
     const result = await pool.query(
-      `SELECT id, cliente_id AS "clienteId", nombre,
+      `SELECT id, paciente_id AS "pacienteId", nombre,
               TO_CHAR(semana_inicio, 'YYYY-MM-DD') AS "semanaInicio",
               ${columnasMenu.join(', ')},
               notas, created_at AS "createdAt"
        FROM menus_semanales
-       WHERE cliente_id = $1
+       WHERE paciente_id = $1
        ORDER BY semana_inicio DESC`,
-      [clienteId]
+      [pacienteId]
     )
     res.json(result.rows)
   } catch (err) {
-    console.error('getMenusByCliente:', err.message)
-    res.status(500).json({ error: 'Error al obtener los menus del paciente' })
+    console.error('getMenusByPaciente:', err.message)
+    res.status(500).json({ error: 'Error al obtener los menús del paciente' })
   }
 }
 
@@ -40,7 +39,7 @@ export async function getMenuById(req, res) {
   const { id } = req.params
   try {
     const result = await pool.query(
-      `SELECT id, cliente_id AS "clienteId", nombre,
+      `SELECT id, paciente_id AS "pacienteId", nombre,
               TO_CHAR(semana_inicio, 'YYYY-MM-DD') AS "semanaInicio",
               ${columnasMenu.join(', ')},
               notas, created_at AS "createdAt"
@@ -48,40 +47,38 @@ export async function getMenuById(req, res) {
        WHERE id = $1`,
       [id]
     )
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Menu no encontrado' })
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Menú no encontrado' })
     res.json(result.rows[0])
   } catch (err) {
     console.error('getMenuById:', err.message)
-    res.status(500).json({ error: 'Error al obtener el menu' })
+    res.status(500).json({ error: 'Error al obtener el menú' })
   }
 }
 
 // ─── POST /api/menus ───────────────────────────────────────────────────────
 export async function createMenu(req, res) {
-  const { clienteId, nombre, semanaInicio, notas = '', ...diasData } = req.body
+  const { pacienteId, nombre, semanaInicio, notas = '', ...diasData } = req.body
 
-  if (!clienteId || !nombre || !semanaInicio) {
-    return res.status(400).json({ error: 'clienteId, nombre y semanaInicio son obligatorios' })
+  if (!pacienteId || !nombre || !semanaInicio) {
+    return res.status(400).json({ error: 'pacienteId, nombre y semanaInicio son obligatorios' })
   }
 
   try {
     const newId = await generarIdUnico('menus_semanales')
-
-    // Construir valores de cada tiempo de comida por dia
     const valores = columnasMenu.map(col => diasData[col] || null)
 
     const result = await pool.query(
-      `INSERT INTO menus_semanales (id, cliente_id, nombre, semana_inicio, ${columnasMenu.join(', ')}, notas)
+      `INSERT INTO menus_semanales (id, paciente_id, nombre, semana_inicio, ${columnasMenu.join(', ')}, notas)
        VALUES ($1, $2, $3, $4, ${columnasMenu.map((_, i) => `$${i + 5}`).join(', ')}, $${columnasMenu.length + 5})
-       RETURNING id, cliente_id AS "clienteId", nombre,
+       RETURNING id, paciente_id AS "pacienteId", nombre,
                  TO_CHAR(semana_inicio, 'YYYY-MM-DD') AS "semanaInicio",
                  ${columnasMenu.join(', ')}, notas, created_at AS "createdAt"`,
-      [newId, clienteId, nombre, semanaInicio, ...valores, notas]
+      [newId, pacienteId, nombre, semanaInicio, ...valores, notas]
     )
     res.status(201).json(result.rows[0])
   } catch (err) {
     console.error('createMenu:', err.message)
-    res.status(500).json({ error: 'Error al crear el menu semanal' })
+    res.status(500).json({ error: 'Error al crear el menú semanal' })
   }
 }
 
@@ -115,11 +112,11 @@ export async function updateMenu(req, res) {
       `UPDATE menus_semanales SET ${setClauses.join(', ')} WHERE id = $${idx} RETURNING id`,
       valores
     )
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Menu no encontrado' })
-    res.json({ message: 'Menu actualizado correctamente', id: result.rows[0].id })
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Menú no encontrado' })
+    res.json({ message: 'Menú actualizado correctamente', id: result.rows[0].id })
   } catch (err) {
     console.error('updateMenu:', err.message)
-    res.status(500).json({ error: 'Error al actualizar el menu' })
+    res.status(500).json({ error: 'Error al actualizar el menú' })
   }
 }
 
@@ -128,10 +125,10 @@ export async function deleteMenu(req, res) {
   const { id } = req.params
   try {
     const result = await pool.query('DELETE FROM menus_semanales WHERE id = $1 RETURNING id', [id])
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Menu no encontrado' })
-    res.json({ message: 'Menu eliminado correctamente' })
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Menú no encontrado' })
+    res.json({ message: 'Menú eliminado correctamente' })
   } catch (err) {
     console.error('deleteMenu:', err.message)
-    res.status(500).json({ error: 'Error al eliminar el menu' })
+    res.status(500).json({ error: 'Error al eliminar el menú' })
   }
 }
