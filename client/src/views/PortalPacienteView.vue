@@ -1,173 +1,186 @@
 <template>
-  <div class="portal-layout">
-    <!-- ── HEADER FLOTANTE (GLASSMORPHISM) ── -->
-    <header class="glass-header">
-      <div class="header-content">
-        <div class="user-info">
-          <div class="avatar">{{ inicialNombre }}</div>
-          <div>
-            <h1 class="greeting">Hola, {{ nombreCorto }}</h1>
-            <p class="subtitle">Expediente #{{ paciente?.id }}</p>
-          </div>
-        </div>
+  <div class="portal-dashboard">
+    <!-- ── NAVBAR SUPERIOR ── -->
+    <header class="dashboard-header print-hide">
+      <div class="header-brand">
+        <div class="brand-badge">Mi Portal NutriKer</div>
+        <h1 class="greeting">Hola, {{ nombreCorto }}</h1>
+      </div>
+      <div class="header-actions">
         <button @click="cerrarSesion" class="logout-btn" title="Cerrar sesión">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
+          Cerrar Sesión &rarr;
         </button>
       </div>
     </header>
 
-    <!-- ── NAVEGACIÓN POR PESTAÑAS ── -->
-    <nav class="portal-tabs-wrapper">
-      <div class="portal-tabs">
-        <button @click="tabActiva = 'inicio'" :class="['tab-item', { active: tabActiva === 'inicio' }]">
-          <svg class="tab-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-          Inicio
-        </button>
-        <button @click="tabActiva = 'menu'" :class="['tab-item', { active: tabActiva === 'menu' }]">
-          <svg class="tab-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-          Mi Menú
-        </button>
-        <button @click="abrirEvolucion" :class="['tab-item', { active: tabActiva === 'evolucion' }]">
-          <svg class="tab-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
-          Evolución
-        </button>
-      </div>
-    </nav>
+    <div v-if="cargandoGeneral" class="loader-container print-hide">
+      <div class="spinner"></div>
+      <p>Cargando tu expediente...</p>
+    </div>
 
-    <!-- ── ÁREA DE CONTENIDO PRINCIPAL ── -->
-    <main class="portal-main">
-      <div v-if="cargandoGeneral" class="loader-container">
-        <div class="spinner"></div>
-        <p>Cargando tu información...</p>
-      </div>
-
-      <div v-else class="tab-content-container">
+    <div v-else class="dashboard-layout">
+      <!-- ── SIDEBAR LÍNEA DE TIEMPO (VISITAS) ── -->
+      <aside class="timeline-sidebar print-hide">
+        <h3 class="sidebar-title">Mis Consultas</h3>
         
-        <!-- ── PESTAÑA: INICIO ── -->
-        <div v-if="tabActiva === 'inicio'" class="tab-inicio animate-fade-in">
-          
-          <div class="glass-card gradient-card">
-            <div class="card-icon">🎯</div>
-            <h2>Objetivo Nutricional</h2>
-            <p>{{ expediente?.objetivoNutricional || 'Mantenimiento y Salud General' }}</p>
-          </div>
-
-          <div class="metrics-grid mt-4">
-            <div class="glass-card metric-card">
-              <span class="metric-label">Último Peso</span>
-              <span class="metric-value">{{ ultimoPeso }} kg</span>
-            </div>
-            <div class="glass-card metric-card">
-              <span class="metric-label">Estatura</span>
-              <span class="metric-value">{{ datosPaciente?.estatura || '--' }} m</span>
-            </div>
-          </div>
-          
-          <div v-if="expediente?.diagnostico" class="glass-card info-card mt-4">
-            <h3 class="card-title">Diagnóstico Actual</h3>
-            <p class="text-sm text-gray-700 mt-2">{{ expediente.diagnostico }}</p>
-          </div>
-
-          <div class="glass-card info-card mt-4 text-center">
-             <div class="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
-               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-             </div>
-             <h3 class="card-title">Seguimiento Clínico</h3>
-             <p class="text-sm text-gray-500 mt-1 mb-4">¿Tienes dudas con tu menú o necesitas agendar tu próxima revisión?</p>
-             <a href="https://wa.me/5211234567890" target="_blank" class="btn-primary">
-               Contactar a la Clínica
-             </a>
-          </div>
+        <div v-if="visitas.length === 0" class="no-data-msg">
+          Aún no tienes consultas registradas.
         </div>
 
-        <!-- ── PESTAÑA: MENÚ INTELIGENTE ── -->
-        <div v-if="tabActiva === 'menu'" class="tab-menu animate-fade-in">
-          <div v-if="!menuActivo" class="glass-card text-center py-10">
-            <div class="text-4xl mb-3">🥗</div>
-            <h3 class="text-lg font-bold text-gray-800">No hay un menú activo</h3>
-            <p class="text-sm text-gray-500 mt-2">Tu nutrióloga asignará tu plan nutricional muy pronto.</p>
+        <div class="timeline-list">
+          <button 
+            v-for="(visita, index) in visitas" 
+            :key="visita.id"
+            @click="seleccionarVisita(index)"
+            :class="['timeline-item', { active: visitaSeleccionadaIndex === index }]"
+          >
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+              <span class="timeline-date">{{ formatFechaLetras(visita.fecha) }}</span>
+              <span class="timeline-weight">{{ visita.medicion.peso }} kg</span>
+            </div>
+          </button>
+        </div>
+      </aside>
+
+      <!-- ── MAIN CONTENT (TARJETAS) ── -->
+      <main class="dashboard-main" v-if="visitaActiva">
+        
+        <!-- Tarjeta 1: Observaciones Médicas -->
+        <div class="glass-card section-card print-hide">
+          <div class="card-header-flex">
+            <div class="icon-title">
+              <span class="text-2xl">👩‍⚕️</span>
+              <h2>Observaciones de la Dra. Karla</h2>
+            </div>
+            <span class="badge-date">Consulta del {{ formatFechaLetras(visitaActiva.fecha) }}</span>
           </div>
-
-          <div v-else>
-            <div class="menu-header mb-4">
-              <h2 class="text-xl font-bold text-gray-800">{{ menuActivo.nombre }}</h2>
-              <p class="text-xs text-brand-600 font-semibold bg-brand-50 inline-block px-3 py-1 rounded-full mt-2">Semana del {{ formatFecha(menuActivo.semanaInicio) }}</p>
-            </div>
-
-            <!-- Selector de Días Horizontal -->
-            <div class="day-selector">
-              <button 
-                v-for="dia in diasSemana" 
-                :key="dia.key"
-                @click="diaSeleccionado = dia.key"
-                :class="['day-btn', { active: diaSeleccionado === dia.key }]"
-              >
-                <span class="day-name">{{ dia.corto }}</span>
-              </button>
-            </div>
-
-            <!-- Comidas del Día Seleccionado -->
-            <div class="meals-container mt-4 space-y-3">
-              <template v-for="tiempo in tiemposComida" :key="tiempo.key">
-                <!-- Filtramos los tiempos que dicen "Libre" o "Ayuno" para no mostrarlos y adaptarnos a la estructura dinámica de la doctora -->
-                <div 
-                  v-if="menuActivo[`${diaSeleccionado}_${tiempo.key}`] && !isLibreOAyuno(menuActivo[`${diaSeleccionado}_${tiempo.key}`])"
-                  class="glass-card meal-card"
-                >
-                  <div class="meal-header">
-                    <span class="meal-icon">{{ tiempo.icon }}</span>
-                    <h4 class="meal-title">{{ tiempo.label }}</h4>
-                  </div>
-                  <div class="meal-body">
-                    {{ menuActivo[`${diaSeleccionado}_${tiempo.key}`] }}
-                  </div>
-                </div>
-              </template>
-            </div>
-
-            <div v-if="menuActivo.notas" class="glass-card mt-6 border-l-4 border-l-yellow-400 bg-yellow-50/50">
-              <h4 class="text-sm font-bold text-yellow-800 mb-1">Notas de la Nutrióloga</h4>
-              <p class="text-sm text-yellow-700 leading-relaxed">{{ menuActivo.notas }}</p>
+          <div class="card-body mt-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="info-box">
+                <span class="info-label">Diagnóstico General</span>
+                <p class="info-value">{{ expediente?.diagnostico || 'Sin diagnóstico registrado' }}</p>
+              </div>
+              <div class="info-box bg-yellow-50 border-yellow-100">
+                <span class="info-label text-yellow-700">Notas de esta visita</span>
+                <p class="info-value text-yellow-900">{{ visitaActiva.medicion.observaciones || 'Buen progreso, continuar con las indicaciones.' }}</p>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- ── PESTAÑA: EVOLUCIÓN (GRÁFICAS) ── -->
-        <div v-if="tabActiva === 'evolucion'" class="tab-evolucion animate-fade-in">
-          <div class="glass-card mb-4">
-            <h3 class="card-title mb-4">Mi Evolución de Peso (kg)</h3>
-            <div v-if="mediciones.length < 2" class="text-center py-6">
-              <p class="text-sm text-gray-500">Se necesitan al menos 2 consultas para generar tu gráfica de evolución.</p>
+        <!-- Tarjeta 2: Biométricos y Evolución -->
+        <div class="glass-card section-card mt-6 print-hide">
+           <div class="icon-title mb-4">
+              <span class="text-2xl">📊</span>
+              <h2>Biométricos y Evolución</h2>
             </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div class="metric-box">
+                <span class="metric-label">Peso</span>
+                <span class="metric-value">{{ visitaActiva.medicion.peso }} <small>kg</small></span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-label">Estatura</span>
+                <span class="metric-value">{{ datosPaciente?.estatura || '--' }} <small>m</small></span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-label">IMC</span>
+                <span class="metric-value">{{ visitaActiva.medicion.imc || '--' }}</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-label">Cintura</span>
+                <span class="metric-value">{{ visitaActiva.medicion.cintura || '--' }} <small>cm</small></span>
+              </div>
+            </div>
+
+            <!-- Gráfica -->
             <div class="chart-wrapper" :class="{ 'hidden': mediciones.length < 2 }">
               <canvas id="evolutionChart"></canvas>
             </div>
-          </div>
-
-          <h3 class="font-bold text-gray-800 ml-1 mb-3 mt-6">Historial de Consultas</h3>
-          <div class="space-y-3">
-            <div v-for="medicion in [...mediciones].reverse()" :key="medicion.id" class="glass-card history-card">
-              <div class="history-header">
-                <span class="history-date">{{ formatFecha(medicion.fecha) }}</span>
-                <span class="history-weight font-bold text-brand-600">{{ medicion.peso }} kg</span>
-              </div>
-              <div class="history-details mt-2 text-xs text-gray-500 flex gap-4">
-                <span v-if="medicion.imc">IMC: {{ medicion.imc }}</span>
-                <span v-if="medicion.cintura">Cintura: {{ medicion.cintura }} cm</span>
-              </div>
-            </div>
-          </div>
+            <p v-if="mediciones.length < 2" class="text-xs text-gray-400 text-center">Se requieren 2 consultas para generar tu gráfica de progreso.</p>
         </div>
 
-      </div>
-    </main>
+        <!-- Tarjeta 3: Menú Asignado -->
+        <div class="glass-card section-card mt-6 menu-print-container" id="menu-section">
+           <div class="flex justify-between items-start mb-4 print-hide">
+             <div class="icon-title">
+                <span class="text-2xl">🥗</span>
+                <h2>Menú Inteligente Asignado</h2>
+              </div>
+              <button @click="imprimirMenu" class="btn-outline-primary" v-if="visitaActiva.menu">
+                <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                Descargar / Imprimir
+              </button>
+           </div>
+
+           <div v-if="!visitaActiva.menu" class="text-center py-8 bg-gray-50 rounded-xl print-hide">
+             <p class="text-gray-500">No hay un menú asociado a esta consulta.</p>
+           </div>
+           
+           <div v-else>
+              <div class="menu-print-header hidden print-show mb-6 text-center">
+                <h1 class="text-2xl font-bold text-brand-700">Plan Nutricional: {{ paciente.nombre }}</h1>
+                <p class="text-gray-600">Dra. Karla - Clínica NutriKer | Fecha: {{ formatFechaLetras(visitaActiva.fecha) }}</p>
+                <div v-if="visitaActiva.menu.notas" class="mt-2 text-sm italic text-gray-700">"{{ visitaActiva.menu.notas }}"</div>
+              </div>
+
+              <!-- Vista de Días para el Menu -->
+              <div class="day-selector print-hide mb-4">
+                <button 
+                  v-for="dia in diasSemana" 
+                  :key="dia.key"
+                  @click="diaMenuSeleccionado = dia.key"
+                  :class="['day-btn', { active: diaMenuSeleccionado === dia.key }]"
+                >
+                  {{ dia.label }}
+                </button>
+              </div>
+
+              <!-- Vista en pantalla (Un día a la vez) -->
+              <div class="meals-container print-hide">
+                <template v-for="tiempo in tiemposComida" :key="tiempo.key">
+                  <div 
+                    v-if="visitaActiva.menu[`${diaMenuSeleccionado}_${tiempo.key}`] && !isLibreOAyuno(visitaActiva.menu[`${diaMenuSeleccionado}_${tiempo.key}`])"
+                    class="meal-card"
+                  >
+                    <div class="meal-header">
+                      <span class="meal-icon">{{ tiempo.icon }}</span>
+                      <h4 class="meal-title">{{ tiempo.label }}</h4>
+                    </div>
+                    <div class="meal-body">
+                      {{ visitaActiva.menu[`${diaMenuSeleccionado}_${tiempo.key}`] }}
+                    </div>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Vista para imprimir (Todos los días) -->
+              <div class="hidden print-show print-grid">
+                <div v-for="dia in diasSemana" :key="'print-'+dia.key" class="print-day-card break-inside-avoid mb-6">
+                  <h3 class="font-bold text-lg text-brand-700 mb-2 border-b pb-1">{{ dia.label }}</h3>
+                  <div class="space-y-2">
+                    <template v-for="tiempo in tiemposComida" :key="'print-'+dia.key+'-'+tiempo.key">
+                      <div v-if="visitaActiva.menu[`${dia.key}_${tiempo.key}`] && !isLibreOAyuno(visitaActiva.menu[`${dia.key}_${tiempo.key}`])">
+                        <span class="font-bold text-sm">{{ tiempo.label }}:</span>
+                        <p class="text-sm text-gray-800 ml-2">{{ visitaActiva.menu[`${dia.key}_${tiempo.key}`] }}</p>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+
+           </div>
+        </div>
+
+      </main>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, nextTick } from 'vue'
+import { ref, onMounted, computed, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api.js'
 
@@ -176,28 +189,26 @@ const paciente = ref(null)
 const datosPaciente = ref(null)
 const expediente = ref(null)
 const mediciones = ref([])
-const menuActivo = ref(null)
+const allMenus = ref([])
 
 const cargandoGeneral = ref(true)
-const tabActiva = ref('inicio')
 
 const diasSemana = [
   { key: 'lunes', label: 'Lunes', corto: 'L' },
   { key: 'martes', label: 'Martes', corto: 'M' },
-  { key: 'miercoles', label: 'Miércoles', corto: 'M' },
+  { key: 'miercoles', label: 'Miércoles', corto: 'Mi' },
   { key: 'jueves', label: 'Jueves', corto: 'J' },
   { key: 'viernes', label: 'Viernes', corto: 'V' },
   { key: 'sabado', label: 'Sábado', corto: 'S' },
   { key: 'domingo', label: 'Domingo', corto: 'D' },
 ]
-
-const diaSeleccionado = ref('lunes')
+const diaMenuSeleccionado = ref('lunes')
 
 const tiemposComida = [
   { key: 'desayuno', label: 'Desayuno', icon: '🌅' },
-  { key: 'colacion_am', label: 'Colación Mañana', icon: '🍎' },
+  { key: 'colacion_am', label: 'Colación AM', icon: '🍎' },
   { key: 'comida', label: 'Comida', icon: '🍲' },
-  { key: 'colacion_pm', label: 'Colación Tarde', icon: '🍌' },
+  { key: 'colacion_pm', label: 'Colación PM', icon: '🍌' },
   { key: 'cena', label: 'Cena', icon: '🌙' },
 ]
 
@@ -206,19 +217,11 @@ const nombreCorto = computed(() => {
   return paciente.value.nombre.split(' ')[0]
 })
 
-const inicialNombre = computed(() => {
-  return nombreCorto.value.charAt(0).toUpperCase()
-})
-
-const ultimoPeso = computed(() => {
-  if (mediciones.value.length === 0) return '--'
-  return mediciones.value[mediciones.value.length - 1].peso
-})
-
-function formatFecha(fechaStr) {
+function formatFechaLetras(fechaStr) {
   if (!fechaStr) return ''
   const [y, m, d] = fechaStr.split('-')
-  return `${d}/${m}/${y}`
+  const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+  return `${d} ${meses[parseInt(m)-1]} ${y}`
 }
 
 function isLibreOAyuno(texto) {
@@ -227,62 +230,62 @@ function isLibreOAyuno(texto) {
   return lower.includes('libre') || lower.includes('ayuno') || lower.includes('no aplica') || lower.trim() === ''
 }
 
-async function cargarDatosGlobales() {
-  cargandoGeneral.value = true
-  try {
-    const pacienteId = paciente.value.id
+// Transformar datos en "Visitas"
+const visitas = computed(() => {
+  const sortedMediciones = [...mediciones.value].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+  
+  return sortedMediciones.map(m => {
+    // Buscar el menú más cercano a esta fecha (o asignado en esta fecha)
+    // Para simplificar, buscamos un menú creado en la misma semana o el más reciente anterior a la cita
+    // Como fallback, agarramos el menú en la misma posición de la cita (si hay 3 citas y 3 menús)
+    let menuAsignado = allMenus.value.find(menu => menu.semanaInicio === m.fecha)
+    if (!menuAsignado && allMenus.value.length > 0) {
+      // Tomar el más reciente que no sea del futuro lejano
+      menuAsignado = allMenus.value[0] 
+    }
     
-    // 1. Obtener Datos Generales
-    const pRes = await api.get(`/pacientes/${pacienteId}`).catch(() => null)
-    if (pRes) datosPaciente.value = pRes
-
-    // 2. Obtener Expediente y Mediciones
-    const expRes = await api.get(`/expedientes/paciente/${pacienteId}`).catch(() => null)
-    if (expRes) {
-      expediente.value = expRes.expediente
-      mediciones.value = expRes.mediciones || []
+    return {
+      id: m.id,
+      fecha: m.fecha,
+      medicion: m,
+      menu: menuAsignado
     }
+  })
+})
 
-    // 3. Obtener Menú Activo
-    const menusRes = await api.get(`/menus/paciente/${pacienteId}`).catch(() => [])
-    if (Array.isArray(menusRes) && menusRes.length > 0) {
-      menuActivo.value = menusRes[0] // Asumimos que el primero (más reciente) es el activo
-    }
+const visitaSeleccionadaIndex = ref(0)
+const visitaActiva = computed(() => {
+  if (visitas.value.length === 0) return null
+  return visitas.value[visitaSeleccionadaIndex.value]
+})
 
-  } catch (err) {
-    console.error('Error cargando portal:', err)
-  } finally {
-    cargandoGeneral.value = false
-  }
+function seleccionarVisita(index) {
+  visitaSeleccionadaIndex.value = index
 }
 
+// Dibujar Gráfica
 let chartInstance = null
-async function abrirEvolucion() {
-  tabActiva.value = 'evolucion'
+watch(visitaSeleccionadaIndex, async () => {
   if (mediciones.value.length >= 2) {
     await nextTick()
     dibujarGrafica()
   }
-}
+})
 
 function dibujarGrafica() {
   const canvas = document.getElementById('evolutionChart')
   if (!canvas) return
+  if (chartInstance) chartInstance.destroy()
 
-  if (chartInstance) {
-    chartInstance.destroy()
-  }
-
-  const fechas = mediciones.value.map(m => formatFecha(m.fecha))
+  const fechas = mediciones.value.map(m => formatFechaLetras(m.fecha))
   const pesos = mediciones.value.map(m => m.peso)
 
   const ctx = canvas.getContext('2d')
-  
   const gradient = ctx.createLinearGradient(0, 0, 0, 300)
   gradient.addColorStop(0, 'rgba(74, 140, 91, 0.4)')
   gradient.addColorStop(1, 'rgba(74, 140, 91, 0.0)')
 
-  // @ts-ignore (Chart is global from CDN)
+  // @ts-ignore
   chartInstance = new Chart(ctx, {
     type: 'line',
     data: {
@@ -297,7 +300,6 @@ function dibujarGrafica() {
         pointBorderColor: '#4a8c5b',
         pointBorderWidth: 2,
         pointRadius: 4,
-        pointHoverRadius: 6,
         fill: true,
         tension: 0.4
       }]
@@ -305,28 +307,46 @@ function dibujarGrafica() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1f2937',
-          padding: 10,
-          cornerRadius: 8,
-          displayColors: false,
-        }
-      },
+      plugins: { legend: { display: false } },
       scales: {
-        y: {
-          beginAtZero: false,
-          grid: { color: '#f3f4f6', borderDash: [5, 5] },
-          ticks: { color: '#6b7280', font: { family: 'Inter' } }
-        },
-        x: {
-          grid: { display: false },
-          ticks: { color: '#6b7280', font: { family: 'Inter' } }
-        }
+        y: { beginAtZero: false, grid: { color: '#f3f4f6' } },
+        x: { grid: { display: false } }
       }
     }
   })
+}
+
+async function cargarDatosGlobales() {
+  cargandoGeneral.value = true
+  try {
+    const pacienteId = paciente.value.id
+    const pRes = await api.get(`/pacientes/${pacienteId}`).catch(() => null)
+    if (pRes) datosPaciente.value = pRes
+
+    const expRes = await api.get(`/expedientes/paciente/${pacienteId}`).catch(() => null)
+    if (expRes) {
+      expediente.value = expRes.expediente
+      mediciones.value = expRes.mediciones || []
+    }
+
+    const menusRes = await api.get(`/menus/paciente/${pacienteId}`).catch(() => [])
+    if (Array.isArray(menusRes)) {
+      allMenus.value = menusRes
+    }
+
+    if (mediciones.value.length >= 2) {
+      await nextTick()
+      dibujarGrafica()
+    }
+  } catch (err) {
+    console.error('Error cargando portal:', err)
+  } finally {
+    cargandoGeneral.value = false
+  }
+}
+
+function imprimirMenu() {
+  window.print()
 }
 
 function cerrarSesion() {
@@ -338,7 +358,6 @@ function cerrarSesion() {
 onMounted(() => {
   const saved = localStorage.getItem('paciente_data')
   const token = localStorage.getItem('paciente_token')
-  
   if (saved && token) {
     try {
       paciente.value = JSON.parse(saved)
@@ -353,353 +372,329 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* ── FUENTES Y VARIABLES GLOBALES ── */
-.portal-layout {
+/* ── VARIABLES GLOBALES ── */
+.portal-dashboard {
   --brand: #4a8c5b;
   --brand-light: #eaf3ed;
-  --bg-color: #f7f9f8;
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.5);
-  --shadow-soft: 0 8px 32px rgba(31, 38, 135, 0.04);
-  --shadow-hard: 0 10px 40px rgba(0, 0, 0, 0.08);
+  --bg-color: #f4f7f5;
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --shadow-soft: 0 10px 40px rgba(0, 0, 0, 0.04);
   
   font-family: 'Inter', sans-serif;
   min-height: 100vh;
   background-color: var(--bg-color);
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(74,140,91,0.06) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(74,140,91,0.03) 0px, transparent 50%);
   color: #1f2937;
-  padding-bottom: 80px;
 }
 
-/* ── ANIMACIONES GLOBALES ── */
-.animate-fade-in {
-  animation: fadeIn 0.4s ease-out forwards;
-}
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* ── GLASSMORPHISM HEADER ── */
-.glass-header {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--glass-border);
-  padding: 1rem 1.25rem;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-}
-
-.header-content {
+/* ── HEADER ── */
+.dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  max-width: 600px;
-  margin: 0 auto;
+  padding: 1.25rem 2rem;
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
-}
-
-.avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--brand), #346841);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
+.brand-badge {
+  display: inline-block;
+  background: var(--brand-light);
+  color: var(--brand);
+  font-size: 0.7rem;
   font-weight: 700;
-  font-family: 'Outfit', sans-serif;
-  box-shadow: 0 4px 12px rgba(74, 140, 91, 0.25);
+  padding: 0.25rem 0.75rem;
+  border-radius: 99px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
 }
 
 .greeting {
   font-family: 'Outfit', sans-serif;
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #111827;
-  line-height: 1.2;
-}
-
-.subtitle {
-  font-size: 0.75rem;
-  color: #6b7280;
-  font-weight: 500;
 }
 
 .logout-btn {
-  color: #9ca3af;
-  padding: 8px;
-  border-radius: 12px;
-  transition: all 0.2s;
-  background: transparent;
-  border: none;
-}
-
-.logout-btn:hover {
-  background: #f3f4f6;
-  color: #ef4444;
-}
-
-/* ── MAIN CONTENT ── */
-.portal-main {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 1.25rem;
-}
-
-.glass-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--glass-border);
-  border-radius: 20px;
-  padding: 1.25rem;
-  box-shadow: var(--shadow-soft);
-  transition: transform 0.2s;
-}
-
-/* ── INICIO CARDS ── */
-.gradient-card {
-  background: linear-gradient(135deg, var(--brand) 0%, #346841 100%);
-  color: white;
-  border: none;
-  box-shadow: 0 10px 25px rgba(74, 140, 91, 0.3);
-  position: relative;
-  overflow: hidden;
-}
-
-.gradient-card::after {
-  content: '';
-  position: absolute;
-  top: -50%;
-  right: -20%;
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
-  border-radius: 50%;
-}
-
-.gradient-card h2 {
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.9;
+  color: #6b7280;
+  font-size: 0.9rem;
   font-weight: 600;
-  margin-bottom: 0.25rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s;
 }
+.logout-btn:hover { color: #ef4444; }
 
-.gradient-card p {
-  font-family: 'Outfit', sans-serif;
-  font-size: 1.35rem;
-  font-weight: 700;
-  line-height: 1.3;
-}
-
-.card-icon {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-}
-
-.metrics-grid {
+/* ── LAYOUT PRINCIPAL (GRID) ── */
+.dashboard-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  grid-template-columns: 280px 1fr;
+  gap: 2rem;
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  align-items: start;
 }
 
-.metric-card {
+@media (max-width: 900px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+}
+
+/* ── SIDEBAR TIMELINE ── */
+.timeline-sidebar {
+  position: sticky;
+  top: 2rem;
+  background: white;
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid #f3f4f6;
+}
+
+.sidebar-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #374151;
+}
+
+.timeline-list {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 0.25rem;
+  gap: 0.5rem;
 }
 
-.metric-label {
-  font-size: 0.75rem;
+.timeline-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+}
+
+.timeline-item:hover {
+  background: #f9fafb;
+}
+
+.timeline-item.active {
+  background: var(--brand-light);
+  border-color: rgba(74, 140, 91, 0.2);
+}
+
+.timeline-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #d1d5db;
+  transition: background 0.2s;
+}
+
+.timeline-item.active .timeline-dot {
+  background: var(--brand);
+  box-shadow: 0 0 0 4px rgba(74, 140, 91, 0.2);
+}
+
+.timeline-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-date {
+  font-size: 0.9rem;
   font-weight: 600;
-  color: #6b7280;
-  text-transform: uppercase;
+  color: #111827;
 }
 
-.metric-value {
-  font-family: 'Outfit', sans-serif;
-  font-size: 1.5rem;
-  font-weight: 700;
+.timeline-weight {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.timeline-item.active .timeline-date {
   color: var(--brand);
 }
 
-.card-title {
+/* ── MAIN CARDS ── */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: var(--shadow-soft);
+}
+
+.card-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.icon-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.icon-title h2 {
   font-family: 'Outfit', sans-serif;
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: #1f2937;
 }
 
-.btn-primary {
-  display: inline-block;
+.badge-date {
+  background: #f3f4f6;
+  color: #4b5563;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+}
+
+.info-box {
+  background: #f9fafb;
+  border: 1px solid #f3f4f6;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.info-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+}
+
+.info-value {
+  font-size: 0.95rem;
+  color: #374151;
+  line-height: 1.5;
+}
+
+/* Biométricos */
+.metric-box {
+  background: white;
+  border: 1px solid #f3f4f6;
+  border-radius: 12px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.metric-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+
+.metric-value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--brand);
+}
+.metric-value small { font-size: 0.9rem; color: #9ca3af; }
+
+.chart-wrapper {
+  height: 250px;
+  width: 100%;
+}
+
+/* ── MENÚ ── */
+.btn-outline-primary {
+  display: flex;
+  align-items: center;
+  border: 2px solid var(--brand);
+  color: var(--brand);
+  background: transparent;
+  padding: 0.5rem 1rem;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-outline-primary:hover {
   background: var(--brand);
   color: white;
-  font-weight: 600;
-  font-size: 0.9rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 12px;
-  text-decoration: none;
-  transition: transform 0.2s, box-shadow 0.2s;
-  box-shadow: 0 4px 15px rgba(74, 140, 91, 0.3);
 }
 
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(74, 140, 91, 0.4);
-}
-
-/* ── MENÚ CARDS ── */
 .day-selector {
   display: flex;
   gap: 0.5rem;
   overflow-x: auto;
   padding-bottom: 0.5rem;
-  scrollbar-width: none; 
 }
-.day-selector::-webkit-scrollbar {
-  display: none;
-}
-
 .day-btn {
-  background: var(--glass-bg);
+  background: white;
   border: 1px solid #e5e7eb;
-  min-width: 44px;
-  height: 50px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 0.5rem 1.25rem;
+  border-radius: 99px;
   font-weight: 600;
+  font-size: 0.85rem;
   color: #4b5563;
-  transition: all 0.2s;
-  flex-shrink: 0;
+  cursor: pointer;
+  white-space: nowrap;
 }
-
 .day-btn.active {
   background: var(--brand);
-  border-color: var(--brand);
   color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(74, 140, 91, 0.25);
+  border-color: var(--brand);
+}
+
+.meals-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .meal-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  background: white;
   border-left: 4px solid var(--brand);
+  border-radius: 0 12px 12px 0;
+  padding: 1rem;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
 }
 
 .meal-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.meal-icon {
-  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
 }
 
 .meal-title {
   font-family: 'Outfit', sans-serif;
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 700;
-  color: #374151;
+  color: #1f2937;
 }
 
 .meal-body {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: #4b5563;
   line-height: 1.5;
   margin-left: 2rem;
-}
-
-/* ── EVOLUCIÓN ── */
-.chart-wrapper {
-  height: 250px;
-  width: 100%;
-  position: relative;
-}
-
-.history-card {
-  padding: 1rem;
-}
-
-.history-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.history-date {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #374151;
-}
-
-/* ── BOTTOM NAV (TABS) ── */
-.portal-tabs-wrapper {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 50;
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid var(--glass-border);
-  padding: 0.5rem 1rem 1.5rem 1rem;
-  box-shadow: 0 -4px 20px rgba(0,0,0,0.03);
-}
-
-.portal-tabs {
-  display: flex;
-  justify-content: space-around;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.tab-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  background: transparent;
-  border: none;
-  color: #9ca3af;
-  font-size: 0.7rem;
-  font-weight: 600;
-  transition: all 0.3s;
-}
-
-.tab-item.active {
-  color: var(--brand);
-}
-
-.tab-icon {
-  width: 24px;
-  height: 24px;
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.tab-item.active .tab-icon {
-  transform: translateY(-2px) scale(1.1);
 }
 
 /* ── LOADER ── */
@@ -708,22 +703,52 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 50vh;
+  height: 60vh;
   color: #6b7280;
-  font-size: 0.9rem;
 }
-
 .spinner {
-  width: 40px;
-  height: 40px;
+  width: 40px; height: 40px;
   border: 4px solid var(--brand-light);
   border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
 }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+/* ── PRINT STYLES ── */
+.print-show { display: none; }
+
+@media print {
+  @page { margin: 1cm; }
+  body * {
+    visibility: hidden;
+  }
+  .print-hide { display: none !important; }
+  .print-show { display: block !important; }
+  
+  #menu-section, #menu-section * {
+    visibility: visible;
+  }
+  #menu-section {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+  }
+  
+  .menu-print-header {
+    border-bottom: 2px solid var(--brand);
+    padding-bottom: 1rem;
+  }
+  
+  .print-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
 }
 </style>
