@@ -10,7 +10,7 @@
       <div v-else-if="!paciente" class="unauth-state">
         <h2>Acceso Requerido</h2>
         <p>Por favor inicia sesión para consultar tu expediente y dietas.</p>
-        <router-link to="/login" class="btn-primary">Iniciar Sesión</router-link>
+        <router-link to="/miperfil" class="btn-primary">Iniciar Sesión</router-link>
       </div>
 
       <!-- Portal del Paciente -->
@@ -163,7 +163,7 @@ const cargarDatosPortal = async () => {
   const stored = localStorage.getItem('nutriker_paciente')
   if (!stored) {
     loading.value = false
-    router.push('/login')
+    router.push('/miperfil')
     return
   }
 
@@ -207,7 +207,7 @@ const imcCategoria = computed(() => {
 
 const cerrarSesion = () => {
   localStorage.removeItem('nutriker_paciente')
-  router.push('/login')
+  router.push('/miperfil')
 }
 
 const imprimirMenu = () => {

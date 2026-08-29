@@ -35,7 +35,7 @@ const routes = [
   {
     path: '/portal',
     name: 'Portal',
-    component: () => import('../views/Portal.vue')
+    component: () => import('../views/PortalPacienteView.vue')
   },
   {
     path: '/royal-canin',

@@ -332,7 +332,7 @@ function dibujarGrafica() {
 function cerrarSesion() {
   localStorage.removeItem('paciente_token')
   localStorage.removeItem('paciente_data')
-  router.push('/login')
+  router.push('/miperfil')
 }
 
 onMounted(() => {
