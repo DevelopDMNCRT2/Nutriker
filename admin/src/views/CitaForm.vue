@@ -71,6 +71,7 @@
             <input
               v-model="form.fecha"
               type="date"
+              :min="todayCDMX"
               required
               class="w-full rounded-xl border border-gray-300 bg-transparent px-3.5 py-2.5 text-xs text-gray-800 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             />
@@ -163,6 +164,12 @@ const saving = ref(false)
 const errorMsg = ref('')
 const listaPacientes = ref<any[]>([])
 const showDropdownPacientes = ref(false)
+
+const todayCDMX = computed(() => {
+  const options = { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' } as const
+  const parts = new Intl.DateTimeFormat('en-CA', options).formatToParts(new Date())
+  return `${parts.find(p=>p.type==='year')?.value}-${parts.find(p=>p.type==='month')?.value}-${parts.find(p=>p.type==='day')?.value}`
+})
 
 const citaId = computed(() => route.params.id as string)
 const isEditing = computed(() => !!citaId.value)

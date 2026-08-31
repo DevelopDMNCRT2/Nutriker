@@ -265,7 +265,9 @@ const cargarHorariosOcupados = async (fecha) => {
 }
 
 const fechaMinima = computed(() => {
-  return new Date().toISOString().split('T')[0]
+  const options = { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' }
+  const parts = new Intl.DateTimeFormat('en-CA', options).formatToParts(new Date())
+  return `${parts.find(p=>p.type==='year').value}-${parts.find(p=>p.type==='month').value}-${parts.find(p=>p.type==='day').value}`
 })
 
 const horariosPosibles = [
