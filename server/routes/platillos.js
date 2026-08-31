@@ -6,12 +6,12 @@ import {
   updatePlatillo,
   deletePlatillo
 } from '../controllers/platillosController.js'
-import authMiddleware from '../middleware/authMiddleware.js'
+import { verificarToken } from '../middleware/authMiddleware.js'
 
 const router = express.Router()
 
-// Aplica el middleware de autenticación a todas las rutas
-router.use(authMiddleware)
+// Protegemos todas las rutas de este router
+router.use(verificarToken)
 
 router.get('/', getPlatillos)
 router.get('/:id', getPlatilloById)
