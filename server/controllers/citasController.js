@@ -1,5 +1,6 @@
 import pool from '../db/pool.js'
 import { generarIdUnico } from '../utils/generarId.js'
+import bcrypt from 'bcrypt'
 
 /**
  * Controlador de Citas Médicas y Prevención de Traslapes de Horarios
@@ -147,6 +148,12 @@ export const createCita = async (req, res) => {
       })
     }
 
+    let hashPassword = null
+    if (password) {
+      const salt = await bcrypt.genSalt(10)
+      hashPassword = await bcrypt.hash(password, salt)
+    }
+
     const newId = await generarIdUnico('citas')
     const insertQuery = `
       INSERT INTO citas (id, paciente_nombre, paciente_telefono, correo, fecha, horario, atencion_previa, notas, servicio, tipo, estado, password)
@@ -159,7 +166,7 @@ export const createCita = async (req, res) => {
       notas || null,
       servicio || 'Consulta Nutricional',
       tipo || (atencion_previa === 'si' ? 'Subsecuente' : 'Primera Vez'),
-      password || null
+      hashPassword
     ])
 
     res.status(201).json(rows[0])

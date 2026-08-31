@@ -84,18 +84,42 @@ export async function createPaciente(req, res) {
   }
 
   try {
+    // ── Validación de Duplicados ──
+    const duplicado = await pool.query(
+      `SELECT id, telefono, correo FROM pacientes WHERE telefono = $1 OR (correo IS NOT NULL AND correo = $2)`,
+      [telefono, correo || null]
+    )
+    if (duplicado.rows.length > 0) {
+      const dup = duplicado.rows[0]
+      if (dup.telefono === telefono) {
+        return res.status(409).json({ error: 'Teléfono en uso por otra cuenta, acceda o recupere su contraseña' })
+      }
+      if (dup.correo === correo) {
+        return res.status(409).json({ error: 'Correo en uso por otra cuenta, acceda o recupere su contraseña' })
+      }
+    }
+    // ──────────────────────────────
+
     const newId = await generarIdUnico('pacientes')
 
     let hash = null;
     let tokenInvitacion = null;
+    let citaPasswordHash = null;
 
-    if (contrasena) {
-      // Si ya trae contraseña (viene de /reservar), la hasheamos normal
-      const salt = await bcrypt.genSalt(10)
-      hash = await bcrypt.hash(contrasena, salt)
+    if (cita_id) {
+      const citaRes = await pool.query('SELECT password FROM citas WHERE id = $1', [cita_id])
+      if (citaRes.rows.length > 0 && citaRes.rows[0].password) {
+        citaPasswordHash = citaRes.rows[0].password
+      }
+    }
+
+    if (citaPasswordHash) {
+      // Si la cita viene de la web, ya trae su propia contraseña encriptada.
+      // La usamos y NO generamos token de invitación.
+      hash = citaPasswordHash
     } else {
       // Si la Dra. lo registra en admin y no le pone contraseña, generamos una inaccesible
-      // y creamos un token de invitación para que el paciente la defina.
+      // y creamos un token de invitación para que el paciente la defina mediante el correo de bienvenida.
       const salt = await bcrypt.genSalt(10)
       hash = await bcrypt.hash(Math.random().toString(36), salt)
       tokenInvitacion = jwt.sign({ id: newId, type: 'password_create' }, JWT_SECRET, { expiresIn: '7d' })
@@ -124,14 +148,16 @@ export async function createPaciente(req, res) {
       ]
     )
 
-    // Si se generó un token de invitación y hay correo, simulamos el envío (Opción B)
+    // Si se generó un token de invitación y hay correo, simulamos el envío del correo de bienvenida
     if (tokenInvitacion && correo) {
       const link = `http://localhost:5174/crear-password?token=${tokenInvitacion}`
       console.log('\n=============================================')
-      console.log(`📧 SIMULACIÓN DE CORREO DE INVITACIÓN A: ${correo}`)
-      console.log(`Asunto: ¡Bienvenido a NutriKer! Crea tu contraseña`)
+      console.log(`📧 SIMULACIÓN DE CORREO DE BIENVENIDA A: ${correo}`)
+      console.log(`Asunto: ¡Bienvenido a NutriKer, ${nombre}!`)
       console.log(`Hola ${nombre}, la Dra. Karla ha creado tu expediente.`)
-      console.log(`Haz clic en el siguiente enlace para crear tu contraseña y acceder a tu portal:`)
+      console.log(`A partir de ahora, puedes revisar tu historial clínico, evolución y los menús que se te asignen directamente en el Portal del Paciente: http://localhost:5174/miperfil`)
+      console.log(`Para identificarte en el portal, deberás usar tu número telefónico (${telefono}).`)
+      console.log(`Para poder ingresar por primera vez, haz clic en el siguiente enlace para generar una nueva contraseña segura dentro de la plataforma:`)
       console.log(link)
       console.log('=============================================\n')
     }
@@ -159,6 +185,22 @@ export async function updatePaciente(req, res) {
   }
 
   try {
+    // ── Validación de Duplicados ──
+    const duplicado = await pool.query(
+      `SELECT id, telefono, correo FROM pacientes WHERE (telefono = $1 OR (correo IS NOT NULL AND correo = $2)) AND id != $3`,
+      [telefono, correo || null, id]
+    )
+    if (duplicado.rows.length > 0) {
+      const dup = duplicado.rows[0]
+      if (dup.telefono === telefono) {
+        return res.status(409).json({ error: 'Teléfono en uso por otra cuenta, acceda o recupere su contraseña' })
+      }
+      if (dup.correo === correo) {
+        return res.status(409).json({ error: 'Correo en uso por otra cuenta, acceda o recupere su contraseña' })
+      }
+    }
+    // ──────────────────────────────
+
     let query = `
       UPDATE pacientes SET
         cita_id = $1, nombre = $2, telefono = $3, correo = $4, edad = $5,
@@ -223,5 +265,35 @@ export async function deletePaciente(req, res) {
   } catch (err) {
     console.error('deletePaciente error:', err.message)
     res.status(500).json({ error: 'Error al eliminar el expediente', detalle: err.message })
+  }
+}
+
+// GET /api/pacientes/sugerencias — Buscar coincidencias de pacientes para vinculación
+export async function getSugerencias(req, res) {
+  const { nombre, telefono, correo } = req.query
+  if (!nombre && !telefono && !correo) {
+    return res.json([])
+  }
+
+  try {
+    const query = `
+      SELECT id, nombre, telefono, correo 
+      FROM pacientes 
+      WHERE deleted_at IS NULL 
+        AND (
+          (telefono IS NOT NULL AND telefono = $1)
+          OR (correo IS NOT NULL AND LOWER(correo) = LOWER($2))
+          OR (nombre IS NOT NULL AND nombre ILIKE $3)
+        )
+      LIMIT 5
+    `
+    // Convertir nombre a formato ILIKE si existe
+    const nombreLike = nombre ? `%${nombre}%` : null
+    
+    const result = await pool.query(query, [telefono || null, correo || null, nombreLike])
+    res.json(result.rows)
+  } catch (error) {
+    console.error('Error buscando sugerencias:', error)
+    res.status(500).json({ error: 'Error interno buscando sugerencias' })
   }
 }

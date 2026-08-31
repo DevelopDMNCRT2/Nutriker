@@ -71,11 +71,7 @@
               <input v-model="form.correo" type="email" placeholder="paciente@ejemplo.com" class="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none focus:border-emerald-500 focus:bg-white dark:border-gray-600 dark:bg-gray-900 dark:text-white transition-colors" />
             </div>
             
-            <div class="md:col-span-12 mt-2 pt-4 border-t border-gray-100 dark:border-gray-700">
-              <label class="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-gray-300">Contraseña de Acceso al Portal</label>
-              <input v-model="form.contrasena" type="text" placeholder="Nueva contraseña (opcional)" class="w-full md:w-1/2 rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none focus:border-emerald-500 focus:bg-white dark:border-gray-600 dark:bg-gray-900 dark:text-white transition-colors" />
-              <p class="text-xs text-gray-500 mt-1.5">Si se deja en blanco, la contraseña por defecto será el número de teléfono del paciente.</p>
-            </div>
+            <!-- El campo de contraseña se eliminó para forzar al paciente a crearla mediante su correo/teléfono -->
             <div class="md:col-span-12">
               <label class="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-gray-300">Ocupación</label>
               <input v-model="form.ocupacion" type="text" placeholder="Ej. Arquitecta, Estudiante..." class="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none focus:border-emerald-500 focus:bg-white dark:border-gray-600 dark:bg-gray-900 dark:text-white transition-colors" />

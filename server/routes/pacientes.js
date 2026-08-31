@@ -4,12 +4,14 @@ import {
   getPacienteById,
   createPaciente,
   updatePaciente,
-  deletePaciente
+  deletePaciente,
+  getSugerencias
 } from '../controllers/pacientesController.js'
 
 const router = Router()
 
 router.get('/', getPacientes)
+router.get('/sugerencias', getSugerencias)
 router.get('/:id', getPacienteById)
 router.post('/', createPaciente)
 router.put('/:id', updatePaciente)
