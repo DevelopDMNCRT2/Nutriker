@@ -1,3 +1,4 @@
+// @ts-ignore
 import api from './index'
 
 export const platillosApi = {
