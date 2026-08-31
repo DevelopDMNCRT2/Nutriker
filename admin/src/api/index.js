@@ -1,5 +1,10 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
-export const SERVER_BASE = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
+// @ts-ignore
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+const defaultApiUrl = isLocalhost ? 'http://localhost:3000/api' : '/api'
+const API_BASE = import.meta.env.VITE_API_URL || defaultApiUrl
+
+const defaultServerUrl = isLocalhost ? 'http://localhost:3000' : ''
+export const SERVER_BASE = import.meta.env.VITE_SERVER_URL || defaultServerUrl
 
 function getHeaders(isFormData = false) {
   const headers = {}
