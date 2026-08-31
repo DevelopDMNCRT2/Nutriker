@@ -324,22 +324,38 @@ REGLAS CLÍNICAS Y PREFERENCIAS DE LA DRA. KARLA (¡INQUEBRANTABLES!):
 2. ALIMENTOS FAVORITOS: Prioriza incluir aguacate, verdura cruda y pescado en las comidas principales.
 3. ALIMENTOS PROHIBIDOS: NUNCA, bajo ninguna circunstancia, incluyas enlatados, ultraprocesados, pan de dulce o refrescos.
 4. CATÁLOGO: Usa como base los alimentos del catálogo SMAE proporcionado, pero calcula las cantidades para ser exactas.
-5. FORMATO DE CANTIDADES: Exprésate con EXTREMA PRECISIÓN en gramos o mililitros siempre que sea posible (ej. "120 gramos de Pechuga de Pollo", "200 ml de leche"). No uses "una palma" o medidas ambiguas.
-6. NÚMERO DE COMIDAS: La Dra. Karla adapta las comidas según el paciente (de 3 a 6). El sistema de base de datos tiene 5 "cajas" (desayuno, colacion_am, comida, colacion_pm, cena). 
-   - Si el paciente requiere 3 comidas, pon "Ayuno" o "Libre" en las colaciones.
-   - Si el paciente requiere 6 comidas, combina la sexta en la última caja (ej. "Cena + Colación Nocturna: ...").
+5. FORMATO DE CANTIDADES: Exprésate con EXTREMA PRECISIÓN en gramos o mililitros siempre que sea posible.
+6. NÚMERO DE COMIDAS: El sistema tiene 5 "cajas" (desayuno, colacion_am, comida, colacion_pm, cena). Si requiere menos de 5, pon "null" (literalmente el valor null en JSON) en la comida correspondiente.
 
-FORMATO DE RESPUESTA: Devuelve ÚNICAMENTE un objeto JSON válido con exactamente estas 35 claves + notas_ia:
+FORMATO DE RESPUESTA: Devuelve ÚNICAMENTE un objeto JSON válido con exactamente estas 35 claves + notas_ia.
+CADA COMIDA debe ser un OBJETO JSON estructurado de la siguiente forma (si está vacío usa null):
 {
-  "lunes_desayuno": "descripción precisa en gramos",
-  "lunes_colacion_am": "...",
-  "lunes_comida": "...",
-  "lunes_colacion_pm": "...",
-  "lunes_cena": "...",
-  ... (repite para martes, miercoles, jueves, viernes, sabado, domingo)
-  "notas_ia": "notas clínicas justificando tus decisiones o explicando la distribución de macros"
+  "nombre": "Ensalada de Pollo con Aguacate",
+  "receta": "Lavar la lechuga. Asar 120g de pechuga a la plancha...",
+  "info_nutricional": {
+    "kcal": 350,
+    "proteinas": 25,
+    "carbohidratos": 15,
+    "grasas": 20,
+    "fibra": 6
+  },
+  "costos": [
+    { "ingrediente": "Pechuga de pollo (120g)", "precio": 25 },
+    { "ingrediente": "Aguacate (1/2 pieza)", "precio": 15 }
+  ]
 }
-NO escribas texto fuera del JSON. No uses markdown dentro del JSON.`
+
+Estructura final requerida:
+{
+  "lunes_desayuno": { "nombre": "...", "receta": "...", "info_nutricional": {...}, "costos": [...] },
+  "lunes_colacion_am": null,
+  "lunes_comida": { ... },
+  "lunes_colacion_pm": { ... },
+  "lunes_cena": { ... },
+  ... (repite para el resto de los días hasta domingo)
+  "notas_ia": "Notas clínicas justificando tus decisiones."
+}
+NO escribas texto fuera del JSON. No uses markdown dentro del JSON ni bloques de código \`\`\`json.`
 
     if (genAI) {
       try {
@@ -362,19 +378,31 @@ NO escribas texto fuera del JSON. No uses markdown dentro del JSON.`
     }
 
     // Fallback con SMAE real
+    const mockMeal = (nombre) => ({
+      nombre,
+      receta: "Preparar ingredientes y mezclar.",
+      info_nutricional: { kcal: 350, proteinas: 20, carbohidratos: 35, grasas: 15, fibra: 5 },
+      costos: [{ ingrediente: nombre, precio: 35 }]
+    })
+
     const fallback = {
-      lunes_desayuno: '¾ taza de avena en hojuelas cocida con 1 taza de fresas y 1 cdita de miel de abeja',
-      lunes_colacion_am: '1 manzana pequeña con 10 almendras',
-      lunes_comida: '120g pechuga de pollo a la plancha, ½ taza de arroz integral, 1 taza de brócoli al vapor con 1 cdita aceite de oliva',
-      lunes_colacion_pm: '150g yogur natural descremado con 1 kiwi',
-      lunes_cena: '2 huevos revueltos con espinacas y 1 tortilla de maíz',
-      martes_desayuno: '2 rebanadas de pan integral con 1 huevo cocido y ½ aguacate',
-      martes_colacion_am: '1 guayaba con 15 cacahuates tostados sin sal',
-      martes_comida: '120g de tilapia al vapor, ½ taza de frijoles negros, ensalada de pepino y jitomate',
-      martes_colacion_pm: '240ml leche descremada con 1 plátano tabasco',
-      martes_cena: '1 taza de sopa de verduras (zanahoria, chayote, ejotes), 1 tortilla de maíz',
+      lunes_desayuno: mockMeal('Avena cocida con fresas y miel'),
+      lunes_colacion_am: mockMeal('Manzana pequeña con almendras'),
+      lunes_comida: mockMeal('Pechuga de pollo a la plancha con brócoli'),
+      lunes_colacion_pm: mockMeal('Yogur natural con kiwi'),
+      lunes_cena: mockMeal('Huevos revueltos con espinacas'),
+      martes_desayuno: mockMeal('Pan integral con huevo y aguacate'),
+      martes_colacion_am: mockMeal('Guayaba con cacahuates'),
+      martes_comida: mockMeal('Tilapia al vapor con frijoles'),
+      martes_colacion_pm: mockMeal('Leche descremada con plátano'),
+      martes_cena: mockMeal('Sopa de verduras'),
       notas_ia: `Menú generado con catálogo SMAE 2024/2026. Requerimiento calórico estimado: ${kcalObjetivo}. Mantener hidratación de 2 litros de agua al día.`
     }
+    // Llenar vacíos con null
+    columnasMenu.forEach(c => {
+      if (!fallback[c]) fallback[c] = null
+    })
+
     res.json({ menu: fallback, respuesta: `Propuesta base SMAE generada. ${kcalObjetivo}`, kcal_objetivo: kcalObjetivo })
   } catch (err) {
     console.error('Error en generarMenu:', err.message)

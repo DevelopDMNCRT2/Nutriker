@@ -91,7 +91,9 @@ const allMenuItems = [
   { name: 'Inicio',         path: '/dashboard',     icon: GridIcon },
   { name: 'Usuarios',       path: '/usuarios',      icon: UserCircleIcon },
   { name: 'Pacientes',      path: '/pacientes',      icon: ListIcon },
+  { name: 'Platillos',      path: '/platillos',      icon: ListIcon },
   { name: 'Citas',          path: '/citas',         icon: CalenderIcon },
+  { name: 'Empresas',       path: '/empresas',      icon: BoxCubeIcon },
   // Módulos ocultos temporalmente para el hito actual
   /*
   { name: 'Productos',      path: '/productos',     icon: BoxCubeIcon },

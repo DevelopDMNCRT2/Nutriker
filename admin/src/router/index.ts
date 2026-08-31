@@ -71,6 +71,24 @@ const router = createRouter({
       meta: { title: 'Editar Paciente' },
     },
     {
+      path: '/platillos',
+      name: 'Platillos',
+      component: () => import('../views/Platillos.vue'),
+      meta: { title: 'Platillos' },
+    },
+    {
+      path: '/platillos/nuevo',
+      name: 'PlatilloCrear',
+      component: () => import('../views/PlatilloForm.vue'),
+      meta: { title: 'Nuevo Platillo' },
+    },
+    {
+      path: '/platillos/editar/:id',
+      name: 'PlatilloEditar',
+      component: () => import('../views/PlatilloForm.vue'),
+      meta: { title: 'Editar Platillo' },
+    },
+    {
       path: '/citas',
       name: 'Citas',
       component: () => import('../views/Citas.vue'),
@@ -201,6 +219,12 @@ const router = createRouter({
       name: 'BlogPostEditar',
       component: () => import('../views/BlogPostForm.vue'),
       meta: { title: 'Editar Artículo de Blog' },
+    },
+    {
+      path: '/empresas',
+      name: 'Empresas',
+      component: () => import('../views/Empresas.vue'),
+      meta: { title: 'Empresas - NutriKer' },
     },
     {
       path: '/royal-canin',
