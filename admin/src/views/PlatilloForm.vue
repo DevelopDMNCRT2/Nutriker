@@ -131,7 +131,7 @@ import { useRouter, useRoute } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import PlusIcon from '@/icons/PlusIcon.vue'
 import TrashIcon from '@/icons/TrashIcon.vue'
-import { platillosApi } from '@/api/platillos'
+import { platillosApi } from '@/api/index.js'
 
 const router = useRouter()
 const route = useRoute()

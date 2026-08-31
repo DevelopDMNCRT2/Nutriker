@@ -180,3 +180,12 @@ export const ordenesApi = {
 export const publicApi = {
   createCita: (body) => request('POST', '/public/citas', body),
 }
+
+// --- Platillos ---
+export const platillosApi = {
+  getAll:  ()         => request('GET',    '/platillos'),
+  getById: (id)       => request('GET',    `/platillos/${id}`),
+  create:  (body)     => request('POST',   '/platillos', body),
+  update:  (id, body) => request('PUT',    `/platillos/${id}`, body),
+  delete:  (id)       => request('DELETE', `/platillos/${id}`),
+}

@@ -98,7 +98,7 @@ import AdminLayout from '@/components/layout/AdminLayout.vue'
 import PlusIcon from '@/icons/PlusIcon.vue'
 import TrashIcon from '@/icons/TrashIcon.vue'
 import Modal from '@/components/ui/Modal.vue'
-import { platillosApi } from '@/api/platillos'
+import { platillosApi } from '@/api/index.js'
 
 const platillos = ref<any[]>([])
 const loading = ref(true)

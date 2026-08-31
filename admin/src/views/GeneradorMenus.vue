@@ -302,8 +302,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 import PlatilloCell from './PlatilloCell.vue'
-import { pacientesApi, menusApi, iaApi } from '@/api/index.js'
-import { platillosApi } from '@/api/platillos'
+import { pacientesApi, menusApi, iaApi, platillosApi } from '@/api/index.js'
 
 const route = useRoute()
 const pacienteId = ref<string>(route.params.pacienteId as string || '')
