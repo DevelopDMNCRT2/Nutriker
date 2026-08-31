@@ -99,4 +99,5 @@ export {
   SendIcon,
   DraftIcon,
   TruckIcon,
+  ForkKnifeIcon,
 };
