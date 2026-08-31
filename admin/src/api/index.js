@@ -24,8 +24,17 @@ async function request(method, path, body = null) {
     localStorage.removeItem('admin_logged')
     window.location.href = '/login'
   }
+  
+  let data = {}
+  const contentType = res.headers.get('content-type')
+  if (contentType && contentType.includes('application/json')) {
+    data = await res.json()
+  } else {
+    // Si la respuesta no es JSON (ej. Vercel devolviendo HTML de error 404/500)
+    await res.text()
+    throw new Error(`Error de servidor (No es JSON). Código: ${res.status}`)
+  }
 
-  const data = await res.json()
   if (!res.ok) throw new Error(data.error || 'Error en la solicitud')
   return data
 }
