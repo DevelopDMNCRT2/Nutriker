@@ -129,8 +129,8 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
-import PlusIcon from '@/components/icons/PlusIcon.vue'
-import TrashIcon from '@/components/icons/TrashIcon.vue'
+import PlusIcon from '@/icons/PlusIcon.vue'
+import TrashIcon from '@/icons/TrashIcon.vue'
 import { platillosApi } from '@/api/platillos'
 
 const router = useRouter()

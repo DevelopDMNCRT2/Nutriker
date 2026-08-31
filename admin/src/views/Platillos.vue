@@ -95,8 +95,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
-import PlusIcon from '@/components/icons/PlusIcon.vue'
-import TrashIcon from '@/components/icons/TrashIcon.vue'
+import PlusIcon from '@/icons/PlusIcon.vue'
+import TrashIcon from '@/icons/TrashIcon.vue'
 import Modal from '@/components/ui/Modal.vue'
 import { platillosApi } from '@/api/platillos'
 
