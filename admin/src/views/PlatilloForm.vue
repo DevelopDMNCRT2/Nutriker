@@ -168,7 +168,7 @@ onMounted(async () => {
 async function loadPlatillo() {
   loading.value = true
   try {
-    const { data } = await platillosApi.getById(platilloId.value)
+    const data = await platillosApi.getById(platilloId.value)
     if (data) {
       form.value.nombre = data.nombre || ''
       form.value.receta = data.receta || ''

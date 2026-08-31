@@ -79,9 +79,17 @@
 
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
-import { UserCircleIcon, CalenderIcon, ListIcon, HorizontalDots, ShoppingBagIcon, TruckIcon } from '../../icons'
-import BoxCubeIcon from '@/icons/BoxCubeIcon.vue'
-import GridIcon from '@/icons/GridIcon.vue'
+import {
+  GridIcon,
+  UserCircleIcon,
+  CalenderIcon,
+  ListIcon,
+  BoxCubeIcon,
+  ShoppingBagIcon,
+  TruckIcon,
+  ForkKnifeIcon,
+  HorizontalDots
+} from '@/icons'
 import { useSidebar } from '@/composables/useSidebar'
 
 const route = useRoute()
@@ -91,7 +99,7 @@ const allMenuItems = [
   { name: 'Inicio',         path: '/dashboard',     icon: GridIcon },
   { name: 'Usuarios',       path: '/usuarios',      icon: UserCircleIcon },
   { name: 'Pacientes',      path: '/pacientes',      icon: ListIcon },
-  { name: 'Platillos',      path: '/platillos',      icon: ListIcon },
+  { name: 'Platillos',      path: '/platillos',      icon: ForkKnifeIcon },
   { name: 'Citas',          path: '/citas',         icon: CalenderIcon },
   { name: 'Empresas',       path: '/empresas',      icon: BoxCubeIcon },
   // Módulos ocultos temporalmente para el hito actual

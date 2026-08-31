@@ -47,6 +47,7 @@ import BellIcon from "./BellIcon.vue";
 import BarChartIcon from "./BarChartIcon.vue";
 import TruckIcon from "./TruckIcon.vue";
 import ShoppingBagIcon from "./ShoppingBagIcon.vue";
+import ForkKnifeIcon from "./ForkKnifeIcon.vue";
 
 export {
   ShoppingBagIcon,

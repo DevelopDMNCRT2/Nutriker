@@ -114,8 +114,8 @@ onMounted(async () => {
 async function loadPlatillos() {
   loading.value = true
   try {
-    const { data } = await platillosApi.getAll()
-    platillos.value = data || []
+    const response = await platillosApi.getAll()
+    platillos.value = Array.isArray(response) ? response : (response.data || [])
   } catch (error) {
     console.error('Error al cargar platillos:', error)
   } finally {
