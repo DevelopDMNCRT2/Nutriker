@@ -12,6 +12,9 @@ export default defineConfig({
     vueJsx(),
     vueDevTools(),
   ],
+  define: {
+    __BUILD_TIME__: JSON.stringify(new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' }))
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

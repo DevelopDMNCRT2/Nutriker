@@ -73,8 +73,8 @@
         :class="[isApplicationMenuOpen ? 'flex' : 'hidden']"
         class="items-center justify-between w-full gap-4 px-5 py-4 shadow-theme-md lg:flex lg:justify-end lg:px-0 lg:shadow-none"
       >
-        <div class="hidden sm:block text-[10px] font-semibold text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md border border-gray-200 dark:border-gray-700">
-          Build: 30/08/2026 22:34:00
+        <div class="hidden sm:block text-xs text-gray-500 font-mono bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700">
+          Build: {{ buildTime }}
         </div>
         <div class="flex items-center gap-2 2xsm:gap-3">
           <ThemeToggler />
@@ -93,6 +93,9 @@ import HeaderLogo from './header/HeaderLogo.vue'
 import UserMenu from './header/UserMenu.vue'
 
 const { toggleSidebar, toggleMobileSidebar, isMobileOpen } = useSidebar()
+
+// @ts-ignore
+const buildTime = typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : 'Dev Mode'
 
 const handleToggle = () => {
   if (window.innerWidth >= 1024) {
