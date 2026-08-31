@@ -19,6 +19,7 @@ import ordenesRouter from './routes/ordenes.js'
 import publicRouter from './routes/public.js'
 import blogRouter from './routes/blog.js'
 import ingresosRouter from './routes/ingresos.js'
+import platillosRouter from './routes/platillos.js'
 
 dotenv.config()
 
@@ -83,6 +84,7 @@ app.use('/api/ordenes', ordenesRouter)
 app.use('/api/ingresos', ingresosRouter)
 app.use('/api/blog', blogRouter)
 app.use('/api/public', publicRouter)
+app.use('/api/platillos', platillosRouter)
 
 // ── 404 ────────────────────────────────────────────────
 app.use((req, res) => {

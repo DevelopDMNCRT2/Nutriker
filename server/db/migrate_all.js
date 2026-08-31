@@ -8,6 +8,7 @@ const resetTablesSQL = `
   DROP TABLE IF EXISTS productos CASCADE;
   DROP TABLE IF EXISTS categorias CASCADE;
   DROP TABLE IF EXISTS usuarios CASCADE;
+  DROP TABLE IF EXISTS platillos CASCADE;
 
   -- 1. Usuarios
   CREATE TABLE usuarios (
@@ -117,47 +118,59 @@ const resetTablesSQL = `
     deleted_at              TIMESTAMPTZ DEFAULT NULL
   );
 
+  -- 9. Platillos (Catálogo)
+  CREATE TABLE IF NOT EXISTS platillos (
+    id                VARCHAR(8) PRIMARY KEY,
+    nombre            VARCHAR(150) NOT NULL UNIQUE,
+    receta            TEXT,
+    info_nutricional  JSONB DEFAULT '{}'::jsonb,
+    costos            JSONB DEFAULT '[]'::jsonb,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at        TIMESTAMPTZ DEFAULT NULL
+  );
+
   -- 10. Menus Semanales
   CREATE TABLE IF NOT EXISTS menus_semanales (
     id                  VARCHAR(8) PRIMARY KEY,
     paciente_id          VARCHAR(8) NOT NULL REFERENCES pacientes(id) ON DELETE CASCADE,
     nombre              VARCHAR(255) NOT NULL,
     semana_inicio       DATE NOT NULL,
-    lunes_desayuno      TEXT,
-    lunes_colacion_am   TEXT,
-    lunes_comida        TEXT,
-    lunes_colacion_pm   TEXT,
-    lunes_cena          TEXT,
-    martes_desayuno     TEXT,
-    martes_colacion_am  TEXT,
-    martes_comida       TEXT,
-    martes_colacion_pm  TEXT,
-    martes_cena         TEXT,
-    miercoles_desayuno  TEXT,
-    miercoles_colacion_am TEXT,
-    miercoles_comida    TEXT,
-    miercoles_colacion_pm TEXT,
-    miercoles_cena      TEXT,
-    jueves_desayuno     TEXT,
-    jueves_colacion_am  TEXT,
-    jueves_comida       TEXT,
-    jueves_colacion_pm  TEXT,
-    jueves_cena         TEXT,
-    viernes_desayuno    TEXT,
-    viernes_colacion_am TEXT,
-    viernes_comida      TEXT,
-    viernes_colacion_pm TEXT,
-    viernes_cena        TEXT,
-    sabado_desayuno     TEXT,
-    sabado_colacion_am  TEXT,
-    sabado_comida       TEXT,
-    sabado_colacion_pm  TEXT,
-    sabado_cena         TEXT,
-    domingo_desayuno    TEXT,
-    domingo_colacion_am TEXT,
-    domingo_comida      TEXT,
-    domingo_colacion_pm TEXT,
-    domingo_cena        TEXT,
+    lunes_desayuno      JSONB,
+    lunes_colacion_am   JSONB,
+    lunes_comida        JSONB,
+    lunes_colacion_pm   JSONB,
+    lunes_cena          JSONB,
+    martes_desayuno     JSONB,
+    martes_colacion_am  JSONB,
+    martes_comida       JSONB,
+    martes_colacion_pm  JSONB,
+    martes_cena         JSONB,
+    miercoles_desayuno  JSONB,
+    miercoles_colacion_am JSONB,
+    miercoles_comida    JSONB,
+    miercoles_colacion_pm JSONB,
+    miercoles_cena      JSONB,
+    jueves_desayuno     JSONB,
+    jueves_colacion_am  JSONB,
+    jueves_comida       JSONB,
+    jueves_colacion_pm  JSONB,
+    jueves_cena         JSONB,
+    viernes_desayuno    JSONB,
+    viernes_colacion_am JSONB,
+    viernes_comida      JSONB,
+    viernes_colacion_pm JSONB,
+    viernes_cena        JSONB,
+    sabado_desayuno     JSONB,
+    sabado_colacion_am  JSONB,
+    sabado_comida       JSONB,
+    sabado_colacion_pm  JSONB,
+    sabado_cena         JSONB,
+    domingo_desayuno    JSONB,
+    domingo_colacion_am JSONB,
+    domingo_comida      JSONB,
+    domingo_colacion_pm JSONB,
+    domingo_cena        JSONB,
     notas               TEXT,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()

@@ -121,7 +121,7 @@
            
            <div v-else>
               <div class="menu-print-header hidden print-show mb-6 text-center">
-                <h1 class="text-2xl font-bold text-brand-700">Plan Nutricional: {{ paciente.nombre }}</h1>
+                <h1 class="text-2xl font-bold text-brand-700">Plan Nutricional: {{ paciente?.nombre || 'Paciente' }}</h1>
                 <p class="text-gray-600">Dra. Karla - Clínica NutriKer | Fecha: {{ formatFechaLetras(visitaActiva.fecha) }}</p>
                 <div v-if="visitaActiva.menu.notas" class="mt-2 text-sm italic text-gray-700">"{{ visitaActiva.menu.notas }}"</div>
               </div>
@@ -142,40 +142,149 @@
               <div class="meals-container print-hide">
                 <template v-for="tiempo in tiemposComida" :key="tiempo.key">
                   <div 
-                    v-if="visitaActiva.menu[`${diaMenuSeleccionado}_${tiempo.key}`] && !isLibreOAyuno(visitaActiva.menu[`${diaMenuSeleccionado}_${tiempo.key}`])"
-                    class="meal-card"
+                    v-if="hasMeal(diaMenuSeleccionado, tiempo.key)"
+                    class="meal-card cursor-pointer hover:border-brand-300 transition-colors"
+                    @click="abrirPlatilloModal(getMeal(diaMenuSeleccionado, tiempo.key))"
                   >
                     <div class="meal-header">
                       <span class="meal-icon">{{ tiempo.icon }}</span>
                       <h4 class="meal-title">{{ tiempo.label }}</h4>
                     </div>
-                    <div class="meal-body">
-                      {{ visitaActiva.menu[`${diaMenuSeleccionado}_${tiempo.key}`] }}
+                    <div class="meal-body relative pr-6">
+                      {{ getMealName(diaMenuSeleccionado, tiempo.key) }}
+                      <svg v-if="typeof getMeal(diaMenuSeleccionado, tiempo.key) === 'object'" class="w-4 h-4 text-brand-500 absolute right-0 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </div>
                   </div>
                 </template>
               </div>
 
-              <!-- Vista para imprimir (Todos los días) -->
-              <div class="hidden print-show print-grid">
-                <div v-for="dia in diasSemana" :key="'print-'+dia.key" class="print-day-card break-inside-avoid mb-6">
-                  <h3 class="font-bold text-lg text-brand-700 mb-2 border-b pb-1">{{ dia.label }}</h3>
-                  <div class="space-y-2">
-                    <template v-for="tiempo in tiemposComida" :key="'print-'+dia.key+'-'+tiempo.key">
-                      <div v-if="visitaActiva.menu[`${dia.key}_${tiempo.key}`] && !isLibreOAyuno(visitaActiva.menu[`${dia.key}_${tiempo.key}`])">
-                        <span class="font-bold text-sm">{{ tiempo.label }}:</span>
-                        <p class="text-sm text-gray-800 ml-2">{{ visitaActiva.menu[`${dia.key}_${tiempo.key}`] }}</p>
-                      </div>
-                    </template>
-                  </div>
-                </div>
+              <!-- Vista para imprimir (Rejilla Semanal Horizontal) -->
+              <div class="hidden print-show mt-4">
+                <table class="print-table w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr class="bg-gray-100">
+                      <th class="border border-gray-300 p-1 w-16">Tiempo</th>
+                      <th v-for="dia in diasSemana" :key="'th-'+dia.key" class="border border-gray-300 p-1 text-center font-bold">{{ dia.label }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="tiempo in tiemposComida" :key="'tr-'+tiempo.key">
+                      <td class="border border-gray-300 p-1 font-bold bg-gray-50 text-center">{{ tiempo.label }}</td>
+                      <td v-for="dia in diasSemana" :key="'td-'+dia.key+'-'+tiempo.key" class="border border-gray-300 p-1 align-top">
+                        <span v-if="hasMeal(dia.key, tiempo.key)" class="block">
+                          <strong>{{ getMealName(dia.key, tiempo.key) }}</strong>
+                          <span v-if="typeof getMeal(dia.key, tiempo.key) === 'object' && getMeal(dia.key, tiempo.key).info_nutricional?.kcal" class="block text-[8px] text-gray-500 mt-1">
+                            🔥 {{ getMeal(dia.key, tiempo.key).info_nutricional.kcal }} kcal
+                          </span>
+                        </span>
+                        <span v-else class="text-gray-300 text-center block">—</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-
            </div>
         </div>
-
       </main>
     </div>
+    
+    <!-- MODAL DETALLE DE PLATILLO -->
+    <Teleport to="body">
+      <Transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100" leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-95">
+        <div v-if="modalPlatilloVisible && platilloSeleccionado" class="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4">
+          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-start bg-brand-50/30">
+              <div>
+                <h3 class="text-xl font-bold text-gray-900 leading-tight pr-4">{{ platilloSeleccionado.nombre || platilloSeleccionado }}</h3>
+                <p class="text-sm text-brand-600 font-medium mt-1">Detalles del Platillo</p>
+              </div>
+              <button @click="modalPlatilloVisible = false" class="p-2 bg-white rounded-full text-gray-400 hover:text-gray-600 shadow-sm transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-6" v-if="typeof platilloSeleccionado === 'object'">
+              <!-- Tabs -->
+              <div class="flex border-b border-gray-200 mb-6">
+                <button @click="tabActivo = 'info'" :class="['px-4 py-2 font-semibold text-sm border-b-2 transition-colors', tabActivo === 'info' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700']">Información Nutricional</button>
+                <button v-if="platilloSeleccionado.receta" @click="tabActivo = 'receta'" :class="['px-4 py-2 font-semibold text-sm border-b-2 transition-colors', tabActivo === 'receta' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700']">Receta y Preparación</button>
+                <button v-if="platilloSeleccionado.costos && platilloSeleccionado.costos.length > 0" @click="tabActivo = 'costos'" :class="['px-4 py-2 font-semibold text-sm border-b-2 transition-colors', tabActivo === 'costos' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700']">Costos Aproximados</button>
+              </div>
+              
+              <!-- Tab 1: Info Nutricional -->
+              <div v-show="tabActivo === 'info'" class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <div class="bg-gray-50 p-4 rounded-xl text-center border border-gray-100">
+                  <span class="block text-2xl mb-1">🔥</span>
+                  <span class="block text-xl font-bold text-gray-900">{{ platilloSeleccionado.info_nutricional?.kcal || 0 }}</span>
+                  <span class="block text-[10px] uppercase font-bold tracking-wider text-gray-500 mt-1">Kcal</span>
+                </div>
+                <div class="bg-green-50/50 p-4 rounded-xl text-center border border-green-100">
+                  <span class="block text-2xl mb-1">🥩</span>
+                  <span class="block text-xl font-bold text-green-700">{{ platilloSeleccionado.info_nutricional?.proteinas || 0 }}g</span>
+                  <span class="block text-[10px] uppercase font-bold tracking-wider text-green-600 mt-1">Proteínas</span>
+                </div>
+                <div class="bg-blue-50/50 p-4 rounded-xl text-center border border-blue-100">
+                  <span class="block text-2xl mb-1">🌾</span>
+                  <span class="block text-xl font-bold text-blue-700">{{ platilloSeleccionado.info_nutricional?.carbohidratos || 0 }}g</span>
+                  <span class="block text-[10px] uppercase font-bold tracking-wider text-blue-600 mt-1">Carbs</span>
+                </div>
+                <div class="bg-yellow-50/50 p-4 rounded-xl text-center border border-yellow-100">
+                  <span class="block text-2xl mb-1">🥑</span>
+                  <span class="block text-xl font-bold text-yellow-700">{{ platilloSeleccionado.info_nutricional?.grasas || 0 }}g</span>
+                  <span class="block text-[10px] uppercase font-bold tracking-wider text-yellow-600 mt-1">Grasas</span>
+                </div>
+                <div class="bg-purple-50/50 p-4 rounded-xl text-center border border-purple-100">
+                  <span class="block text-2xl mb-1">🥬</span>
+                  <span class="block text-xl font-bold text-purple-700">{{ platilloSeleccionado.info_nutricional?.fibra || 0 }}g</span>
+                  <span class="block text-[10px] uppercase font-bold tracking-wider text-purple-600 mt-1">Fibra</span>
+                </div>
+              </div>
+              
+              <!-- Tab 2: Receta -->
+              <div v-show="tabActivo === 'receta'">
+                <div class="bg-brand-50/30 p-5 rounded-xl border border-brand-100">
+                  <h4 class="font-bold text-brand-800 mb-3 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                    Instrucciones
+                  </h4>
+                  <p class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{{ platilloSeleccionado.receta }}</p>
+                </div>
+              </div>
+              
+              <!-- Tab 3: Costos -->
+              <div v-show="tabActivo === 'costos'">
+                <div class="border border-gray-200 rounded-xl overflow-hidden">
+                  <table class="w-full text-sm">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th class="px-4 py-3 text-left font-semibold text-gray-600">Ingrediente</th>
+                        <th class="px-4 py-3 text-right font-semibold text-gray-600">Costo Estimado</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                      <tr v-for="(item, idx) in platilloSeleccionado.costos" :key="idx" class="hover:bg-gray-50/50">
+                        <td class="px-4 py-3 text-gray-800">{{ item.ingrediente }}</td>
+                        <td class="px-4 py-3 text-right font-medium text-gray-900">${{ item.precio?.toFixed(2) || '0.00' }}</td>
+                      </tr>
+                    </tbody>
+                    <tfoot class="bg-gray-50/80 font-bold border-t border-gray-200">
+                      <tr>
+                        <td class="px-4 py-3 text-right text-gray-600">Total Aproximado:</td>
+                        <td class="px-4 py-3 text-right text-brand-700">${{ calcularCostoTotal(platilloSeleccionado.costos) }}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+            
+            <div v-else class="p-6 text-center text-gray-500">
+              <p>Este platillo es un texto simple y no contiene detalles extendidos.</p>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -192,6 +301,10 @@ const mediciones = ref([])
 const allMenus = ref([])
 
 const cargandoGeneral = ref(true)
+
+const modalPlatilloVisible = ref(false)
+const platilloSeleccionado = ref(null)
+const tabActivo = ref('info')
 
 const diasSemana = [
   { key: 'lunes', label: 'Lunes', corto: 'L' },
@@ -224,10 +337,43 @@ function formatFechaLetras(fechaStr) {
   return `${d} ${meses[parseInt(m)-1]} ${y}`
 }
 
+function getMeal(diaKey, tiempoKey) {
+  if (!visitaActiva.value?.menu) return null
+  return visitaActiva.value.menu[`${diaKey}_${tiempoKey}`]
+}
+
+function getMealName(diaKey, tiempoKey) {
+  const meal = getMeal(diaKey, tiempoKey)
+  if (!meal) return ''
+  return typeof meal === 'object' ? meal.nombre : meal
+}
+
+function hasMeal(diaKey, tiempoKey) {
+  const meal = getMeal(diaKey, tiempoKey)
+  if (!meal) return false
+  const name = typeof meal === 'object' ? meal.nombre : meal
+  if (!name) return false
+  const lower = name.toLowerCase()
+  return !(lower.includes('libre') || lower.includes('ayuno') || lower.includes('no aplica') || lower.trim() === '')
+}
+
 function isLibreOAyuno(texto) {
   if (!texto) return true
-  const lower = texto.toLowerCase()
+  const lower = (typeof texto === 'object' ? texto.nombre : texto).toLowerCase()
   return lower.includes('libre') || lower.includes('ayuno') || lower.includes('no aplica') || lower.trim() === ''
+}
+
+function abrirPlatilloModal(mealData) {
+  if (!mealData || typeof mealData !== 'object') return
+  platilloSeleccionado.value = mealData
+  tabActivo.value = 'info'
+  modalPlatilloVisible.value = true
+}
+
+function calcularCostoTotal(costos) {
+  if (!costos || !Array.isArray(costos)) return '0.00'
+  const t = costos.reduce((acc, curr) => acc + (Number(curr.precio) || 0), 0)
+  return t.toFixed(2)
 }
 
 // Transformar datos en "Visitas"
@@ -235,12 +381,8 @@ const visitas = computed(() => {
   const sortedMediciones = [...mediciones.value].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
   
   return sortedMediciones.map(m => {
-    // Buscar el menú más cercano a esta fecha (o asignado en esta fecha)
-    // Para simplificar, buscamos un menú creado en la misma semana o el más reciente anterior a la cita
-    // Como fallback, agarramos el menú en la misma posición de la cita (si hay 3 citas y 3 menús)
     let menuAsignado = allMenus.value.find(menu => menu.semanaInicio === m.fecha)
     if (!menuAsignado && allMenus.value.length > 0) {
-      // Tomar el más reciente que no sea del futuro lejano
       menuAsignado = allMenus.value[0] 
     }
     
@@ -448,92 +590,111 @@ onMounted(() => {
 
 /* ── SIDEBAR TIMELINE ── */
 .timeline-sidebar {
-  position: sticky;
-  top: 2rem;
-  background: white;
-  border-radius: 20px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 1.25rem;
   padding: 1.5rem;
   box-shadow: var(--shadow-soft);
-  border: 1px solid #f3f4f6;
+  position: sticky;
+  top: 2rem;
 }
 
 .sidebar-title {
-  font-family: 'Outfit', sans-serif;
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 700;
-  margin-bottom: 1rem;
   color: #374151;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .timeline-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0;
 }
 
 .timeline-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
-  padding: 0.75rem;
-  border-radius: 12px;
-  background: transparent;
-  border: 1px solid transparent;
-  cursor: pointer;
+  padding: 1rem 0;
+  background: none;
+  border: none;
   text-align: left;
+  width: 100%;
+  cursor: pointer;
+  position: relative;
   transition: all 0.2s;
+  opacity: 0.6;
 }
 
+.timeline-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 0.35rem;
+  top: 2rem;
+  bottom: -0.5rem;
+  width: 2px;
+  background: #e5e7eb;
+}
+
+.timeline-item.active,
 .timeline-item:hover {
-  background: #f9fafb;
-}
-
-.timeline-item.active {
-  background: var(--brand-light);
-  border-color: rgba(74, 140, 91, 0.2);
+  opacity: 1;
 }
 
 .timeline-dot {
-  width: 12px;
-  height: 12px;
+  width: 0.8rem;
+  height: 0.8rem;
   border-radius: 50%;
   background: #d1d5db;
-  transition: background 0.2s;
+  margin-top: 0.3rem;
+  position: relative;
+  z-index: 2;
+  transition: all 0.3s ease;
 }
 
 .timeline-item.active .timeline-dot {
   background: var(--brand);
-  box-shadow: 0 0 0 4px rgba(74, 140, 91, 0.2);
+  box-shadow: 0 0 0 4px var(--brand-light);
 }
 
 .timeline-content {
   display: flex;
   flex-direction: column;
+  gap: 0.2rem;
 }
 
 .timeline-date {
-  font-size: 0.9rem;
   font-weight: 600;
+  font-size: 0.95rem;
   color: #111827;
 }
 
 .timeline-weight {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: #6b7280;
+  background: #f3f4f6;
+  padding: 0.15rem 0.5rem;
+  border-radius: 99px;
+  display: inline-block;
+  width: max-content;
 }
 
-.timeline-item.active .timeline-date {
+.timeline-item.active .timeline-weight {
+  background: var(--brand-light);
   color: var(--brand);
 }
 
-/* ── MAIN CARDS ── */
+/* ── CARDS GLOBALES ── */
 .glass-card {
   background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
-  border-radius: 20px;
-  padding: 2rem;
+  border-radius: 1.25rem;
+  padding: 1.75rem;
   box-shadow: var(--shadow-soft);
 }
 
@@ -555,23 +716,25 @@ onMounted(() => {
   font-family: 'Outfit', sans-serif;
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1f2937;
+  color: #111827;
+  margin: 0;
 }
 
 .badge-date {
-  background: #f3f4f6;
-  color: #4b5563;
   font-size: 0.8rem;
   font-weight: 600;
-  padding: 0.4rem 0.8rem;
-  border-radius: 8px;
+  color: var(--brand);
+  background: var(--brand-light);
+  padding: 0.4rem 0.75rem;
+  border-radius: 99px;
 }
 
+/* ── INFO BOXES (Diag / Notas) ── */
 .info-box {
   background: #f9fafb;
   border: 1px solid #f3f4f6;
-  border-radius: 12px;
-  padding: 1rem;
+  border-radius: 1rem;
+  padding: 1.25rem;
 }
 
 .info-label {
@@ -579,23 +742,26 @@ onMounted(() => {
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: #6b7280;
   margin-bottom: 0.5rem;
 }
 
 .info-value {
   font-size: 0.95rem;
-  color: #374151;
   line-height: 1.5;
+  color: #374151;
+  margin: 0;
 }
 
-/* Biométricos */
+/* ── METRICS (Biométricos) ── */
 .metric-box {
   background: white;
   border: 1px solid #f3f4f6;
-  border-radius: 12px;
+  border-radius: 1rem;
   padding: 1rem;
   text-align: center;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
 }
 
 .metric-label {
@@ -603,32 +769,117 @@ onMounted(() => {
   font-size: 0.75rem;
   font-weight: 600;
   color: #6b7280;
-  text-transform: uppercase;
   margin-bottom: 0.25rem;
+  text-transform: uppercase;
 }
 
 .metric-value {
   font-family: 'Outfit', sans-serif;
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--brand);
 }
-.metric-value small { font-size: 0.9rem; color: #9ca3af; }
-
-.chart-wrapper {
-  height: 250px;
-  width: 100%;
+.metric-value small {
+  font-size: 0.9rem;
+  color: #9ca3af;
+  font-weight: 500;
 }
 
-/* ── MENÚ ── */
-.btn-outline-primary {
+.chart-wrapper {
+  height: 200px;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+/* ── MENU DAY SELECTOR ── */
+.day-selector {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.day-btn {
+  flex: 1;
+  min-width: 80px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  padding: 0.6rem 0;
+  border-radius: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.day-btn:hover {
+  background: #f9fafb;
+}
+
+.day-btn.active {
+  background: var(--brand);
+  color: white;
+  border-color: var(--brand);
+  box-shadow: 0 4px 12px rgba(74, 140, 91, 0.2);
+}
+
+/* ── MEALS CONTAINER ── */
+.meals-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.meal-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.meal-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+}
+
+.meal-header {
   display: flex;
   align-items: center;
-  border: 2px solid var(--brand);
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.meal-icon {
+  font-size: 1.2rem;
+}
+
+.meal-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.meal-body {
+  font-size: 0.95rem;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+/* ── BOTONES ── */
+.btn-outline-primary {
+  display: inline-flex;
+  align-items: center;
+  background: white;
   color: var(--brand);
-  background: transparent;
+  border: 2px solid var(--brand);
   padding: 0.5rem 1rem;
-  border-radius: 10px;
+  border-radius: 0.75rem;
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
@@ -639,116 +890,53 @@ onMounted(() => {
   color: white;
 }
 
-.day-selector {
-  display: flex;
-  gap: 0.5rem;
-  overflow-x: auto;
-  padding-bottom: 0.5rem;
-}
-.day-btn {
-  background: white;
-  border: 1px solid #e5e7eb;
-  padding: 0.5rem 1.25rem;
-  border-radius: 99px;
-  font-weight: 600;
-  font-size: 0.85rem;
-  color: #4b5563;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.day-btn.active {
-  background: var(--brand);
-  color: white;
-  border-color: var(--brand);
-}
-
-.meals-container {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.meal-card {
-  background: white;
-  border-left: 4px solid var(--brand);
-  border-radius: 0 12px 12px 0;
-  padding: 1rem;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
-}
-
-.meal-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.meal-title {
-  font-family: 'Outfit', sans-serif;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #1f2937;
-}
-
-.meal-body {
-  font-size: 0.95rem;
-  color: #4b5563;
-  line-height: 1.5;
-  margin-left: 2rem;
-}
-
-/* ── LOADER ── */
-.loader-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 60vh;
-  color: #6b7280;
-}
-.spinner {
-  width: 40px; height: 40px;
-  border: 4px solid var(--brand-light);
-  border-top-color: var(--brand);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* ── PRINT STYLES ── */
-.print-show { display: none; }
-
+/* ── IMPRESIÓN (PRINT) ── */
 @media print {
-  @page { margin: 1cm; }
-  body * {
-    visibility: hidden;
+  @page {
+    size: landscape;
+    margin: 10mm;
   }
+  
+  body {
+    background-color: white !important;
+    font-size: 10pt;
+  }
+
   .print-hide { display: none !important; }
   .print-show { display: block !important; }
-  
-  #menu-section, #menu-section * {
-    visibility: visible;
+
+  .menu-print-container {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
   }
-  #menu-section {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    border: none;
-    box-shadow: none;
-    padding: 0;
-  }
-  
-  .menu-print-header {
-    border-bottom: 2px solid var(--brand);
-    padding-bottom: 1rem;
-  }
-  
+
   .print-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+    display: block !important;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 9pt;
+  }
+  
+  .print-table th, .print-table td {
+    border: 1px solid #cbd5e1;
+    padding: 4px;
+  }
+  
+  .print-table th {
+    background-color: #f1f5f9 !important;
+    -webkit-print-color-adjust: exact;
+  }
+  
+  .print-table td {
+    background-color: #ffffff !important;
+    -webkit-print-color-adjust: exact;
   }
 }
 </style>
