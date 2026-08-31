@@ -71,23 +71,25 @@
     </div>
 
     <!-- Delete Modal -->
-    <Modal :show="showDeleteModal" @close="showDeleteModal = false">
-      <div class="p-6 text-center">
-        <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-          <TrashIcon class="w-8 h-8" />
+    <Modal v-if="showDeleteModal" :fullScreenBackdrop="true" @close="showDeleteModal = false">
+      <template #body>
+        <div class="relative w-full max-w-sm rounded-xl bg-white p-6 shadow-theme-lg dark:bg-gray-800 m-4 mx-auto mt-32 text-center">
+          <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <TrashIcon class="w-8 h-8" />
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Eliminar Platillo</h3>
+          <p class="text-gray-500 mb-6">¿Estás seguro de que deseas eliminar "{{ platilloToDelete?.nombre }}"? Esta acción no se puede deshacer.</p>
+          <div class="flex gap-3 justify-center">
+            <button @click="showDeleteModal = false" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-semibold transition-colors">
+              Cancelar
+            </button>
+            <button @click="executeDelete" :disabled="deleting" class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors flex items-center gap-2">
+              <span v-if="deleting" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              Eliminar
+            </button>
+          </div>
         </div>
-        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Eliminar Platillo</h3>
-        <p class="text-gray-500 mb-6">¿Estás seguro de que deseas eliminar "{{ platilloToDelete?.nombre }}"? Esta acción no se puede deshacer.</p>
-        <div class="flex gap-3 justify-center">
-          <button @click="showDeleteModal = false" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-semibold transition-colors">
-            Cancelar
-          </button>
-          <button @click="executeDelete" :disabled="deleting" class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors flex items-center gap-2">
-            <span v-if="deleting" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-            Eliminar
-          </button>
-        </div>
-      </div>
+      </template>
     </Modal>
   </AdminLayout>
 </template>
