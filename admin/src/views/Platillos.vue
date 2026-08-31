@@ -115,7 +115,13 @@ async function loadPlatillos() {
   loading.value = true
   try {
     const response = await platillosApi.getAll()
-    platillos.value = Array.isArray(response) ? response : (response.data || [])
+    if (Array.isArray(response)) {
+      platillos.value = response
+    } else if (response && Array.isArray(response.data)) {
+      platillos.value = response.data
+    } else {
+      platillos.value = []
+    }
   } catch (error) {
     console.error('Error al cargar platillos:', error)
   } finally {
