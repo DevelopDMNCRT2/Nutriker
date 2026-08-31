@@ -54,11 +54,7 @@
             </div>
           </div>
 
-          <!-- Mensaje de Error / Alerta -->
-          <div v-if="errorMsg" class="error-banner">
-            <span class="error-text">{{ errorMsg }}</span>
-            <button @click="errorMsg = ''" class="btn-close-error">&times;</button>
-          </div>
+
 
           <!-- PASO 1: Captura de Datos Personales y de Salud -->
           <div v-if="pasoActual === 1 && !citaConfirmada" class="wizard-step-content">
@@ -94,6 +90,29 @@
                   maxlength="10"
                   placeholder="Ej. 5555123456"
                   @input="form.paciente_telefono = form.paciente_telefono.replace(/\D/g, '').slice(0, 10)"
+                  class="form-input"
+                />
+              </div>
+
+              <!-- CONTRASEÑA PARA ACCESO AL PORTAL -->
+              <div class="form-group">
+                <label>Contraseña para tu Portal *</label>
+                <input
+                  v-model="form.password"
+                  type="password"
+                  placeholder="Mínimo 6 caracteres"
+                  minlength="6"
+                  class="form-input"
+                />
+              </div>
+
+              <div class="form-group">
+                <label>Confirmar Contraseña *</label>
+                <input
+                  v-model="form.confirmPassword"
+                  type="password"
+                  placeholder="Escríbela de nuevo"
+                  minlength="6"
                   class="form-input"
                 />
               </div>
@@ -207,6 +226,11 @@
 
             <button @click="reiniciarWizard" class="btn-nueva-cita">Agendar Otra Cita</button>
           </div>
+          <!-- Mensaje de Error / Alerta (Ubicado aquí para estar debajo del botón) -->
+          <div v-if="errorMsg" class="error-banner mt-4">
+            <span class="error-text">{{ errorMsg }}</span>
+            <button @click="errorMsg = ''" class="btn-close-error">&times;</button>
+          </div>
         </div>
       </div>
     </section>
@@ -256,7 +280,10 @@ const form = ref({
   paciente_email: '',
   paciente_telefono: '',
   fecha: new Date().toISOString().split('T')[0],
-  horario: ''
+  horario: '',
+  notas: '',
+  password: '',
+  confirmPassword: ''
 })
 
 watch(() => form.value.fecha, (nuevaFecha) => {
@@ -278,10 +305,21 @@ const irAlPaso2 = () => {
     errorMsg.value = 'Por favor ingresa un correo electrónico válido (ej. usuario@dominio.com).'
     return
   }
-  if (form.value.paciente_telefono.replace(/\D/g, '').length !== 10) {
+  if (!form.value.paciente_telefono || form.value.paciente_telefono.length !== 10) {
     errorMsg.value = 'El número de teléfono debe contener exactamente 10 dígitos.'
     return
   }
+
+  if (!form.value.password || form.value.password.length < 6) {
+    errorMsg.value = 'Debes crear una contraseña de al menos 6 caracteres.'
+    return
+  }
+
+  if (form.value.password !== form.value.confirmPassword) {
+    errorMsg.value = 'Las contraseñas no coinciden.'
+    return
+  }
+
   pasoActual.value = 2
 }
 

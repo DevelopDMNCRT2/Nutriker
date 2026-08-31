@@ -186,11 +186,11 @@ const pacientesFiltrados = computed(() => {
   try {
     const nombre = form.value.paciente_nombre || ''
     const query = String(nombre).toLowerCase().trim()
-    const lista = Array.isArray(listaPacientes.value) ? listaPacientes.value : (listaPacientes.value.data || [])
+    const lista = Array.isArray(listaPacientes.value) ? listaPacientes.value : ((listaPacientes.value as any).data || [])
     
     if (!query) return lista.slice(0, 5)
     
-    return lista.filter(c => {
+    return lista.filter((c: any) => {
       const nom = c.nombre ? String(c.nombre).toLowerCase() : ''
       const tel = c.telefono ? String(c.telefono) : ''
       return nom.includes(query) || tel.includes(query)
@@ -251,9 +251,9 @@ async function guardar() {
   // Validación de duplicados (solo al crear)
   if (!isEditing.value && !proceedAsNew.value && !patientSelectedFromDropdown.value) {
     const query = String(form.value.paciente_nombre).toLowerCase().trim()
-    const lista = Array.isArray(listaPacientes.value) ? listaPacientes.value : (listaPacientes.value.data || [])
+    const lista = Array.isArray(listaPacientes.value) ? listaPacientes.value : ((listaPacientes.value as any).data || [])
     
-    const posibles = lista.filter(c => {
+    const posibles = lista.filter((c: any) => {
       const nom = c.nombre ? String(c.nombre).toLowerCase() : ''
       return nom.includes(query) || query.includes(nom)
     })
@@ -267,7 +267,7 @@ async function guardar() {
   }
 
   try {
-    const payload = { ...form.value }
+    const payload: any = { ...form.value }
     payload.nombre = payload.paciente_nombre
     payload.telefono = payload.paciente_telefono
     delete payload.paciente_nombre

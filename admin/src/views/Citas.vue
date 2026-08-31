@@ -263,6 +263,7 @@ const loading = ref(true)
 const saving = ref(false)
 const showModal = ref(false)
 const showConfirmDelete = ref(false)
+const isLinkingCita = ref(false) // NUEVO: Para diferenciar flujos en el modal de advertencia
 const isEditing = ref(false)
 const modalError = ref('')
 const calendarRef = ref(null)
@@ -289,11 +290,13 @@ const HORARIOS = [
 
 const defaultForm = () => ({
   id: null as string | null,
+  paciente_id: null as string | null,
   paciente_nombre: '',
   paciente_telefono: '',
   paciente_correo: '',
+  correo: '',
   fecha: '',
-  horario: '',
+  horario: '10:00',
   atencion_previa: 'no'
 })
 const form = ref(defaultForm())
@@ -318,9 +321,9 @@ const pacientesFiltrados = computed(() => {
     const query = String(nombre).toLowerCase().trim()
     if (!query || !showDropdownPacientes.value) return []
     
-    const lista = Array.isArray(listaPacientes.value) ? listaPacientes.value : (listaPacientes.value.data || [])
+    const lista = Array.isArray(listaPacientes.value) ? listaPacientes.value : ((listaPacientes.value as any).data || [])
     
-    return lista.filter(c => {
+    return lista.filter((c: any) => {
       const nom = c.nombre ? String(c.nombre).toLowerCase() : ''
       const tel = c.telefono ? String(c.telefono) : ''
       return nom.includes(query) || tel.includes(query)
@@ -332,25 +335,51 @@ const pacientesFiltrados = computed(() => {
 })
 
 function seleccionarPaciente(paciente: any) {
+  form.value.paciente_id = paciente.id
   form.value.paciente_nombre = paciente.nombre
-  if (paciente.telefono) form.value.paciente_telefono = paciente.telefono
-  if (paciente.correo) form.value.paciente_correo = paciente.correo
-  form.value.atencion_previa = 'si'
+  form.value.paciente_telefono = paciente.telefono
+  form.value.paciente_correo = paciente.correo
   showDropdownPacientes.value = false
   patientSelectedFromDropdown.value = true
 }
 
-function usarPacienteSugerido(paciente: any) {
-  seleccionarPaciente(paciente)
+async function usarPacienteSugerido(paciente: any) {
   showDuplicateWarning.value = false
-  proceedAsNew.value = true // Para saltar la validación al guardar
-  saveCita() // Guardar automáticamente
+  if (isLinkingCita.value) {
+    // Si estamos vinculando una cita web a un paciente existente
+    try {
+      await pacientesApi.update(paciente.id, { cita_id: form.value.id })
+      router.push(`/expedientes/${paciente.id}`)
+    } catch (err) {
+      console.error('Error al vincular cita con paciente:', err)
+      modalError.value = 'Error al vincular el paciente'
+      showModal.value = true // Volver a mostrar el modal de error
+    }
+  } else {
+    // Flujo normal de creación de cita en admin
+    seleccionarPaciente(paciente)
+    proceedAsNew.value = true // Para saltar la validación al guardar
+    saveCita() // Guardar automáticamente
+  }
 }
 
 function ignorarAdvertencia() {
   showDuplicateWarning.value = false
-  proceedAsNew.value = true
-  saveCita()
+  if (isLinkingCita.value) {
+    // Ir a crear paciente nuevo pasando la data de la cita
+    router.push({
+      path: '/pacientes/nuevo',
+      query: {
+        cita_id: form.value.id,
+        nombre: form.value.paciente_nombre,
+        telefono: form.value.paciente_telefono,
+        correo: form.value.correo || ''
+      }
+    })
+  } else {
+    proceedAsNew.value = true
+    saveCita()
+  }
 }
 
 // --- Stats ---
@@ -567,20 +596,37 @@ async function comenzarCita() {
   actionModalVisible.value = false
   
   try {
-    // Buscar si ya existe el paciente registrado
+    // 1. Buscar si ya existe el paciente registrado (Match Exacto por cita_id)
     await loadPacientesSearch()
-    const match = listaPacientes.value.find(c => c.nombre.toLowerCase() === cita.paciente_nombre.toLowerCase() || c.cita_id === cita.id)
+    const exactMatch = listaPacientes.value.find(c => c.cita_id === cita.id)
     
-    if (match) {
-      router.push(`/expedientes/${match.id}`)
+    if (exactMatch) {
+      router.push(`/expedientes/${exactMatch.id}`)
+      return
+    }
+
+    // 2. Si no hay match exacto, buscar sugerencias inteligentes
+    const sugerencias = await pacientesApi.getSugerencias(cita.paciente_nombre, cita.paciente_telefono, cita.correo)
+    
+    if (sugerencias && sugerencias.length > 0) {
+      // Mostrar modal de vinculación inteligente
+      duplicateCandidates.value = sugerencias
+      isLinkingCita.value = true
+      showDuplicateWarning.value = true
+      
+      // Temporarily store cita details to be used if they click "Ignorar y crear nuevo"
+      // or "Usar paciente sugerido"
+      // We'll reuse the form state to pass data to the next step
+      form.value = { ...form.value, ...cita }
     } else {
-      // Pasar data por query param a nuevo paciente
+      // 3. No hay sugerencias, pasar data por query param a nuevo paciente
       router.push({
         path: '/pacientes/nuevo',
         query: {
           cita_id: cita.id,
           nombre: cita.paciente_nombre,
-          telefono: cita.paciente_telefono
+          telefono: cita.paciente_telefono,
+          correo: cita.correo || ''
         }
       })
     }
@@ -670,10 +716,10 @@ async function saveCita() {
   // Validación de duplicados (solo al crear)
   if (!isEditing.value && !proceedAsNew.value && !patientSelectedFromDropdown.value) {
     const query = String(form.value.paciente_nombre).toLowerCase().trim()
-    const lista = Array.isArray(listaPacientes.value) ? listaPacientes.value : (listaPacientes.value.data || [])
+    const lista = Array.isArray(listaPacientes.value) ? listaPacientes.value : ((listaPacientes.value as any).data || [])
     
     // Buscar pacientes que contengan el texto o viceversa
-    const posibles = lista.filter(c => {
+    const posibles = lista.filter((c: any) => {
       const nom = c.nombre ? String(c.nombre).toLowerCase() : ''
       return nom.includes(query) || query.includes(nom)
     })
