@@ -228,9 +228,15 @@ const router = createRouter({
     },
     {
       path: '/royal-canin',
-      name: 'RoyalCanin',
+      name: 'RoyalCaninPublic',
       component: () => import('../views/RoyalCanin.vue'),
-      meta: { title: 'Royal Canin' },
+      meta: { title: 'Presentación Royal Canin' },
+    },
+    {
+      path: '/empresas/royal-canin',
+      name: 'RoyalCaninAdmin',
+      component: () => import('../views/RoyalCaninAdmin.vue'),
+      meta: { title: 'Herramienta Royal Canin' },
     },
   ],
 })

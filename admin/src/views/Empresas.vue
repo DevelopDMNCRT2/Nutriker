@@ -13,7 +13,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <!-- Tarjeta: Royal Canin (Activa) -->
         <router-link
-          to="/royal-canin"
+          to="/empresas/royal-canin"
           class="group relative block overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 transition-all hover:shadow-lg hover:ring-brand-500 dark:bg-gray-800 dark:ring-gray-700 dark:hover:ring-brand-500"
         >
           <div class="absolute inset-0 bg-gradient-to-br from-brand-500/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100"></div>
