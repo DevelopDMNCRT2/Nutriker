@@ -14,9 +14,9 @@ import Footer from './components/ui/Footer.vue'
 
 const route = useRoute()
 
-// Ocultar Navbar y Footer en las rutas del portal de pacientes y presentaciones externas
+// Ocultar Navbar y Footer en las rutas del portal de pacientes
 const showNavigation = computed(() => {
-  const hiddenRoutes = ['/miperfil', '/crear-password', '/portal', '/royal-canin']
+  const hiddenRoutes = ['/miperfil', '/crear-password', '/portal']
   return !hiddenRoutes.includes(route.path)
 })
 </script>
