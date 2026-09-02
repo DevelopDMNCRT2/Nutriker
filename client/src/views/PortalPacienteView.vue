@@ -76,22 +76,18 @@
               <h2>Biométricos y Evolución</h2>
             </div>
             
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
               <div class="metric-box">
                 <span class="metric-label">Peso</span>
                 <span class="metric-value">{{ visitaActiva.medicion.peso }} <small>kg</small></span>
               </div>
               <div class="metric-box">
-                <span class="metric-label">Estatura</span>
-                <span class="metric-value">{{ datosPaciente?.estatura || '--' }} <small>m</small></span>
+                <span class="metric-label">IMC & Riesgo</span>
+                <span class="metric-value" style="font-size: 1.25rem;">{{ visitaActiva.medicion.imc || '--' }} <small class="font-normal border rounded px-1.5 py-0.5 ml-1 bg-gray-50">{{ visitaActiva.medicion.riesgo_imc || '--' }}</small></span>
               </div>
               <div class="metric-box">
-                <span class="metric-label">IMC</span>
-                <span class="metric-value">{{ visitaActiva.medicion.imc || '--' }}</span>
-              </div>
-              <div class="metric-box">
-                <span class="metric-label">Cintura</span>
-                <span class="metric-value">{{ visitaActiva.medicion.cintura || '--' }} <small>cm</small></span>
+                <span class="metric-label">Meta (Peso Ideal)</span>
+                <span class="metric-value" style="font-size: 1.25rem;">{{ rangoPesoIdeal }}</span>
               </div>
             </div>
 
@@ -399,6 +395,25 @@ const visitaSeleccionadaIndex = ref(0)
 const visitaActiva = computed(() => {
   if (visitas.value.length === 0) return null
   return visitas.value[visitaSeleccionadaIndex.value]
+})
+
+const rangoPesoIdeal = computed(() => {
+  if (!visitaActiva.value || !datosPaciente.value) return '--'
+  const m = visitaActiva.value.medicion
+  const talla = m.talla || datosPaciente.value.estatura
+  const sexo = datosPaciente.value.sexo || 'Femenino'
+  
+  if (!talla) return '--'
+  
+  if (sexo === 'Hombre' || sexo === 'Masculino') {
+    const min = (talla * talla * 21.5).toFixed(1)
+    const max = (talla * talla * 24).toFixed(1)
+    return `${min} - ${max} kg`
+  } else {
+    const min = (talla * talla * 25).toFixed(1)
+    const max = (talla * talla * 26).toFixed(1)
+    return `${min} - ${max} kg`
+  }
 })
 
 function seleccionarVisita(index) {

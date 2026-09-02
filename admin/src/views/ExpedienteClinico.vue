@@ -300,6 +300,10 @@
                   <span class="block text-[10px] text-brand-500 font-semibold uppercase tracking-wider">Fecha</span>
                   <span class="block text-sm font-bold text-brand-700 dark:text-brand-300 mt-0.5">{{ medicionActual?.fecha }}</span>
                 </div>
+                <div v-if="pesoIdealVisualizado" class="bg-emerald-50 dark:bg-emerald-500/10 rounded-xl p-3 text-center">
+                  <span class="block text-[10px] text-emerald-600 font-semibold uppercase tracking-wider">Meta (Peso Ideal)</span>
+                  <span class="block text-sm font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">{{ pesoIdealVisualizado }}</span>
+                </div>
                 <div v-for="campo in camposDetalle" :key="campo.key" class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 text-center">
                   <span class="block text-[10px] text-gray-400 font-semibold uppercase tracking-wider">{{ campo.label }}</span>
                   <span class="block text-sm font-bold text-gray-700 dark:text-gray-200 mt-0.5">
@@ -802,6 +806,24 @@ const modalVerEditarVisible = ref(false)
 const modoModal = ref<'ver' | 'editar'>('ver')
 const medicionActual = ref<any>(null)
 const formEditar = ref<any>({})
+
+const pesoIdealVisualizado = computed(() => {
+  if (!medicionActual.value) return null
+  const talla = medicionActual.value.talla || paciente.value?.estatura
+  if (!talla) return null
+  
+  const sexo = paciente.value?.sexo || 'Femenino'
+  
+  if (sexo === 'Hombre' || sexo === 'Masculino') {
+    const min = (talla * talla * 21.5).toFixed(1)
+    const max = (talla * talla * 24).toFixed(1)
+    return `${min} - ${max} kg`
+  } else {
+    const min = (talla * talla * 25).toFixed(1)
+    const max = (talla * talla * 26).toFixed(1)
+    return `${min} - ${max} kg`
+  }
+})
 
 const camposDetalle = [
   { key: 'peso',            label: 'Peso',             db: 'peso',             unidad: 'kg' },
