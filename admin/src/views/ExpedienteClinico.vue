@@ -60,7 +60,7 @@
           <div class="flex items-center gap-4 text-xs">
             <div class="bg-gray-50 p-3 rounded-xl dark:bg-gray-800/50">
               <span class="block text-gray-400 font-medium">Estatura</span>
-              <span class="font-bold text-gray-900 dark:text-white text-sm">{{ paciente.estatura ? `${paciente.estatura} m` : '1.65 m' }}</span>
+              <span class="font-bold text-gray-900 dark:text-white text-sm">{{ ultimaEstatura }}</span>
             </div>
             <div class="bg-gray-50 p-3 rounded-xl dark:bg-gray-800/50">
               <span class="block text-gray-400 font-medium">Peso Inicial</span>
@@ -190,6 +190,8 @@
                 <th class="px-4 py-3 whitespace-nowrap">#</th>
                 <th class="px-4 py-3 whitespace-nowrap">Fecha</th>
                 <th class="px-4 py-3 whitespace-nowrap">Peso (kg)</th>
+                <th class="px-4 py-3 whitespace-nowrap">IMC</th>
+                <th class="px-4 py-3 whitespace-nowrap">Riesgo IMC</th>
                 <th class="px-4 py-3 whitespace-nowrap">Talla (m)</th>
                 <th class="px-4 py-3 whitespace-nowrap">Cintura (cm)</th>
                 <th class="px-4 py-3 whitespace-nowrap">Cadera (cm)</th>
@@ -214,6 +216,16 @@
                 <td class="px-4 py-3 text-gray-400 font-mono">{{ medicionesOrdenadas.length - idx }}</td>
                 <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white whitespace-nowrap">{{ m.fecha }}</td>
                 <td class="px-4 py-3 font-bold text-brand-600 dark:text-brand-400">{{ m.peso ?? '-' }}</td>
+                <td class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">{{ m.imc ?? '-' }}</td>
+                <td class="px-4 py-3 text-xs font-bold">
+                  <span v-if="m.riesgo_imc" :class="{
+                    'text-blue-500': m.riesgo_imc === 'Bajo peso',
+                    'text-emerald-500': m.riesgo_imc === 'Normal',
+                    'text-orange-500': m.riesgo_imc === 'Sobrepeso',
+                    'text-red-500': m.riesgo_imc === 'Obesidad'
+                  }">{{ m.riesgo_imc }}</span>
+                  <span v-else>-</span>
+                </td>
                 <td class="px-4 py-3 text-gray-600 dark:text-gray-300">{{ m.talla ?? '-' }}</td>
                 <td class="px-4 py-3 text-amber-600 dark:text-amber-400 font-semibold">{{ m.cintura ?? '-' }}</td>
                 <td class="px-4 py-3 text-violet-600 dark:text-violet-400 font-semibold">{{ m.cadera ?? '-' }}</td>
@@ -567,6 +579,13 @@ const ultimoPeso = computed(() => {
   return paciente.value?.peso || 'N/D'
 })
 
+const ultimaEstatura = computed(() => {
+  const meds = [...mediciones.value].reverse() // Buscar desde la más reciente
+  const medTalla = meds.find(m => m.talla)
+  if (medTalla) return `${medTalla.talla} m`
+  return paciente.value?.estatura ? `${paciente.estatura} m` : 'N/D'
+})
+
 // Definición de todas las series disponibles con su color y campo de dato
 const definicionSeries = [
   { key: 'peso',            label: 'Peso (kg)',         color: '#4A8C5B', campo: 'peso' },
@@ -701,12 +720,48 @@ function cerrarModalMedicion() {
   modalMedicionVisible.value = false
 }
 
+// --- Funciones de Cálculo ---
+function calcularCalculosAutomaticos(peso: number | null, talla: number | null, cintura: number | null, cadera: number | null, sexo: string) {
+  let imc = null, riesgoImc = null, indiceCC = null, riesgoCc = null
+
+  if (peso && talla) {
+    imc = Number((peso / (talla * talla)).toFixed(2))
+    if (imc < 18.5) riesgoImc = 'Bajo peso'
+    else if (imc <= 24.9) riesgoImc = 'Normal'
+    else if (imc <= 29.9) riesgoImc = 'Sobrepeso'
+    else riesgoImc = 'Obesidad'
+  }
+
+  if (cintura && cadera) {
+    indiceCC = Number((cintura / cadera).toFixed(2))
+    if (sexo === 'Femenino') {
+      if (indiceCC <= 0.80) riesgoCc = 'Bajo'
+      else if (indiceCC <= 0.85) riesgoCc = 'Moderado'
+      else riesgoCc = 'Alto'
+    } else {
+      if (indiceCC <= 0.95) riesgoCc = 'Bajo'
+      else if (indiceCC <= 1.0) riesgoCc = 'Moderado'
+      else riesgoCc = 'Alto'
+    }
+  }
+
+  return { imc, riesgoImc, indiceCC, riesgoCc }
+}
+
 async function guardarMedicion() {
   if (!formMedicion.value.peso) return
 
   saving.value = true
   try {
     const idPaciente = (route.params.pacienteId as string) || pacienteId.value || '22014468'
+    const calcs = calcularCalculosAutomaticos(
+      parseFloat(formMedicion.value.peso),
+      formMedicion.value.talla ? parseFloat(formMedicion.value.talla) : null,
+      formMedicion.value.cintura ? parseFloat(formMedicion.value.cintura) : null,
+      formMedicion.value.cadera ? parseFloat(formMedicion.value.cadera) : null,
+      paciente.value?.sexo || 'Femenino'
+    )
+
     const body = {
       pacienteId: idPaciente,
       fecha: formMedicion.value.fecha || new Date().toISOString().split('T')[0],
@@ -719,8 +774,10 @@ async function guardarMedicion() {
       cadera: formMedicion.value.cadera ? parseFloat(formMedicion.value.cadera) : null,
       muslo: formMedicion.value.muslo ? parseFloat(formMedicion.value.muslo) : null,
       pantorrilla: formMedicion.value.pantorrilla ? parseFloat(formMedicion.value.pantorrilla) : null,
-      // Los calculados aún se mandan null porque faltan las fórmulas,
-      // o pueden calcularse aquí en un futuro.
+      imc: calcs.imc,
+      indiceCC: calcs.indiceCC,
+      riesgoImc: calcs.riesgoImc,
+      riesgoCc: calcs.riesgoCc,
       observaciones: formMedicion.value.observaciones || '',
     }
 
@@ -749,6 +806,10 @@ const formEditar = ref<any>({})
 const camposDetalle = [
   { key: 'peso',            label: 'Peso',             db: 'peso',             unidad: 'kg' },
   { key: 'talla',           label: 'Talla',            db: 'talla',            unidad: 'm'  },
+  { key: 'imc',             label: 'IMC',              db: 'imc',              unidad: '' },
+  { key: 'riesgo_imc',      label: 'Riesgo IMC',       db: 'riesgo_imc',       unidad: '' },
+  { key: 'indice_cc',       label: 'Índice C/C',       db: 'indice_cc',        unidad: '' },
+  { key: 'riesgo_cc',       label: 'Riesgo C/C',       db: 'riesgo_cc',        unidad: '' },
   { key: 'cintura',         label: 'Cintura',          db: 'cintura',          unidad: 'cm' },
   { key: 'cadera',          label: 'Cadera',           db: 'cadera',           unidad: 'cm' },
   { key: 'abdomen',         label: 'Abdomen',          db: 'abdomen',          unidad: 'cm' },
@@ -792,7 +853,15 @@ async function guardarEdicion() {
   if (!medicionActual.value?.id) return
   saving.value = true
   try {
-    await expedientesApi.updateMedicion(medicionActual.value.id, {
+    const calcs = calcularCalculosAutomaticos(
+      formEditar.value.peso ? parseFloat(formEditar.value.peso) : null,
+      formEditar.value.talla ? parseFloat(formEditar.value.talla) : null,
+      formEditar.value.cintura ? parseFloat(formEditar.value.cintura) : null,
+      formEditar.value.cadera ? parseFloat(formEditar.value.cadera) : null,
+      paciente.value?.sexo || 'Femenino'
+    )
+
+    const payload = {
       fecha: formEditar.value.fecha,
       peso: formEditar.value.peso ? parseFloat(formEditar.value.peso) : null,
       talla: formEditar.value.talla ? parseFloat(formEditar.value.talla) : null,
@@ -804,7 +873,13 @@ async function guardarEdicion() {
       brazoFlexionado: formEditar.value.brazoFlexionado ? parseFloat(formEditar.value.brazoFlexionado) : null,
       pantorrilla: formEditar.value.pantorrilla ? parseFloat(formEditar.value.pantorrilla) : null,
       observaciones: formEditar.value.observaciones || '',
-    })
+      imc: calcs.imc,
+      indiceCC: calcs.indiceCC,
+      riesgoImc: calcs.riesgoImc,
+      riesgoCc: calcs.riesgoCc,
+    }
+
+    await expedientesApi.updateMedicion(medicionActual.value.id, payload)
     cerrarVerEditar()
     await cargarExpediente()
   } catch (err: any) {
