@@ -44,11 +44,11 @@ export default function LoginModal({ isOpen, onClose, onSelectRole }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Sparkles size={20} color="var(--primary)" />
               <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'white' }}>
-                Acceso Rápido de Demostración (Presentación Cliente)
+                Inicio de Sesión y Acceso por Roles (Royal Canin)
               </h3>
             </div>
             <p style={{ fontSize: '0.8rem', color: '#94A3B8', marginTop: '2px' }}>
-              Selecciona cualquier rol con un clic para probar la plataforma desde diferentes perspectivas.
+              Ingresa con tus credenciales asignadas o elige un rol directo para demostración.
             </p>
           </div>
 
@@ -71,8 +71,70 @@ export default function LoginModal({ isOpen, onClose, onSelectRole }) {
           </button>
         </div>
 
-        {/* 4 Quick Access Role Cards Grid */}
+        {/* Formulario de Login Real + Roles Rápidos */}
         <div style={{ padding: '1.5rem', overflowY: 'auto', background: '#F8FAFC' }}>
+          
+          {/* Formulario de Credenciales Reales */}
+          <form 
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              const email = formData.get('usuario');
+              const password = formData.get('password');
+              try {
+                const res = await fetch('http://localhost:3000/api/auth/login', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                if (res.ok && data.token) {
+                  localStorage.setItem('token', data.token);
+                  const roleMap = {
+                    'Nutriologa': 'nutriologa',
+                    'Chef': 'chef',
+                    'Empleado': 'participant',
+                    'Administrador': 'nutriologa'
+                  };
+                  const mappedRole = roleMap[data.usuario?.rol] || 'participant';
+                  onSelectRole(mappedRole);
+                  onClose();
+                } else {
+                  alert(data.error || 'Credenciales incorrectas');
+                }
+              } catch (err) {
+                alert('Error conectando con el servidor de autenticación');
+              }
+            }}
+            style={{ 
+              background: '#FFFFFF', 
+              border: '1px solid #E2E8F0', 
+              borderRadius: '16px', 
+              padding: '1.25rem', 
+              marginBottom: '1.5rem',
+              boxShadow: 'var(--shadow-card)'
+            }}
+          >
+            <h4 style={{ fontSize: '0.95rem', fontWeight: '700', color: '#0F172A', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Lock size={16} color="var(--primary)" /> Autenticación Oficial con Servidor REST
+            </h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.75rem', alignItems: 'end' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#64748B', marginBottom: '0.25rem' }}>Usuario / Correo</label>
+                <input name="usuario" type="text" placeholder="Ej. nutri_karla, chef_marcos" required style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '0.85rem' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#64748B', marginBottom: '0.25rem' }}>Contraseña</label>
+                <input name="password" type="password" placeholder="••••••••" required style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '0.85rem' }} />
+              </div>
+              <button type="submit" style={{ background: 'var(--primary)', color: 'white', border: 'none', padding: '0.55rem 1.25rem', borderRadius: '8px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer' }}>
+                Ingresar →
+              </button>
+            </div>
+          </form>
+
+          <p style={{ fontSize: '0.8rem', fontWeight: '700', color: '#64748B', marginBottom: '0.75rem' }}>O selecciona una vista directa de demostración:</p>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
             
             {/* ROLE 1: EMPLEADO */}

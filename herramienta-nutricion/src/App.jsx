@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import Header from './components/Header';
 import ParticipantView from './components/ParticipantView';
@@ -6,18 +6,52 @@ import AdminView from './components/AdminView';
 import NutriologaView from './components/NutriologaView';
 import ChefView from './components/ChefView';
 import NotificationModal from './components/NotificationModal';
-import LoginModal from './components/LoginModal';
-import { cyclicMenus, sampleParticipants } from './data/mockData';
+import LoginView from './components/LoginView';
+import { cyclicMenus, sampleParticipants, chefInfo, nutriologaInfo } from './data/mockData';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState('participant'); // 'participant' | 'admin' | 'chef' | 'nutriologa'
+  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(localStorage.getItem('royal_role')));
+  const [currentView, setCurrentView] = useState(() => localStorage.getItem('royal_role') || 'participant'); // 'participant' | 'admin' | 'chef' | 'nutriologa'
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [notificationTarget, setNotificationTarget] = useState(null);
 
   // Active logged-in user state
-  const [currentUser, setCurrentUser] = useState(sampleParticipants[0]); // Nutrióloga Karla (Subsidized)
+  const [currentUser, setCurrentUser] = useState(() => {
+    const role = localStorage.getItem('royal_role');
+    if (role === 'chef') return { nombre: chefInfo.name, rol: 'Chef' };
+    if (role === 'nutriologa') return { nombre: nutriologaInfo.name, rol: 'Nutrióloga' };
+    return { nombre: 'Ana Sofía Morales', rol: 'Empleado' };
+  });
+
+  // Detectar rol activo por parámetro de URL (?role=chef | ?role=nutriologa)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roleParam = params.get('role');
+    if (roleParam && ['participant', 'chef', 'nutriologa', 'admin'].includes(roleParam)) {
+      handleLoginSuccess(roleParam, null);
+    }
+  }, []);
+
+  const handleLoginSuccess = (roleKey, userObj) => {
+    localStorage.setItem('royal_role', roleKey);
+    setCurrentView(roleKey);
+    setIsLoggedIn(true);
+
+    if (userObj) {
+      setCurrentUser(userObj);
+    } else {
+      if (roleKey === 'chef') setCurrentUser({ nombre: chefInfo.name, rol: 'Chef' });
+      else if (roleKey === 'nutriologa') setCurrentUser({ nombre: nutriologaInfo.name, rol: 'Nutrióloga' });
+      else setCurrentUser({ nombre: 'Ana Sofía Morales', rol: 'Empleado' });
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('royal_role');
+    localStorage.removeItem('token');
+    setIsLoggedIn(false);
+  };
 
   const handleOpenNotification = (dayData, optionKey) => {
     setNotificationTarget({ dayData, optionKey });
@@ -34,22 +68,27 @@ export default function App() {
 
   const handleSelectRole = (roleKey) => {
     setCurrentView(roleKey);
+    localStorage.setItem('royal_role', roleKey);
   };
+
+  if (!isLoggedIn) {
+    return <LoginView onLoginSuccess={handleLoginSuccess} />;
+  }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#F8FAFC' }}>
       
-      {/* Sticky Header with 4 Quick Presentation Roles */}
+      {/* Header con Rol Aislado y Botón de Cerrar Sesión */}
       <Header
         currentView={currentView}
         setCurrentView={setCurrentView}
         selectedWeek={selectedWeek}
         setSelectedWeek={setSelectedWeek}
         currentUser={currentUser}
-        onOpenLogin={() => setIsLoginOpen(true)}
+        onLogout={handleLogout}
       />
 
-      {/* Main Container */}
+      {/* Main Container para el Rol Autenticado */}
       <main style={{ flex: 1, maxWidth: '1100px', width: '100%', margin: '0 auto', padding: '1.5rem' }}>
         
         {currentView === 'participant' && (
@@ -57,18 +96,8 @@ export default function App() {
             selectedWeek={selectedWeek}
             onOpenNotification={handleOpenNotification}
             currentUser={currentUser}
-            onOpenLogin={() => setIsLoginOpen(true)}
           />
         )}
-
-        {/* 
-        {currentView === 'admin' && (
-          <AdminView
-            selectedWeek={selectedWeek}
-            initialTab="financial"
-          />
-        )}
-        */}
 
         {currentView === 'chef' && (
           <ChefView
@@ -113,13 +142,6 @@ export default function App() {
           participantName={currentUser.name}
         />
       )}
-
-      {/* Quick Access Presentation Roles & Credentials Simulator Modal */}
-      <LoginModal
-        isOpen={isLoginOpen}
-        onClose={() => setIsLoginOpen(false)}
-        onSelectRole={handleSelectRole}
-      />
 
     </div>
   );
