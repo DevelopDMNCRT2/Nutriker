@@ -1,6 +1,7 @@
 import pool from '../db/pool.js'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
+import { generarIdUnico } from '../utils/generarId.js'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'nutriker_secreto_super_seguro_2024'
 
@@ -74,31 +75,104 @@ export async function loginPaciente(req, res) {
   }
 
   try {
-    // Buscar paciente por correo, teléfono o ID activo
+    const rawVal = email.trim()
+    const cleanPhone = rawVal.replace(/\D/g, '')
+
+    // 1. Buscar primero en la tabla pacientes (clínica general)
     const result = await pool.query(
       `SELECT id, nombre, correo, telefono, edad, contrasena
        FROM pacientes
-       WHERE (LOWER(correo) = LOWER($1) OR telefono = $1 OR id::text = $1) AND deleted_at IS NULL`,
-      [email.trim()]
+       WHERE (LOWER(correo) = LOWER($1) OR telefono = $1 OR (length($2) = 10 AND REPLACE(telefono, '-', '') = $2) OR id::text = $1) AND deleted_at IS NULL
+       LIMIT 1`,
+      [rawVal, cleanPhone]
     )
 
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Credenciales incorrectas. Verifica tu información.' })
+    let paciente = null
+    let esMonex = false
+
+    if (result.rows.length > 0) {
+      paciente = result.rows[0]
+    } else {
+      // 2. Si no está en pacientes, buscar en citas_monex (empleados/pacientes Monex)
+      const monexResult = await pool.query(
+        `SELECT id, paciente_nombre AS nombre, correo, paciente_telefono AS telefono, password AS contrasena, empresa, TO_CHAR(fecha, 'YYYY-MM-DD') AS fecha, horario
+         FROM citas_monex
+         WHERE (LOWER(correo) = LOWER($1) OR paciente_telefono = $1 OR (length($2) = 10 AND REPLACE(paciente_telefono, '-', '') = $2)) AND deleted_at IS NULL
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [rawVal, cleanPhone]
+      )
+
+      if (monexResult.rows.length > 0) {
+        const monexRow = monexResult.rows[0]
+        esMonex = true
+
+        // Validar contraseña contra citas_monex
+        let passValida = false
+        if (monexRow.contrasena && monexRow.contrasena.startsWith('$2')) {
+          passValida = await bcrypt.compare(password, monexRow.contrasena)
+        } else if (monexRow.contrasena) {
+          passValida = (password === monexRow.contrasena)
+        }
+
+        if (!passValida) {
+          return res.status(401).json({ error: 'Credenciales incorrectas. Verifica tu contraseña.' })
+        }
+
+        // Sincronizar o crear ficha en tabla pacientes para que el portal interactivo y consultas funcionen
+        const pacienteExistente = await pool.query(
+          `SELECT id, nombre, correo, telefono, edad
+           FROM pacientes
+           WHERE (LOWER(correo) = LOWER($1) OR telefono = $2) AND deleted_at IS NULL
+           LIMIT 1`,
+          [monexRow.correo, monexRow.telefono]
+        )
+
+        if (pacienteExistente.rows.length > 0) {
+          paciente = pacienteExistente.rows[0]
+        } else {
+          const newPacienteId = await generarIdUnico('pacientes')
+          const hashedPass = monexRow.contrasena && monexRow.contrasena.startsWith('$2')
+            ? monexRow.contrasena
+            : await bcrypt.hash(password, 10)
+
+          const insertResult = await pool.query(
+            `INSERT INTO pacientes (id, cita_id, nombre, correo, telefono, fecha, horario, contrasena, notas)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             RETURNING id, nombre, correo, telefono, edad`,
+            [
+              newPacienteId,
+              null, // cita_id es null porque la cita de origen pertenece a citas_monex
+              monexRow.nombre,
+              monexRow.correo,
+              monexRow.telefono,
+              monexRow.fecha,
+              monexRow.horario,
+              hashedPass,
+              `Paciente registrado vía portal corporativo Monex (Cita Monex #${monexRow.id})`
+            ]
+          )
+          paciente = insertResult.rows[0]
+        }
+      }
     }
 
-    const paciente = result.rows[0]
-
-    // Validar contraseña
-    let contrasenaValida = false
-    if (paciente.contrasena && paciente.contrasena.startsWith('$2')) {
-      contrasenaValida = await bcrypt.compare(password, paciente.contrasena)
-    } else if (paciente.contrasena) {
-      // Fallback para texto plano si existiera
-      contrasenaValida = (password === paciente.contrasena)
+    if (!paciente) {
+      return res.status(401).json({ error: 'Credenciales incorrectas. Verifica tu información o agenda tu primera cita.' })
     }
 
-    if (!contrasenaValida) {
-      return res.status(401).json({ error: 'Credenciales incorrectas. Verifica tu contraseña.' })
+    // Si el registro provino directamente de la tabla pacientes, validar su contraseña
+    if (!esMonex) {
+      let contrasenaValida = false
+      if (paciente.contrasena && paciente.contrasena.startsWith('$2')) {
+        contrasenaValida = await bcrypt.compare(password, paciente.contrasena)
+      } else if (paciente.contrasena) {
+        contrasenaValida = (password === paciente.contrasena)
+      }
+
+      if (!contrasenaValida) {
+        return res.status(401).json({ error: 'Credenciales incorrectas. Verifica tu contraseña.' })
+      }
     }
 
     // Generar Token JWT del paciente
@@ -107,7 +181,8 @@ export async function loginPaciente(req, res) {
       nombre: paciente.nombre,
       correo: paciente.correo,
       telefono: paciente.telefono,
-      rol: 'paciente'
+      rol: 'paciente',
+      ...(esMonex ? { empresa: 'Monex' } : {})
     }
 
     const token = jwt.sign(tokenPayload, JWT_SECRET, {
@@ -131,10 +206,17 @@ export async function recuperarInfo(req, res) {
   if (!telefono) return res.status(400).json({ error: 'El teléfono es requerido' })
 
   try {
-    const result = await pool.query(
+    let result = await pool.query(
       `SELECT id, correo FROM pacientes WHERE telefono = $1 AND deleted_at IS NULL`,
       [telefono.trim()]
     )
+
+    if (result.rows.length === 0) {
+      result = await pool.query(
+        `SELECT id, correo FROM citas_monex WHERE paciente_telefono = $1 AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1`,
+        [telefono.trim()]
+      )
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'No se encontró ningún paciente con este teléfono' })
@@ -167,10 +249,17 @@ export async function enviarLinkRecuperacion(req, res) {
   const { telefono, correoConfirmacion } = req.body
 
   try {
-    const result = await pool.query(
+    let result = await pool.query(
       `SELECT id, correo, nombre FROM pacientes WHERE telefono = $1 AND deleted_at IS NULL`,
       [telefono.trim()]
     )
+
+    if (result.rows.length === 0) {
+      result = await pool.query(
+        `SELECT id, correo, paciente_nombre AS nombre FROM citas_monex WHERE paciente_telefono = $1 AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1`,
+        [telefono.trim()]
+      )
+    }
 
     if (result.rows.length === 0) return res.status(404).json({ error: 'Paciente no encontrado' })
 
