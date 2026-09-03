@@ -268,12 +268,24 @@ export const getPortalPaciente = async (req, res) => {
       ORDER BY created_at DESC LIMIT 1
     `, [paciente.id])
 
-    // Obtener citas del paciente
+    // Obtener citas del paciente (generales y de Monex)
     const citasRes = await pool.query(`
-      SELECT * FROM citas 
-      WHERE (paciente_telefono = $1 OR paciente_nombre = $2) AND deleted_at IS NULL
+      SELECT id, paciente_nombre, paciente_telefono, correo, TO_CHAR(fecha, 'YYYY-MM-DD') AS fecha, horario,
+             COALESCE(estado, 'Confirmada') AS estado, COALESCE(servicio, 'Consulta Nutricional') AS servicio,
+             COALESCE(tipo, 'Presencial') AS tipo, notas, 'Clinica' AS origen
+      FROM citas 
+      WHERE (paciente_telefono = $1 OR paciente_nombre = $2 OR (correo IS NOT NULL AND LOWER(correo) = LOWER($3))) AND deleted_at IS NULL
+      
+      UNION ALL
+      
+      SELECT id, paciente_nombre, paciente_telefono, correo, TO_CHAR(fecha, 'YYYY-MM-DD') AS fecha, horario,
+             COALESCE(estado, 'Confirmada') AS estado, 'Consulta Nutricional Corporativa' AS servicio,
+             'Presencial' AS tipo, 'Cita Corporativa Monex' AS notas, 'Monex' AS origen
+      FROM citas_monex 
+      WHERE (paciente_telefono = $1 OR paciente_nombre = $2 OR (correo IS NOT NULL AND LOWER(correo) = LOWER($3))) AND deleted_at IS NULL
+      
       ORDER BY fecha DESC, horario DESC
-    `, [paciente.telefono, paciente.nombre])
+    `, [paciente.telefono, paciente.nombre, paciente.correo || ''])
 
     res.json({
       paciente,
