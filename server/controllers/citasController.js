@@ -1,6 +1,7 @@
 import pool from '../db/pool.js'
 import { generarIdUnico } from '../utils/generarId.js'
 import bcrypt from 'bcrypt'
+import { enviarConfirmacionCita } from '../services/notificationService.js'
 
 /**
  * Controlador de Citas Médicas y Prevención de Traslapes de Horarios
@@ -168,6 +169,17 @@ export const createCita = async (req, res) => {
       tipo || (atencion_previa === 'si' ? 'Subsecuente' : 'Primera Vez'),
       hashPassword
     ])
+
+    // Disparar confirmación asíncrona (no bloqueante)
+    enviarConfirmacionCita({
+      nombre: patientName,
+      correo: patientEmail,
+      telefono: patientPhone,
+      fecha,
+      horario,
+      servicio: rows[0].servicio,
+      tipo: rows[0].tipo
+    }).catch(err => console.error('Error al despachar notificación asíncrona de cita:', err))
 
     res.status(201).json(rows[0])
   } catch (error) {

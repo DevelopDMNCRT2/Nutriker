@@ -1,5 +1,6 @@
 import pool from '../db/pool.js'
 import { generarIdUnico } from '../utils/generarId.js'
+import { enviarConfirmacionCita } from '../services/notificationService.js'
 
 // 1. Obtener catálogo de productos públicos
 export const getProductosPublicos = async (req, res) => {
@@ -179,6 +180,19 @@ export const agendarCitaPublica = async (req, res) => {
     ]
 
     const { rows } = await pool.query(query, values)
+
+    // Disparar confirmación asíncrona (no bloqueante)
+    enviarConfirmacionCita({
+      nombre: paciente_nombre,
+      correo,
+      telefono: paciente_telefono,
+      fecha,
+      horario,
+      servicio: 'Consulta Nutricional Corporativa',
+      tipo: 'Presencial',
+      empresa: 'Monex'
+    }).catch(err => console.error('Error al despachar notificación asíncrona Monex:', err))
+
     res.status(201).json({
       mensaje: 'Cita agendada con éxito',
       cita: rows[0]
