@@ -587,7 +587,7 @@ const ultimaEstatura = computed(() => {
   const meds = [...mediciones.value].reverse() // Buscar desde la más reciente
   const medTalla = meds.find(m => m.talla)
   if (medTalla) return `${medTalla.talla} m`
-  return paciente.value?.estatura ? `${paciente.estatura} m` : 'N/D'
+  return paciente.value?.estatura ? `${paciente.value.estatura} m` : 'N/D'
 })
 
 // Definición de todas las series disponibles con su color y campo de dato

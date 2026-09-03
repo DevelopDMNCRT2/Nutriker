@@ -12,27 +12,45 @@ export async function login(req, res) {
   }
 
   try {
-    // Buscar usuario por correo o nombre de usuario y que no esté eliminado
+    // 1. Buscar en la tabla principal de usuarios (Dra. Karla / Personal NutriKer)
     const result = await pool.query(
       `SELECT id, nombre, usuario, correo, contrasena, rol
        FROM usuarios
        WHERE (correo = $1 OR usuario = $1) AND deleted_at IS NULL`,
-      [email]
+      [email.trim()]
     )
 
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Credenciales incorrectas' })
+    let unUsuario = null
+    let esEmpresa = false
+
+    if (result.rows.length > 0) {
+      unUsuario = result.rows[0]
+    } else {
+      // 2. Si no es usuario interno, buscar en usuarios_empresas (Chef / Empleado)
+      const resultEmpresa = await pool.query(
+        `SELECT id, nombre, correo, contrasena, rol, empresa
+         FROM usuarios_empresas
+         WHERE (LOWER(correo) = LOWER($1)) AND activo = TRUE AND deleted_at IS NULL`,
+        [email.trim()]
+      )
+
+      if (resultEmpresa.rows.length > 0) {
+        unUsuario = resultEmpresa.rows[0]
+        esEmpresa = true
+      }
     }
 
-    const unUsuario = result.rows[0]
+    if (!unUsuario) {
+      return res.status(401).json({ error: 'Credenciales incorrectas' })
+    }
 
     let contrasenaValida = false
 
     // Si la contraseña almacenada empieza con $2 (formato estándar de bcrypt) lo validamos con la librería
-    if (unUsuario.contrasena.startsWith('$2')) {
+    if (unUsuario.contrasena && unUsuario.contrasena.startsWith('$2')) {
       contrasenaValida = await bcrypt.compare(password, unUsuario.contrasena)
     } else {
-      // Si la base de datos sigue usando texto plano (fallback por la migración reciente)
+      // Fallback para texto plano si existiera
       contrasenaValida = (password === unUsuario.contrasena)
     }
 
@@ -45,7 +63,8 @@ export async function login(req, res) {
       id: unUsuario.id,
       correo: unUsuario.correo,
       rol: unUsuario.rol,
-      nombre: unUsuario.nombre
+      nombre: unUsuario.nombre,
+      ...(esEmpresa ? { empresa: unUsuario.empresa } : {})
     }
 
     const token = jwt.sign(tokenPayload, JWT_SECRET, {
