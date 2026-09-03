@@ -230,3 +230,27 @@ export async function resetPassword(req, res) {
     res.status(400).json({ error: 'Enlace inválido o corrupto.' })
   }
 }
+
+// ─── GET /api/auth/sso-token ─────────────────────────────────────────────────
+// Genera un JWT de corta duración (30s) para transferir la sesión del Admin
+// a la herramienta de nutrición como Nutriologa (SSO Royal Canin).
+export function generarSSOToken(req, res) {
+  try {
+    const { id, nombre, correo } = req.usuario
+
+    const ssoPayload = {
+      id,
+      nombre,
+      correo,
+      rol: 'Nutriologa',
+      type: 'sso'
+    }
+
+    const ssoToken = jwt.sign(ssoPayload, JWT_SECRET, { expiresIn: '30s' })
+
+    res.json({ ssoToken })
+  } catch (error) {
+    console.error('Error en /sso-token:', error)
+    res.status(500).json({ error: 'Error interno al generar el token SSO' })
+  }
+}
