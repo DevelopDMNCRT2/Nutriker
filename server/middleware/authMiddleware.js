@@ -28,3 +28,22 @@ export function verificarToken(req, res, next) {
     return res.status(401).json({ error: 'Acceso denegado: Token inválido o expirado' })
   }
 }
+
+// Middleware de Control de Acceso Basado en Roles (RBAC)
+export function verificarRol(...rolesPermitidos) {
+  return (req, res, next) => {
+    if (!req.usuario) {
+      return res.status(401).json({ error: 'Acceso denegado: No autenticado' })
+    }
+    
+    // El Administrador tiene acceso global
+    if (req.usuario.rol === 'Administrador' || rolesPermitidos.includes(req.usuario.rol)) {
+      return next()
+    }
+
+    return res.status(403).json({ 
+      error: `Acceso denegado: Se requiere el rol ${rolesPermitidos.join(' o ')}` 
+    })
+  }
+}
+
