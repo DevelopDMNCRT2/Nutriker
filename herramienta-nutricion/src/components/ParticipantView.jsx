@@ -1,18 +1,42 @@
-import React, { useState } from 'react';
-import { Check, Plus, Sparkles, ChevronDown, ChevronUp, MessageCircle, Clock, Info, ArrowRightLeft, Building2, ShieldCheck, Moon, Droplets, Footprints, UploadCloud, Trophy, TrendingUp, Utensils } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Check, Plus, Sparkles, ChevronDown, ChevronUp, MessageCircle, Clock, Info, ArrowRightLeft, Building2, ShieldCheck, Moon, Droplets, Footprints, UploadCloud, Trophy, TrendingUp, Utensils, CheckCircle2 } from 'lucide-react';
 import { cyclicMenus, chefInfo, programInfo } from '../data/mockData';
+import { menuStore } from '../services/menuStore';
 import ProgressSection from './ProgressSection';
 
-export default function ParticipantView({ selectedWeek, onOpenNotification, currentUser, onOpenLogin }) {
-  const weekData = cyclicMenus.find(w => w.weekNumber === selectedWeek) || cyclicMenus[0];
-  const [selectedDayIndex, setSelectedDayIndex] = useState(0); // 0: Lunes, 1: Miércoles, 2: Viernes
+export default function ParticipantView({ selectedWeek = 1, onOpenNotification, currentUser, onOpenLogin }) {
+  const currentWeek = selectedWeek || 1;
+  const [activeMenu, setActiveMenu] = useState(() => menuStore.getActiveMenu(currentWeek));
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [expandedDishId, setExpandedDishId] = useState(null);
+  const [isOrderSaved, setIsOrderSaved] = useState(false);
 
-  // User selections for Lunes (0), Miércoles (1), Viernes (2)
+  useEffect(() => {
+    setActiveMenu(menuStore.getActiveMenu(currentWeek));
+  }, [currentWeek]);
+
+  useEffect(() => {
+    const handleUpdate = (e) => {
+      if (!e.detail || e.detail.week === currentWeek) {
+        setActiveMenu(menuStore.getActiveMenu(currentWeek));
+      }
+    };
+    window.addEventListener('royal_canin_menu_updated', handleUpdate);
+    return () => window.removeEventListener('royal_canin_menu_updated', handleUpdate);
+  }, [currentWeek]);
+
+  const weekData = activeMenu;
+  const daysList = weekData.days || [];
+  const safeDayIndex = selectedDayIndex < daysList.length ? selectedDayIndex : 0;
+  const currentDayData = daysList[safeDayIndex] || daysList[0] || {};
+
+  // Selecciones del empleado para cada día (Opción A o B)
   const [selections, setSelections] = useState({
-    0: { sopa: 'A', platoFuerte: 'A' },
-    1: { sopa: 'A', platoFuerte: 'A' },
-    2: { sopa: 'A', platoFuerte: 'B' }
+    0: { platoFuerte: 'A' },
+    1: { platoFuerte: 'A' },
+    2: { platoFuerte: 'B' },
+    3: { platoFuerte: 'A' },
+    4: { platoFuerte: 'B' }
   });
 
   const [activeMainTab, setActiveMainTab] = useState('menu'); // 'menu' | 'progreso'
@@ -21,7 +45,9 @@ export default function ParticipantView({ selectedWeek, onOpenNotification, curr
   const [habits, setHabits] = useState({
     0: { sleepHours: '', waterGlasses: 0, stepsEvidence: false },
     1: { sleepHours: '', waterGlasses: 0, stepsEvidence: false },
-    2: { sleepHours: '', waterGlasses: 0, stepsEvidence: false }
+    2: { sleepHours: '', waterGlasses: 0, stepsEvidence: false },
+    3: { sleepHours: '', waterGlasses: 0, stepsEvidence: false },
+    4: { sleepHours: '', waterGlasses: 0, stepsEvidence: false }
   });
 
   const updateHabit = (dayIdx, habitKey, value) => {
@@ -41,68 +67,40 @@ export default function ParticipantView({ selectedWeek, onOpenNotification, curr
     }, 1500);
   };
 
-  const currentDayData = weekData.days[selectedDayIndex];
-
-  const handleSelect = (type, optionKey) => {
+  const handleSelect = (optionKey) => {
+    setIsOrderSaved(false);
     setSelections(prev => ({
       ...prev,
-      [selectedDayIndex]: { ...prev[selectedDayIndex], [type]: optionKey }
+      [safeDayIndex]: { platoFuerte: optionKey }
     }));
+  };
+
+  const handleConfirmOrder = () => {
+    const employeeKey = (currentUser && (currentUser.email || currentUser.id || currentUser.name)) || 'empleado-royal-1';
+    menuStore.saveEmployeeOrder(employeeKey, {
+      employeeName: currentUser?.name || 'Empleado Royal Canin',
+      selections,
+      confirmedAt: new Date().toISOString()
+    }, currentWeek);
+    setIsOrderSaved(true);
+    if (onOpenNotification) {
+      onOpenNotification(currentDayData, selections[safeDayIndex] || { platoFuerte: 'A' }, activeMenu, selections);
+    }
   };
 
   const toggleExpand = (dishId) => {
     setExpandedDishId(prev => prev === dishId ? null : dishId);
   };
 
-  const sopasData = {
-    A: {
-      id: 'sopa-a',
-      name: 'Sopa Azteca Ligera',
-      description: 'Caldo de tomate con tiritas de maíz horneadas, aguacate y queso panela.',
-      image: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=600&q=80'
-    },
-    B: {
-      id: 'sopa-b',
-      name: 'Crema de Calabaza Asada',
-      description: 'Suave crema de vegetales asados con un toque de semillas tostadas.',
-      image: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=600&q=80'
-    }
-  };
-
-  const basicPlatos = {
-    Pollo: {
-      id: 'plato-pollo',
-      name: 'Pechuga de Pollo Asada',
-      description: 'Pechuga de pollo a la plancha con verduras de temporada y porción de arroz.',
-      image: 'https://images.unsplash.com/photo-1532550907401-a500c9a57435?auto=format&fit=crop&w=600&q=80',
-      calories: 380,
-      protein: '36g',
-      carbs: '30g',
-      fats: '12g',
-      tags: ['Clásico', 'Ligero'],
-      allergens: []
-    },
-    Bistec: {
-      id: 'plato-bistec',
-      name: 'Bistec a la Plancha',
-      description: 'Filete magro de res a la plancha con verduras de temporada y porción de arroz.',
-      image: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=600&q=80',
-      calories: 450,
-      protein: '38g',
-      carbs: '30g',
-      fats: '18g',
-      tags: ['Clásico', 'Proteico'],
-      allergens: []
-    }
-  };
-
-  const renderListRow = (dish, type, optionKey, optionLabel) => {
-    const isSelected = selections[selectedDayIndex][type] === optionKey;
-    const isExpanded = expandedDishId === dish.id;
+  const renderListRow = (dish, optionKey) => {
+    if (!dish) return null;
+    const isSelected = selections[safeDayIndex]?.platoFuerte === optionKey;
+    const isExpanded = expandedDishId === (dish.id || optionKey);
+    const dishDescription = dish.description || dish.recipe?.ingredients || 'Platillo balanceado certificado por nutrición clínica.';
 
     return (
       <div 
-        onClick={() => handleSelect(type, optionKey)}
+        onClick={() => handleSelect(optionKey)}
         style={{ 
           display: 'flex', 
           padding: '1.25rem', 
@@ -114,24 +112,26 @@ export default function ParticipantView({ selectedWeek, onOpenNotification, curr
           transition: 'background 0.2s',
           borderLeft: isSelected ? '4px solid #22C55E' : '4px solid transparent',
         }}
-        key={dish.id}
+        key={dish.id || optionKey}
       >
         {/* Text Details */}
         <div style={{ flex: 1 }}>
-          <h4 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-dark)', margin: '0 0 0.35rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <h4 style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-dark)', margin: '0 0 0.35rem 0' }}>
             {dish.name}
           </h4>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 0.75rem 0', lineHeight: '1.45' }}>
-            {dish.description}
+            {dishDescription}
           </p>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
             {dish.calories && <span style={{ fontSize: '0.75rem', background: '#F1F5F9', padding: '0.15rem 0.5rem', borderRadius: '6px', color: '#334155', fontWeight: '600' }}>{dish.calories} kcal</span>}
             {dish.protein && <span style={{ fontSize: '0.75rem', background: '#F0FDF4', padding: '0.15rem 0.5rem', borderRadius: '6px', color: '#166534', fontWeight: '600' }}>{dish.protein} prot</span>}
+            {dish.carbs && <span style={{ fontSize: '0.75rem', background: '#F8FAFC', padding: '0.15rem 0.5rem', borderRadius: '6px', color: '#475569', fontWeight: '600' }}>{dish.carbs} carb</span>}
+            {dish.fats && <span style={{ fontSize: '0.75rem', background: '#F8FAFC', padding: '0.15rem 0.5rem', borderRadius: '6px', color: '#475569', fontWeight: '600' }}>{dish.fats} grasas</span>}
             
             {dish.allergens && (
               <button
-                onClick={(e) => { e.stopPropagation(); toggleExpand(dish.id); }}
+                onClick={(e) => { e.stopPropagation(); toggleExpand(dish.id || optionKey); }}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', padding: 0, textDecoration: 'underline' }}
               >
                 <Info size={13} /> {isExpanded ? 'Ocultar alérgenos' : 'Ver alérgenos'}
@@ -141,16 +141,17 @@ export default function ParticipantView({ selectedWeek, onOpenNotification, curr
 
           {isExpanded && dish.allergens && (
             <div style={{ background: '#FEF2F2', padding: '0.5rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', marginTop: '0.75rem', border: '1px solid #FCA5A5', color: '#991B1B' }}>
-              <strong>Grasas Totales:</strong> {dish.fats} • 
-              <strong> Alérgenos:</strong> {dish.allergens.length > 0 ? dish.allergens.join(', ') : 'Ninguno'}
+              <strong>Alérgenos registrados:</strong> {dish.allergens.length > 0 ? dish.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
             </div>
           )}
         </div>
 
         {/* Thumbnail */}
-        <div style={{ width: '90px', height: '90px', borderRadius: '12px', overflow: 'hidden', flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-          <img src={dish.image} alt={dish.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        </div>
+        {dish.image && (
+          <div style={{ width: '90px', height: '90px', borderRadius: '12px', overflow: 'hidden', flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+            <img src={dish.image} alt={dish.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+        )}
 
         {/* Radio Button */}
         <div style={{
@@ -187,13 +188,20 @@ export default function ParticipantView({ selectedWeek, onOpenNotification, curr
             Bienvenido(a), {currentUser.name}
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Selecciona tus platillos para las entregas de la <strong>Semana {selectedWeek}</strong> en la oficina.
+            Selecciona tus platillos para las entregas de la <strong>Semana {currentWeek}</strong> en la oficina.
           </p>
         </div>
 
         {/* Schedule note */}
-        <div style={{ background: 'var(--green-light)', border: '1px solid var(--green-border)', padding: '0.75rem 1.25rem', borderRadius: '12px', color: 'var(--green-dark)', fontSize: '0.8rem', fontWeight: '600' }}>
-          📍 Entregas directas en oficina los Lunes, Miércoles y Viernes
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem' }}>
+          <div style={{ background: 'var(--green-light)', border: '1px solid var(--green-border)', padding: '0.65rem 1.15rem', borderRadius: '12px', color: 'var(--green-dark)', fontSize: '0.8rem', fontWeight: '600' }}>
+            📍 Entregas en oficina: <strong>{daysList.map(d => d.dayName).join(', ')}</strong>
+          </div>
+          {isOrderSaved && (
+            <div style={{ background: '#DCFCE7', border: '1px solid #86EFAC', padding: '0.35rem 0.75rem', borderRadius: '8px', color: '#166534', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <CheckCircle2 size={14} /> ¡Elecciones de la Semana {currentWeek} confirmadas!
+            </div>
+          )}
         </div>
       </div>
 
@@ -272,29 +280,22 @@ export default function ParticipantView({ selectedWeek, onOpenNotification, curr
       {/* Menu Builder Sections */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
         
-        {/* 1. SOPA */}
-        <section style={{ background: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E8F0', overflow: 'hidden' }}>
-          <div style={{ padding: '1.25rem', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-dark)', margin: '0 0 0.25rem 0' }}>Elige tu Sopa</h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>Selecciona una opción • Obligatorio</p>
+        {/* PLATO PRINCIPAL CERTIFICADO POR LA NUTRIÓLOGA */}
+        <section style={{ background: '#FFFFFF', borderRadius: '14px', border: '1px solid #E2E8F0', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+          <div style={{ padding: '1.25rem 1.5rem', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-dark)', margin: '0 0 0.25rem 0' }}>
+                Elige tu Platillo para el {currentDayData.dayName}
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+                Certificado por Nutrición Clínica Royal Canin • Selecciona 1 opción para el Chef
+              </p>
+            </div>
+            <span className="badge-tag badge-green">2 Opciones Aprobadas</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {renderListRow(sopasData.A, 'sopa', 'A', 'Sopa A')}
-            {renderListRow(sopasData.B, 'sopa', 'B', 'Sopa B')}
-          </div>
-        </section>
-
-        {/* 2. PLATO FUERTE */}
-        <section style={{ background: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E8F0', overflow: 'hidden' }}>
-          <div style={{ padding: '1.25rem', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-dark)', margin: '0 0 0.25rem 0' }}>Elige tu Plato Fuerte</h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>Selecciona una opción • Obligatorio</p>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {renderListRow(currentDayData.optionA, 'platoFuerte', 'A', 'Plato Fuerte A')}
-            {renderListRow(currentDayData.optionB, 'platoFuerte', 'B', 'Plato Fuerte B')}
-            {renderListRow(basicPlatos.Pollo, 'platoFuerte', 'Pollo', 'Pechuga Asada')}
-            {renderListRow(basicPlatos.Bistec, 'platoFuerte', 'Bistec', 'Bistec a la Plancha')}
+            {renderListRow(currentDayData.optionA, 'A')}
+            {renderListRow(currentDayData.optionB, 'B')}
           </div>
         </section>
 
@@ -451,17 +452,26 @@ export default function ParticipantView({ selectedWeek, onOpenNotification, curr
             </div>
             <div>
               <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'white' }}>
-                Tu Selección de la Semana {selectedWeek}:
+                Tu Selección de la Semana {currentWeek}:
               </div>
               <div style={{ fontSize: '0.78rem', color: '#94A3B8' }}>
-                Lu: <strong>Sopa {selections[0].sopa}, Plato {selections[0].platoFuerte}</strong> • Mi: <strong>Sopa {selections[1].sopa}, Plato {selections[1].platoFuerte}</strong> • Vi: <strong>Sopa {selections[2].sopa}, Plato {selections[2].platoFuerte}</strong>
+                {daysList.map((d, idx) => {
+                  const choice = selections[idx]?.platoFuerte || 'A';
+                  const dish = (choice === 'B' ? d.optionB : d.optionA) || d.optionA || {};
+                  return (
+                    <span key={d.dayName}>
+                      {idx > 0 ? ' • ' : ''}
+                      {d.dayName.slice(0, 2)}: <strong style={{ color: '#E2E8F0' }}>{dish.name || 'Platillo'}</strong>
+                    </span>
+                  );
+                })}
               </div>
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <button
-              onClick={() => onOpenNotification(currentDayData, selections[selectedDayIndex])}
+              onClick={() => onOpenNotification(currentDayData, selections[safeDayIndex] || { platoFuerte: 'A' }, activeMenu, selections)}
               style={{
                 background: 'rgba(255,255,255,0.1)',
                 color: 'white',
@@ -480,7 +490,7 @@ export default function ParticipantView({ selectedWeek, onOpenNotification, curr
             </button>
 
             <button
-              onClick={() => onOpenNotification(currentDayData, selections[selectedDayIndex])}
+              onClick={handleConfirmOrder}
               className="btn-uber-primary"
             >
               <Sparkles size={16} /> Confirmar Selección
