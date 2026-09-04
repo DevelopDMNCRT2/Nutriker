@@ -1,24 +1,40 @@
 import React, { useState } from 'react';
 import { X, Send, CheckCheck, Mail, MessageSquare, PhoneCall, Sparkles, Clock, Calendar, CheckCircle2 } from 'lucide-react';
 import { chefInfo } from '../data/mockData';
+import { menuStore } from '../services/menuStore';
 
-export default function NotificationModal({ isOpen, onClose, selectedDayData, selectedOption, participantName = "Nutrióloga Karla" }) {
+export default function NotificationModal({ 
+  isOpen, 
+  onClose, 
+  selectedDayData, 
+  selectedOption, 
+  activeMenu, 
+  allSelections, 
+  participantName = "Nutrióloga Karla" 
+}) {
   const [activeTab, setActiveTab] = useState('whatsapp'); // 'whatsapp' | 'email'
 
-  if (!isOpen || !selectedDayData) return null;
+  if (!isOpen) return null;
 
-  const dishChosen = (typeof selectedOption === 'string' && selectedOption === 'B') 
-    ? selectedDayData.optionB 
-    : selectedDayData.optionA;
+  // Obtener menú activo y selecciones semanales completas
+  const currentActiveMenu = activeMenu || menuStore.getActiveMenu();
+  const days = currentActiveMenu?.days || (selectedDayData ? [selectedDayData] : []);
+  const selections = allSelections || {};
 
-  const renderSelectedMenuText = () => {
-    if (typeof selectedOption === 'string') {
-      return `Opción ${selectedOption} (${dishChosen.name})`;
-    }
-    return `Sopa ${selectedOption.sopa} y Plato ${selectedOption.platoFuerte}`;
-  };
-
-  const menuText = renderSelectedMenuText();
+  // Resumen de platillos elegidos para todos los días de la semana (SOLO NOMBRE DEL PLATILLO)
+  const weeklyMealSummary = days.map((day, idx) => {
+    const choice = selections[idx]?.platoFuerte || (idx % 2 === 0 ? 'A' : 'B');
+    const dish = (choice === 'B' ? day.optionB : day.optionA) || day.optionA || {};
+    return {
+      dayName: day.dayName,
+      dateLabel: day.dateLabel,
+      dishName: dish.name || 'Platillo Principal',
+      calories: dish.calories || 450,
+      protein: dish.protein || '30g',
+      carbs: dish.carbs || '45g',
+      image: dish.image
+    };
+  });
 
   return (
     <div style={{
@@ -63,7 +79,7 @@ export default function NotificationModal({ isOpen, onClose, selectedDayData, se
               </h3>
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Demostración visual de notificación enviada a los participantes de Retodali.
+              Confirmación oficial enviada a los participantes de Retodali con todos sus platillos semanales.
             </p>
           </div>
 
@@ -140,7 +156,17 @@ export default function NotificationModal({ isOpen, onClose, selectedDayData, se
         </div>
 
         {/* Modal Body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', background: '#F9FAFB', display: 'flex', justifyContent: 'center' }}>
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          minHeight: 0,
+          padding: '1.5rem',
+          background: '#F9FAFB',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'flex-start',
+          WebkitOverflowScrolling: 'touch'
+        }}>
           
           {activeTab === 'whatsapp' ? (
             /* WhatsApp Phone Mockup */
@@ -182,23 +208,30 @@ export default function NotificationModal({ isOpen, onClose, selectedDayData, se
                   alignSelf: 'center',
                   margin: '0.2rem 0'
                 }}>
-                  Hoy, {selectedDayData.dateLabel}
+                  Hoy, {days[0]?.dateLabel || 'Agosto 2026'}
                 </div>
 
                 {/* Incoming Bot Message */}
                 <div className="whatsapp-bubble whatsapp-bubble-in">
                   <div style={{ fontWeight: '700', color: '#25D366', fontSize: '0.8rem', marginBottom: '0.3rem' }}>
-                    🥗 Menú Nutrición - Entrega {selectedDayData.dayName}
+                    🥗 Menú Nutrición Semanal - Retodali
                   </div>
-                  Hola <strong>{participantName}</strong>, recuerda personalizar tu menú para el <strong>{selectedDayData.dayName} ({selectedDayData.dateLabel})</strong> a través de la plataforma.
+                  Hola <strong>{participantName}</strong>, recuerda personalizar tus platillos de la semana a través de la plataforma.
                   <div style={{ fontSize: '0.65rem', color: '#8696A0', textAlign: 'right', marginTop: '0.4rem' }}>
                     08:30 AM
                   </div>
                 </div>
 
-                {/* User Reply Bubble */}
+                {/* User Reply Bubble with ALL chosen dishes */}
                 <div className="whatsapp-bubble">
-                  Confirmado: {menuText} 👍
+                  <div style={{ fontWeight: '700', marginBottom: '0.35rem' }}>
+                    Confirmado mi menú semanal 👍:
+                  </div>
+                  {weeklyMealSummary.map(item => (
+                    <div key={item.dayName} style={{ margin: '0.2rem 0', fontSize: '0.8rem' }}>
+                      • <strong>{item.dayName}:</strong> {item.dishName}
+                    </div>
+                  ))}
                   <div style={{ fontSize: '0.65rem', color: '#8696A0', textAlign: 'right', marginTop: '0.3rem', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px' }}>
                     08:32 AM <CheckCheck size={13} color="#53BDEB" />
                   </div>
@@ -209,7 +242,7 @@ export default function NotificationModal({ isOpen, onClose, selectedDayData, se
                   <div style={{ fontWeight: '600', color: '#25D366', marginBottom: '0.2rem' }}>
                     ¡Registrado con éxito! ✨
                   </div>
-                  El Chef Mateo preparará tu platillo. Entrega estimada en tu oficina el {selectedDayData.dayName} a las 12:15 PM. ¡Que disfrutes tu comida!
+                  El Chef Mateo preparará tus {weeklyMealSummary.length} platillos según las recetas clínicas certificadas. ¡Que disfrutes tu comida!
                   <div style={{ fontSize: '0.65rem', color: '#8696A0', textAlign: 'right', marginTop: '0.4rem' }}>
                     08:32 AM
                   </div>
@@ -232,7 +265,7 @@ export default function NotificationModal({ isOpen, onClose, selectedDayData, se
               <div style={{ background: '#F9FAFB', padding: '0.85rem 1.25rem', borderBottom: '1px solid #E5E7EB', fontSize: '0.82rem', color: '#4B5563' }}>
                 <div><strong>De:</strong> Nutrición Retodali &lt;notificaciones@nutricion.com&gt;</div>
                 <div><strong>Para:</strong> {participantName} &lt;karla@retodali.com&gt;</div>
-                <div><strong>Asunto:</strong> 🥗 Tu Menú de Nutrición para el {selectedDayData.dayName} ({selectedDayData.dateLabel})</div>
+                <div><strong>Asunto:</strong> 🥗 Tu Menú Semanal Confirmado - Retodali</div>
               </div>
 
               {/* Email Content Body */}
@@ -248,41 +281,49 @@ export default function NotificationModal({ isOpen, onClose, selectedDayData, se
                   ¡Hola {participantName}!
                 </h3>
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-dark)', marginBottom: '1.25rem', lineHeight: '1.5' }}>
-                  Aquí tienes la selección gastronómica programada para la entrega del <strong>{selectedDayData.dayName} ({selectedDayData.dateLabel})</strong> en las instalaciones de Retodali.
+                  Aquí tienes la selección gastronómica programada para tus entregas de la semana en las instalaciones de Retodali:
                 </p>
 
-                {/* Selected Dish Card in Email */}
-                <div style={{
-                  background: '#FFFFFF',
-                  border: '1px solid #E5E7EB',
-                  borderRadius: '14px',
-                  padding: '1.25rem',
-                  marginBottom: '1.25rem',
-                  display: 'flex',
-                  gap: '1rem',
-                  alignItems: 'center'
-                }}>
-                  <img
-                    src={dishChosen.image}
-                    alt={dishChosen.name}
-                    style={{ width: '85px', height: '85px', borderRadius: '12px', objectFit: 'cover' }}
-                  />
-                  <div>
-                    <span className="badge-tag badge-red" style={{ marginBottom: '0.3rem' }}>
-                      Menú Seleccionado
-                    </span>
-                    <h4 style={{ fontSize: '1rem', color: 'var(--text-dark)', marginBottom: '0.2rem' }}>
-                      {typeof selectedOption === 'string' ? dishChosen.name : menuText}
-                    </h4>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      {dishChosen.calories} kcal • Proteína: {dishChosen.protein} • Carbohidratos: {dishChosen.carbs}
-                    </p>
-                  </div>
+                {/* Selected Dishes Cards in Email for ALL days */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                  {weeklyMealSummary.map(item => (
+                    <div 
+                      key={item.dayName}
+                      style={{
+                        background: '#FFFFFF',
+                        border: '1px solid #E5E7EB',
+                        borderRadius: '12px',
+                        padding: '0.85rem 1rem',
+                        display: 'flex',
+                        gap: '0.85rem',
+                        alignItems: 'center'
+                      }}
+                    >
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          alt={item.dishName}
+                          style={{ width: '60px', height: '60px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }}
+                        />
+                      )}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'var(--primary)', marginBottom: '0.15rem' }}>
+                          {item.dayName} ({item.dateLabel?.split(',')[0] || item.dateLabel})
+                        </div>
+                        <h4 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-dark)', margin: '0 0 0.2rem 0' }}>
+                          {item.dishName}
+                        </h4>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
+                          {item.calories} kcal • Proteína: {item.protein} • Carbohidratos: {item.carbs}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
-                <div style={{ background: 'var(--green-light)', border: '1px solid var(--green-border)', padding: '1rem', borderRadius: '12px', fontSize: '0.85rem', color: 'var(--green-dark)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <Clock size={18} />
-                  <span><strong>Entrega Estimada:</strong> {selectedDayData.dayName} entre 12:00 PM y 12:30 PM.</span>
+                <div style={{ background: 'var(--green-light)', border: '1px solid var(--green-border)', padding: '0.85rem 1rem', borderRadius: '12px', fontSize: '0.85rem', color: 'var(--green-dark)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <CheckCircle2 size={18} />
+                  <span><strong>Servicio Confirmado:</strong> Platillos frescos elaborados directamente en las instalaciones de Retodali según tu selección semanal.</span>
                 </div>
 
                 <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
