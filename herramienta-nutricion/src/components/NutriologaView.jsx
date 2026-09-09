@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HeartPulse, ShieldCheck, CheckCircle2, AlertTriangle, Activity, Apple, Flame, Wand2, ChevronRight, ChevronDown, ArrowLeft, Check, RefreshCw, Layers } from 'lucide-react';
 import { cyclicMenus, nutriologaInfo, programInfo } from '../data/mockData';
-import { menuStore } from '../services/menuStore';
+import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
+import WeekCalendarPicker from './WeekCalendarPicker';
 
 const GET_ACTIVE_DAYS = (numDays) => {
   const n = parseInt(numDays, 10) || 3;
@@ -78,6 +79,24 @@ const INITIAL_DISH_SELECTION = {
 export default function NutriologaView({ selectedWeek }) {
   const [activeTab, setActiveTab] = useState('wizard'); // 'wizard' | 'audit'
 
+  // Semana en curso calculada dinámicamente según la fecha actual del sistema
+  const [targetWeekInfo, setTargetWeekInfo] = useState(() => getWeekInfoFromDate(new Date()));
+  const [activeMenu, setActiveMenu] = useState(() => menuStore.getActiveMenu(targetWeekInfo));
+
+  useEffect(() => {
+    setActiveMenu(menuStore.getActiveMenu(targetWeekInfo));
+  }, [targetWeekInfo]);
+
+  useEffect(() => {
+    const handleMenuUpdate = (e) => {
+      if (!e.detail || e.detail.weekKey === targetWeekInfo.weekKey || e.detail.weekNumber === targetWeekInfo.weekNumber) {
+        setActiveMenu(menuStore.getActiveMenu(targetWeekInfo));
+      }
+    };
+    window.addEventListener('royal_canin_menu_updated', handleMenuUpdate);
+    return () => window.removeEventListener('royal_canin_menu_updated', handleMenuUpdate);
+  }, [targetWeekInfo]);
+
   // Wizard state
   const [wizardStep, setWizardStep] = useState(1);
   const [daysPerWeek, setDaysPerWeek] = useState(3); // 1 to 5
@@ -91,8 +110,10 @@ export default function NutriologaView({ selectedWeek }) {
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
-  const weekData = cyclicMenus.find(w => w.weekNumber === selectedWeek) || cyclicMenus[0];
-  const currentDay = weekData.days[selectedDayIndex];
+  const isMenuPublished = Boolean(activeMenu && activeMenu.isPublished && activeMenu.days && activeMenu.days.length > 0);
+  const weekData = isMenuPublished ? activeMenu : { days: [] };
+  const safeDayIndex = selectedDayIndex < weekData.days.length ? selectedDayIndex : 0;
+  const currentDay = (weekData.days && weekData.days[safeDayIndex]) || null;
 
   const activeDays = GET_ACTIVE_DAYS(daysPerWeek);
 
@@ -110,9 +131,9 @@ export default function NutriologaView({ selectedWeek }) {
   };
 
   const handlePublishMenu = () => {
-    // Persist menu in menuStore
+    // Persist menu in menuStore para la semana seleccionada en calendario
     menuStore.publishMenu({
-      weekInput: selectedWeek,
+      weekInput: targetWeekInfo,
       daysPerWeek: String(daysPerWeek),
       dietOptionA,
       dietOptionB,
@@ -168,6 +189,17 @@ export default function NutriologaView({ selectedWeek }) {
         <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', padding: '0.6rem 1rem', borderRadius: '12px', color: '#15803D', fontSize: '0.8rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <CheckCircle2 size={16} /> Menús Cíclicos Certificados 100%
         </div>
+      </div>
+
+      {/* Selector Dinámico de Semana por Calendario (Aplica a Wizard y Auditoría) */}
+      <div style={{ marginBottom: '1.25rem' }}>
+        <WeekCalendarPicker
+          selectedWeekInfo={targetWeekInfo}
+          onChangeWeek={(newWeekInfo) => {
+            setTargetWeekInfo(newWeekInfo);
+          }}
+          label="Semana del Servicio para Programación y Auditoría Clínica:"
+        />
       </div>
 
       {/* Navigation Sub-Tabs */}
@@ -248,7 +280,7 @@ export default function NutriologaView({ selectedWeek }) {
                 Selecciona la frecuencia de entregas programadas para la empresa Retodali.
               </p>
 
-              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '2.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
                 {[1, 2, 3, 4, 5].map((dayNum) => (
                   <button
                     key={dayNum}
@@ -274,10 +306,6 @@ export default function NutriologaView({ selectedWeek }) {
                     {dayNum}
                   </button>
                 ))}
-              </div>
-              
-              <div style={{ textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '2rem' }}>
-                Días seleccionados: <strong style={{ color: '#2563EB' }}>{daysPerWeek} {daysPerWeek === 1 ? 'día' : 'días'} a la semana</strong> ({activeDays.join(', ')})
               </div>
 
               <button onClick={() => setWizardStep(2)} className="btn-uber-primary" style={{ width: '100%', justifyContent: 'center', background: '#2563EB' }}>
@@ -630,122 +658,154 @@ export default function NutriologaView({ selectedWeek }) {
       {/* TAB AUDIT: MEDICAL/CLINICAL COMPARISON */}
       {activeTab === 'audit' && (
         <div className="animate-fade-in">
-          {/* Audit Days Bar */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-dark)' }}>
-              Auditoría Nutricional - {currentDay.dayName} ({currentDay.dateLabel})
-            </h3>
-            
-            <div style={{ display: 'flex', gap: '0.35rem', background: '#FFFFFF', padding: '0.25rem', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-              {weekData.days.map((day, idx) => (
-                <button
-                  key={day.dayName}
-                  onClick={() => setSelectedDayIndex(idx)}
-                  style={{
-                    border: 'none',
-                    background: selectedDayIndex === idx ? '#2563EB' : 'transparent',
-                    color: selectedDayIndex === idx ? '#FFFFFF' : 'var(--text-dark)',
-                    padding: '0.4rem 0.85rem',
-                    borderRadius: '8px',
-                    fontWeight: '700',
-                    fontSize: '0.8rem',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {day.dayName}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Comparative Clinical Cards */}
-          <div className="comparative-grid">
-            
-            {/* OPTION A AUDIT */}
-            <div className="uber-card" style={{ padding: '1.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                <span className="badge-tag badge-red">Opción A • {currentDay.optionA.category}</span>
-                <span style={{ fontSize: '0.75rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
-                  ✓ Aprobado por Nutrición
-                </span>
+          {!isMenuPublished || !currentDay ? (
+            <div style={{
+              background: '#FFFFFF',
+              padding: '3.5rem 1.5rem',
+              borderRadius: '16px',
+              border: '1px solid #E2E8F0',
+              textAlign: 'center',
+              boxShadow: 'var(--shadow-card)',
+              maxWidth: '580px',
+              margin: '2rem auto'
+            }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563EB', margin: '0 auto 1.25rem' }}>
+                <Activity size={28} />
               </div>
-
-              <h4 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
-                {currentDay.optionA.name}
+              <h4 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
+                Sin Menú Publicado para Esta Semana
               </h4>
-
-              {/* Clinical Macro Breakdown Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
-                <div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--primary)' }}>{currentDay.optionA.calories} kcal</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#2563EB' }}>{currentDay.optionA.protein}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>{currentDay.optionA.carbs}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>{currentDay.optionA.fats}</div>
-                </div>
-              </div>
-
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                <strong>Perfil Clínico:</strong> Índice glucémico controlado, digestión ágil en oficina sin causar pesadez post-almuerzo.
-              </div>
-
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                <strong>Alérgenos registrados:</strong> {currentDay.optionA.allergens.length > 0 ? currentDay.optionA.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
-              </div>
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: '1.5', marginBottom: '1.5rem' }}>
+                Aún no se han configurado ni certificado platillos para la semana del <strong>{targetWeekInfo.dateRange}</strong>. Diseña el menú en el Wizard para habilitar el análisis y la auditoría clínica.
+              </p>
+              <button
+                onClick={() => setActiveTab('wizard')}
+                className="btn-uber-primary"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#2563EB', margin: '0 auto' }}
+              >
+                <Wand2 size={16} /> Programar Menú en el Wizard
+              </button>
             </div>
-
-            {/* OPTION B AUDIT */}
-            <div className="uber-card" style={{ padding: '1.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                <span className="badge-tag badge-green">Opción B • {currentDay.optionB.category}</span>
-                <span style={{ fontSize: '0.75rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
-                  ✓ Aprobado por Nutrición
-                </span>
-              </div>
-
-              <h4 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
-                {currentDay.optionB.name}
-              </h4>
-
-              {/* Clinical Macro Breakdown Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
-                <div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--primary)' }}>{currentDay.optionB.calories} kcal</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#2563EB' }}>{currentDay.optionB.protein}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>{currentDay.optionB.carbs}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>{currentDay.optionB.fats}</div>
+          ) : (
+            <>
+              {/* Audit Days Bar */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-dark)' }}>
+                  Auditoría Nutricional - {currentDay.dayName} ({currentDay.dateLabel})
+                </h3>
+                
+                <div style={{ display: 'flex', gap: '0.35rem', background: '#FFFFFF', padding: '0.25rem', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                  {weekData.days.map((day, idx) => (
+                    <button
+                      key={day.dayName}
+                      onClick={() => setSelectedDayIndex(idx)}
+                      style={{
+                        border: 'none',
+                        background: safeDayIndex === idx ? '#2563EB' : 'transparent',
+                        color: safeDayIndex === idx ? '#FFFFFF' : 'var(--text-dark)',
+                        padding: '0.4rem 0.85rem',
+                        borderRadius: '8px',
+                        fontWeight: '700',
+                        fontSize: '0.8rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {day.dayName}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                <strong>Perfil Clínico:</strong> Alto contenido de fibra vegetal e ingredientes antioxidantes antiinflamatorios.
-              </div>
+              {/* Comparative Clinical Cards */}
+              <div className="comparative-grid">
+                
+                {/* OPTION A AUDIT */}
+                <div className="uber-card" style={{ padding: '1.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                    <span className="badge-tag badge-red">Opción A • {currentDay.optionA?.category || dietOptionA}</span>
+                    <span style={{ fontSize: '0.75rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
+                      ✓ Aprobado por Nutrición
+                    </span>
+                  </div>
 
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                <strong>Alérgenos registrados:</strong> {currentDay.optionB.allergens.length > 0 ? currentDay.optionB.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
-              </div>
-            </div>
+                  <h4 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
+                    {currentDay.optionA?.name || 'Platillo A'}
+                  </h4>
 
-          </div>
+                  {/* Clinical Macro Breakdown Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
+                    <div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--primary)' }}>{currentDay.optionA?.calories || 480} kcal</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#2563EB' }}>{currentDay.optionA?.protein || '35g'}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>{currentDay.optionA?.carbs || '40g'}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>{currentDay.optionA?.fats || '14g'}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
+                    <strong>Perfil Clínico:</strong> Índice glucémico controlado, digestión ágil en oficina sin causar pesadez post-almuerzo.
+                  </div>
+
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    <strong>Alérgenos registrados:</strong> {(currentDay.optionA?.allergens || []).length > 0 ? currentDay.optionA.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
+                  </div>
+                </div>
+
+                {/* OPTION B AUDIT */}
+                <div className="uber-card" style={{ padding: '1.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                    <span className="badge-tag badge-green">Opción B • {currentDay.optionB?.category || dietOptionB}</span>
+                    <span style={{ fontSize: '0.75rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
+                      ✓ Aprobado por Nutrición
+                    </span>
+                  </div>
+
+                  <h4 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
+                    {currentDay.optionB?.name || 'Platillo B'}
+                  </h4>
+
+                  {/* Clinical Macro Breakdown Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
+                    <div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--primary)' }}>{currentDay.optionB?.calories || 430} kcal</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#2563EB' }}>{currentDay.optionB?.protein || '18g'}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>{currentDay.optionB?.carbs || '50g'}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>{currentDay.optionB?.fats || '16g'}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
+                    <strong>Perfil Clínico:</strong> Alto contenido de fibra vegetal e ingredientes antioxidantes antiinflamatorios.
+                  </div>
+
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    <strong>Alérgenos registrados:</strong> {(currentDay.optionB?.allergens || []).length > 0 ? currentDay.optionB.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
+                  </div>
+                </div>
+
+              </div>
+            </>
+          )}
         </div>
       )}
 
