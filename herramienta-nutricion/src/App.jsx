@@ -88,8 +88,8 @@ export default function App() {
   }, []);
 
 
-  const handleOpenNotification = (dayData, optionKey) => {
-    setNotificationTarget({ dayData, optionKey });
+  const handleOpenNotification = (dayData, optionKey, activeMenu, allSelections) => {
+    setNotificationTarget({ dayData, optionKey, activeMenu, allSelections });
     setIsNotificationOpen(true);
     
     // Trigger red & green festive confetti
@@ -174,6 +174,8 @@ export default function App() {
           onClose={() => setIsNotificationOpen(false)}
           selectedDayData={notificationTarget.dayData}
           selectedOption={notificationTarget.optionKey}
+          activeMenu={notificationTarget.activeMenu}
+          allSelections={notificationTarget.allSelections}
           participantName={currentUser.name}
         />
       )}
