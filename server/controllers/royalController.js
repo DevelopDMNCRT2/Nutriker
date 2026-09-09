@@ -50,7 +50,7 @@ export async function obtenerMenuSemana(req, res) {
       if (!diasMap[row.dia_semana]) {
         diasMap[row.dia_semana] = {
           dayName: row.dia_semana,
-          dateLabel: `${row.dia_semana}, ${new Date(row.fecha).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}`,
+          dateLabel: new Date(row.fecha).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }),
           optionA: null,
           optionB: null
         }

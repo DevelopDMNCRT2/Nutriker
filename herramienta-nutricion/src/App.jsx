@@ -8,11 +8,12 @@ import ChefView from './components/ChefView';
 import NotificationModal from './components/NotificationModal';
 import LoginView from './components/LoginView';
 import { cyclicMenus, sampleParticipants, chefInfo, nutriologaInfo } from './data/mockData';
+import { getWeekInfoFromDate } from './services/menuStore';
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(localStorage.getItem('royal_role')));
   const [currentView, setCurrentView] = useState(() => localStorage.getItem('royal_role') || 'participant'); // 'participant' | 'admin' | 'chef' | 'nutriologa'
-  const [selectedWeek, setSelectedWeek] = useState(1);
+  const [selectedWeek, setSelectedWeek] = useState(() => getWeekInfoFromDate(new Date()).weekNumber);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notificationTarget, setNotificationTarget] = useState(null);
 
@@ -176,7 +177,7 @@ export default function App() {
           selectedOption={notificationTarget.optionKey}
           activeMenu={notificationTarget.activeMenu}
           allSelections={notificationTarget.allSelections}
-          participantName={currentUser.name}
+          participantName={currentUser?.nombre || currentUser?.name || 'Empleado Royal Canin'}
         />
       )}
 
