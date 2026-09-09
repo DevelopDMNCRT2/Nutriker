@@ -2,7 +2,15 @@ import React from 'react';
 import { Salad, Calendar, UtensilsCrossed, ShieldCheck, Building2, User, KeyRound, ChefHat, HeartPulse, Sparkles } from 'lucide-react';
 import { programInfo } from '../data/mockData';
 
-export default function Header({ currentView, setCurrentView, selectedWeek, setSelectedWeek, currentUser, onOpenLogin }) {
+export default function Header({ currentView, setCurrentView, selectedWeek, setSelectedWeek, currentUser, onOpenLogin, onLogout }) {
+  const getRoleBadge = () => {
+    if (currentView === 'chef') return { label: 'Chef', color: 'var(--green-dark)', bg: 'var(--green-light)' };
+    if (currentView === 'nutriologa') return { label: 'Nutrióloga', color: '#2563EB', bg: '#EFF6FF' };
+    return { label: 'Empleado', color: 'var(--primary)', bg: 'var(--primary-light)' };
+  };
+
+  const badge = getRoleBadge();
+
   return (
     <header style={{
       background: '#FFFFFF',
@@ -33,10 +41,10 @@ export default function Header({ currentView, setCurrentView, selectedWeek, setS
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
               <h1 style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-dark)' }}>
-                Nutrición
+                NutriKer
               </h1>
               <span className="badge-tag badge-red" style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.7rem' }}>
-                <Building2 size={11} /> Cliente: <strong>{programInfo.clientProject}</strong>
+                <Building2 size={11} /> <strong>{programInfo.clientProject}</strong>
               </span>
             </div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
@@ -45,107 +53,41 @@ export default function Header({ currentView, setCurrentView, selectedWeek, setS
           </div>
         </div>
 
-        {/* 4 Quick Access Presentation Role Switcher (Empleado / Admin / Chef / Nutrióloga) */}
-        <div style={{ display: 'flex', background: '#F1F5F9', padding: '0.2rem', borderRadius: '9999px', flexWrap: 'wrap', gap: '0.15rem' }}>
-          <button
-            onClick={() => setCurrentView('participant')}
-            style={{
-              border: 'none',
-              background: currentView === 'participant' ? 'var(--primary)' : 'transparent',
-              color: currentView === 'participant' ? '#FFFFFF' : 'var(--text-muted)',
-              padding: '0.35rem 0.75rem',
-              borderRadius: '9999px',
-              fontSize: '0.78rem',
-              fontWeight: '700',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.3rem'
-            }}
-          >
-            <User size={13} /> Empleado
-          </button>
+        {/* User Info & Role Lockdown Badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#F8FAFC', padding: '0.35rem 0.75rem', borderRadius: '9999px', border: '1px solid #E2E8F0' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#334155' }}>
+              {currentUser?.nombre || 'Usuario Activo'}
+            </span>
+            <span style={{ fontSize: '0.7rem', fontWeight: '800', padding: '0.15rem 0.5rem', borderRadius: '9999px', background: badge.bg, color: badge.color }}>
+              {badge.label}
+            </span>
+          </div>
 
-          {/* Oculto temporalmente
-          <button
-            onClick={() => setCurrentView('admin')}
-            style={{
-              border: 'none',
-              background: currentView === 'admin' ? '#0F172A' : 'transparent',
-              color: currentView === 'admin' ? '#FFFFFF' : 'var(--text-muted)',
-              padding: '0.35rem 0.75rem',
-              borderRadius: '9999px',
-              fontSize: '0.78rem',
-              fontWeight: '700',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.3rem'
-            }}
-          >
-            <ShieldCheck size={13} /> Admin
-          </button>
-          */}
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              style={{
+                background: '#FEF2F2',
+                border: '1px solid #FCA5A5',
+                color: '#DC2626',
+                padding: '0.35rem 0.75rem',
+                borderRadius: '9999px',
+                fontSize: '0.75rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Cerrar Sesión
+            </button>
+          )}
 
-          <button
-            onClick={() => setCurrentView('chef')}
-            style={{
-              border: 'none',
-              background: currentView === 'chef' ? 'var(--green-dark)' : 'transparent',
-              color: currentView === 'chef' ? '#FFFFFF' : 'var(--text-muted)',
-              padding: '0.35rem 0.75rem',
-              borderRadius: '9999px',
-              fontSize: '0.78rem',
-              fontWeight: '700',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.3rem'
-            }}
-          >
-            <ChefHat size={13} /> Chef
-          </button>
-
-          <button
-            onClick={() => setCurrentView('nutriologa')}
-            style={{
-              border: 'none',
-              background: currentView === 'nutriologa' ? '#2563EB' : 'transparent',
-              color: currentView === 'nutriologa' ? '#FFFFFF' : 'var(--text-muted)',
-              padding: '0.35rem 0.75rem',
-              borderRadius: '9999px',
-              fontSize: '0.78rem',
-              fontWeight: '700',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.3rem'
-            }}
-          >
-            <HeartPulse size={13} /> Nutrióloga Karla
-          </button>
         </div>
-
-        {/* Quick Demo Switcher Trigger Button */}
-        <button
-          onClick={onOpenLogin}
-          style={{
-            background: '#FFFFFF',
-            border: '1px solid var(--primary-border)',
-            color: 'var(--primary)',
-            padding: '0.35rem 0.75rem',
-            borderRadius: '9999px',
-            fontSize: '0.75rem',
-            fontWeight: '700',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.3rem',
-            boxShadow: '0 2px 6px rgba(225, 29, 72, 0.08)'
-          }}
-        >
-          <Sparkles size={13} /> Panel Demo
-        </button>
 
       </div>
     </header>
