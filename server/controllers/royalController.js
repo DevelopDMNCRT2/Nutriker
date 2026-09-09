@@ -1,5 +1,6 @@
 import pool from '../db/pool.js'
 import { generarIdUnico } from '../utils/generarId.js'
+import { enviarConfirmacionPedidoB2B } from '../services/notificationService.js'
 
 /**
  * Obtener menú semanal B2B (3FN)
@@ -350,7 +351,9 @@ export async function guardarPedidoEmpleado(req, res) {
     usuarioId,
     semanaKey,
     selections = {},
-    estado = 'confirmado'
+    estado = 'confirmado',
+    empleadoNombre: reqNombre,
+    empleadoEmail: reqEmail
   } = req.body
 
   if (!usuarioId || !semanaKey) {
@@ -407,7 +410,8 @@ export async function guardarPedidoEmpleado(req, res) {
       )
     }
 
-    // 3. Insertar selecciones en pedido_b2b_detalles
+    // 3. Insertar selecciones en pedido_b2b_detalles y construir resumen para notificación
+    const summaryPlatillos = []
     const daysArr = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']
     for (const [key, val] of Object.entries(selections)) {
       const diaSemana = daysArr[parseInt(key, 10)] || key
@@ -415,11 +419,22 @@ export async function guardarPedidoEmpleado(req, res) {
 
       // Buscar si existe el platillo en menu_b2b_dias
       const diaRes = await client.query(
-        `SELECT id FROM menu_b2b_dias 
+        `SELECT id, nombre_platillo, calorias, proteinas_g FROM menu_b2b_dias 
          WHERE menu_id = $1 AND dia_semana = $2 AND tipo_opcion = $3`,
         [menuId, diaSemana, opcion]
       )
       const menuDiaId = diaRes.rowCount > 0 ? diaRes.rows[0].id : null
+      const platilloNombre = diaRes.rowCount > 0 ? diaRes.rows[0].nombre_platillo : (val.nombrePlatillo || `Platillo Opción ${opcion}`)
+      const calorias = diaRes.rowCount > 0 ? diaRes.rows[0].calorias : null
+      const proteina = diaRes.rowCount > 0 ? `${diaRes.rows[0].proteinas_g}g` : null
+
+      summaryPlatillos.push({
+        diaSemana,
+        opcion,
+        platilloNombre,
+        calorias,
+        proteina
+      })
 
       const detalleId = await generarIdUnico('pedido_b2b_detalles')
       await client.query(
@@ -430,13 +445,46 @@ export async function guardarPedidoEmpleado(req, res) {
       )
     }
 
+    // 4. Resolver datos de contacto del empleado para el correo
+    let empleadoNombre = reqNombre || null
+    let empleadoEmail = reqEmail || null
+
+    if (!empleadoEmail || !empleadoNombre) {
+      try {
+        const userRes = await client.query(
+          `SELECT nombre, email FROM usuarios WHERE id::text = $1 OR email = $1
+           UNION ALL
+           SELECT nombre, email FROM usuarios_empresas WHERE id::text = $1 OR email = $1
+           LIMIT 1`,
+          [String(usuarioId)]
+        )
+        if (userRes.rowCount > 0) {
+          if (!empleadoNombre) empleadoNombre = userRes.rows[0].nombre
+          if (!empleadoEmail) empleadoEmail = userRes.rows[0].email
+        }
+      } catch (e) {
+        console.warn('⚠️ No se pudo resolver usuario_id para email:', e.message)
+      }
+    }
+
     await client.query('COMMIT')
+
+    // 5. Despacho asíncrono de notificación transaccional (SMTP o Simulación)
+    enviarConfirmacionPedidoB2B({
+      empleadoNombre: empleadoNombre || 'Empleado Royal Canin',
+      empleadoEmail,
+      semana: semanaKey,
+      platillos: summaryPlatillos,
+      empresa
+    }).catch(err => console.error('⚠️ [NotificationService Error]:', err.message))
+
     return res.status(201).json({
       success: true,
       message: 'Pedido B2B registrado exitosamente en base de datos',
       pedidoId,
       usuarioId,
-      semanaKey
+      semanaKey,
+      notificacionDespachada: Boolean(empleadoEmail)
     })
   } catch (error) {
     await client.query('ROLLBACK')

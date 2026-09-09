@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Send, CheckCheck, Mail, MessageSquare, PhoneCall, Sparkles, Clock, Calendar, CheckCircle2 } from 'lucide-react';
-import { chefInfo } from '../data/mockData';
+import { chefInfo, programInfo } from '../data/mockData';
 import { menuStore } from '../services/menuStore';
 
 export default function NotificationModal({ 
