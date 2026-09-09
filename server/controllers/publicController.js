@@ -1,5 +1,6 @@
 import pool from '../db/pool.js'
 import { generarIdUnico } from '../utils/generarId.js'
+import { enviarConfirmacionCita } from '../services/notificationService.js'
 
 // 1. Obtener catálogo de productos públicos
 export const getProductosPublicos = async (req, res) => {
@@ -179,6 +180,19 @@ export const agendarCitaPublica = async (req, res) => {
     ]
 
     const { rows } = await pool.query(query, values)
+
+    // Disparar confirmación asíncrona (no bloqueante)
+    enviarConfirmacionCita({
+      nombre: paciente_nombre,
+      correo,
+      telefono: paciente_telefono,
+      fecha,
+      horario,
+      servicio: 'Consulta Nutricional Corporativa',
+      tipo: 'Presencial',
+      empresa: 'Monex'
+    }).catch(err => console.error('Error al despachar notificación asíncrona Monex:', err))
+
     res.status(201).json({
       mensaje: 'Cita agendada con éxito',
       cita: rows[0]
@@ -268,12 +282,24 @@ export const getPortalPaciente = async (req, res) => {
       ORDER BY created_at DESC LIMIT 1
     `, [paciente.id])
 
-    // Obtener citas del paciente
+    // Obtener citas del paciente (generales y de Monex)
     const citasRes = await pool.query(`
-      SELECT * FROM citas 
-      WHERE (paciente_telefono = $1 OR paciente_nombre = $2) AND deleted_at IS NULL
+      SELECT id, paciente_nombre, paciente_telefono, correo, TO_CHAR(fecha, 'YYYY-MM-DD') AS fecha, horario,
+             COALESCE(estado, 'Confirmada') AS estado, COALESCE(servicio, 'Consulta Nutricional') AS servicio,
+             COALESCE(tipo, 'Presencial') AS tipo, notas, 'Clinica' AS origen
+      FROM citas 
+      WHERE (paciente_telefono = $1 OR paciente_nombre = $2 OR (correo IS NOT NULL AND LOWER(correo) = LOWER($3))) AND deleted_at IS NULL
+      
+      UNION ALL
+      
+      SELECT id, paciente_nombre, paciente_telefono, correo, TO_CHAR(fecha, 'YYYY-MM-DD') AS fecha, horario,
+             COALESCE(estado, 'Confirmada') AS estado, 'Consulta Nutricional Corporativa' AS servicio,
+             'Presencial' AS tipo, 'Cita Corporativa Monex' AS notas, 'Monex' AS origen
+      FROM citas_monex 
+      WHERE (paciente_telefono = $1 OR paciente_nombre = $2 OR (correo IS NOT NULL AND LOWER(correo) = LOWER($3))) AND deleted_at IS NULL
+      
       ORDER BY fecha DESC, horario DESC
-    `, [paciente.telefono, paciente.nombre])
+    `, [paciente.telefono, paciente.nombre, paciente.correo || ''])
 
     res.json({
       paciente,
