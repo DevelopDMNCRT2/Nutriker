@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { HeartPulse, ShieldCheck, CheckCircle2, AlertTriangle, Activity, Apple, Flame, Sparkles, Wand2, ChevronRight, ArrowLeft, Check, RefreshCw } from 'lucide-react';
+import { HeartPulse, ShieldCheck, CheckCircle2, AlertTriangle, Activity, Apple, Flame, Sparkles, Wand2, ChevronRight, ChevronDown, ArrowLeft, Check, RefreshCw } from 'lucide-react';
 import { cyclicMenus, nutriologaInfo, programInfo } from '../data/mockData';
 
 export default function NutriologaView({ selectedWeek }) {
@@ -259,35 +259,109 @@ export default function NutriologaView({ selectedWeek }) {
                 Los empleados podrán elegir entre estas 2 vertientes gastronómicas balanceadas.
               </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1.5rem' }}>
                 <div>
-                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#2563EB', display: 'block', marginBottom: '0.3rem' }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#1D4ED8', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
+                    <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#2563EB' }}></span>
                     Enfoque para la Opción A (Proteica / Balance):
                   </label>
-                  <select
-                    value={dietOptionA}
-                    onChange={(e) => setDietOptionA(e.target.value)}
-                    style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '0.9rem', outline: 'none' }}
-                  >
-                    <option value="Balance Proteico">Balance Proteico (Pollo magro / Pavo / Sirloin)</option>
-                    <option value="Low Carb Keto">Low Carb / Keto Friendly (Bajo en carbohidratos)</option>
-                    <option value="Gourmet Saludable">Gourmet Saludable de Estación</option>
-                  </select>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <select
+                      value={dietOptionA}
+                      onChange={(e) => setDietOptionA(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.8rem 2.75rem 0.8rem 1rem',
+                        borderRadius: '12px',
+                        border: '1.5px solid #E2E8F0',
+                        background: '#FFFFFF',
+                        color: '#0F172A',
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        fontFamily: 'inherit',
+                        outline: 'none',
+                        cursor: 'pointer',
+                        appearance: 'none',
+                        WebkitAppearance: 'none',
+                        MozAppearance: 'none',
+                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)',
+                        transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#3B82F6';
+                        e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.15)';
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#E2E8F0';
+                        e.target.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.04)';
+                      }}
+                    >
+                      <option value="Balance Proteico">Balance Proteico (Pollo magro / Pavo / Sirloin)</option>
+                      <option value="Low Carb Keto">Low Carb / Keto Friendly (Bajo en carbohidratos)</option>
+                      <option value="Gourmet Saludable">Gourmet Saludable de Estación</option>
+                    </select>
+                    <ChevronDown
+                      size={18}
+                      style={{
+                        position: 'absolute',
+                        right: '1rem',
+                        color: '#64748B',
+                        pointerEvents: 'none'
+                      }}
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--green-dark)', display: 'block', marginBottom: '0.3rem' }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#15803D', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
+                    <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#16A34A' }}></span>
                     Enfoque para la Opción B (Plant-Based / Light):
                   </label>
-                  <select
-                    value={dietOptionB}
-                    onChange={(e) => setDietOptionB(e.target.value)}
-                    style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '0.9rem', outline: 'none' }}
-                  >
-                    <option value="Plant-Based & Digestión Ligera">Plant-Based & Vegano (Garbanzo / Tofu / Lenteja)</option>
-                    <option value="Vegetariano Balance">Vegetariano con Quesos Artesanales Magros</option>
-                    <option value="Superfoods & Antiinflamatorio">Superfoods Antiinflamatorios & Ensaladas</option>
-                  </select>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <select
+                      value={dietOptionB}
+                      onChange={(e) => setDietOptionB(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.8rem 2.75rem 0.8rem 1rem',
+                        borderRadius: '12px',
+                        border: '1.5px solid #E2E8F0',
+                        background: '#FFFFFF',
+                        color: '#0F172A',
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        fontFamily: 'inherit',
+                        outline: 'none',
+                        cursor: 'pointer',
+                        appearance: 'none',
+                        WebkitAppearance: 'none',
+                        MozAppearance: 'none',
+                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)',
+                        transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#16A34A';
+                        e.target.style.boxShadow = '0 0 0 3px rgba(22, 163, 74, 0.15)';
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#E2E8F0';
+                        e.target.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.04)';
+                      }}
+                    >
+                      <option value="Plant-Based & Digestión Ligera">Plant-Based & Vegano (Garbanzo / Tofu / Lenteja)</option>
+                      <option value="Vegetariano Balance">Vegetariano con Quesos Artesanales Magros</option>
+                      <option value="Superfoods & Antiinflamatorio">Superfoods Antiinflamatorios & Ensaladas</option>
+                    </select>
+                    <ChevronDown
+                      size={18}
+                      style={{
+                        position: 'absolute',
+                        right: '1rem',
+                        color: '#64748B',
+                        pointerEvents: 'none'
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
 
