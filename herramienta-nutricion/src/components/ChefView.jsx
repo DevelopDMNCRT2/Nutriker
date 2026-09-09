@@ -4,15 +4,30 @@ import { cyclicMenus, chefInfo, programInfo } from '../data/mockData';
 import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
 import WeekCalendarPicker from './WeekCalendarPicker';
 
+function getInitialDayIndex(days) {
+  if (!days || days.length === 0) return 0;
+  const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  const todayName = dayNames[new Date().getDay()];
+  const foundIdx = days.findIndex(d => d.dayName === todayName);
+  return foundIdx !== -1 ? foundIdx : 0;
+}
+
 export default function ChefView({ selectedWeek }) {
-  const [chefWeekInfo, setChefWeekInfo] = useState(() => getWeekInfoFromDate(selectedWeek || 1));
+  const [chefWeekInfo, setChefWeekInfo] = useState(() => getWeekInfoFromDate(new Date()));
   const [activeMenu, setActiveMenu] = useState(() => menuStore.getActiveMenu(chefWeekInfo));
-  const [currentDayIndex, setCurrentDayIndex] = useState(0);
+  const daysList = activeMenu.days || [];
+  const [currentDayIndex, setCurrentDayIndex] = useState(() => getInitialDayIndex(daysList));
   const [, setRefreshOrders] = useState(0);
 
   useEffect(() => {
     setActiveMenu(menuStore.getActiveMenu(chefWeekInfo));
   }, [chefWeekInfo]);
+
+  useEffect(() => {
+    if (daysList.length > 0) {
+      setCurrentDayIndex(getInitialDayIndex(daysList));
+    }
+  }, [chefWeekInfo.weekKey, daysList.length]);
 
   useEffect(() => {
     const handleMenuUpdate = (e) => {
@@ -35,8 +50,6 @@ export default function ChefView({ selectedWeek }) {
     };
   }, [chefWeekInfo]);
 
-  const weekData = activeMenu;
-  const daysList = weekData.days || [];
   const safeDayIndex = currentDayIndex < daysList.length ? currentDayIndex : 0;
   const currentDay = daysList[safeDayIndex] || daysList[0] || {};
   
@@ -115,7 +128,7 @@ export default function ChefView({ selectedWeek }) {
             
             {/* Row 1: Date */}
             <h2 style={{ fontSize: '1.3rem', fontWeight: '800', color: 'var(--text-dark)', margin: 0, textAlign: 'center' }}>
-              {currentDay.dayName}, {currentDay.dateLabel?.split(',')[0]}
+              {currentDay.dayName}{currentDay.dateLabel ? `, ${currentDay.dateLabel}` : ''}
             </h2>
 
             {/* Segmented day selector */}
