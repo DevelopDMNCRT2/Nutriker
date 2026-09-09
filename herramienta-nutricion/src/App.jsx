@@ -53,6 +53,41 @@ export default function App() {
     setIsLoggedIn(false);
   };
 
+  // SSO: detectar token de entrada desde NutriKer Admin al montar
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ssoToken = params.get('sso');
+    if (!ssoToken) return;
+
+    try {
+      // Decodificar el payload del JWT (parte central, base64url)
+      const payloadBase64 = ssoToken.split('.')[1];
+      const payload = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')));
+
+      // Mapear el rol del token a la vista correspondiente
+      const rolMap = {
+        'Nutriologa': 'nutriologa',
+        'Chef': 'chef',
+        'Empleado': 'participant',
+        'Administrador': 'participant',
+      };
+      const vista = rolMap[payload.rol] || 'participant';
+      setCurrentView(vista);
+
+      // Actualizar info del usuario si viene en el payload
+      if (payload.nombre) {
+        setCurrentUser(prev => ({ ...prev, name: payload.nombre }));
+      }
+    } catch (e) {
+      console.error('SSO: token inválido', e);
+    } finally {
+      // Limpiar el parámetro sso de la URL sin recargar la página
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
+    }
+  }, []);
+
+
   const handleOpenNotification = (dayData, optionKey) => {
     setNotificationTarget({ dayData, optionKey });
     setIsNotificationOpen(true);

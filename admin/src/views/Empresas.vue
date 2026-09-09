@@ -12,9 +12,11 @@
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <!-- Tarjeta: Royal Canin (Activa) -->
-        <router-link
-          to="/empresas/royal-canin"
-          class="group relative block overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 transition-all hover:shadow-lg hover:ring-brand-500 dark:bg-gray-800 dark:ring-gray-700 dark:hover:ring-brand-500"
+        <div
+          id="tarjeta-royal-canin"
+          @click="accederRoyalCanin"
+          class="group relative block overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 transition-all hover:shadow-lg hover:ring-brand-500 dark:bg-gray-800 dark:ring-gray-700 dark:hover:ring-brand-500 cursor-pointer"
+          :class="{ 'opacity-60 pointer-events-none': cargandoSSO }"
         >
           <div class="absolute inset-0 bg-gradient-to-br from-brand-500/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100"></div>
           <div class="p-6">
@@ -30,7 +32,8 @@
               Accede a la herramienta de nutrición, menús y métricas de los participantes de Royal Canin.
             </p>
             <div class="flex items-center text-sm font-semibold text-brand-600 dark:text-brand-400">
-              Ver Portal
+              <span v-if="cargandoSSO">Accediendo...</span>
+              <span v-else>Ver Portal</span>
               <svg class="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd" />
               </svg>
@@ -39,7 +42,7 @@
           <div class="absolute right-4 top-4 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
             Activo
           </div>
-        </router-link>
+        </div>
 
         <!-- Tarjeta: Monex (Deshabilitada) -->
         <div class="relative block overflow-hidden rounded-2xl bg-gray-50 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800/50 dark:ring-gray-700 opacity-60 grayscale cursor-not-allowed">
@@ -91,5 +94,35 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
+
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+const API_BASE = import.meta.env.VITE_API_URL || (isLocalhost ? 'http://localhost:3000/api' : '/api')
+const HERRAMIENTA_URL = import.meta.env.VITE_HERRAMIENTA_URL || (isLocalhost ? 'http://localhost:5174' : 'https://nutriker-herramienta.vercel.app')
+
+const cargandoSSO = ref(false)
+
+async function accederRoyalCanin() {
+  cargandoSSO.value = true
+  try {
+    const token = localStorage.getItem('admin_token')
+    const res = await fetch(`${API_BASE}/auth/sso-token`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!res.ok) throw new Error('No se pudo obtener el token SSO')
+
+    const { ssoToken } = await res.json()
+    window.open(`${HERRAMIENTA_URL}/?sso=${ssoToken}`, '_blank')
+  } catch (err) {
+    console.error('Error SSO Royal Canin:', err)
+    alert('No se pudo acceder al portal. Intenta de nuevo.')
+  } finally {
+    cargandoSSO.value = false
+  }
+}
 </script>
