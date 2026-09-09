@@ -6,6 +6,10 @@ const ORDERS_STORAGE_PREFIX = 'royal_canin_orders_';
 const LEGACY_MENU_KEY = 'royal_canin_active_menu';
 const LEGACY_ORDERS_KEY = 'royal_canin_employee_orders';
 
+const API_BASE_URL = (typeof window !== 'undefined' && window.__VITE_API_URL__)
+  || (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
+  || 'http://localhost:3000';
+
 export const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
@@ -126,9 +130,112 @@ export const menuStore = {
     return getWeekInfoFromDate(weekInput);
   },
 
+  // Sincronizar menú desde el backend REST (PostgreSQL 3FN)
+  async syncMenuFromBackend(weekInput) {
+    const weekInfo = this.normalizeWeek(weekInput);
+    const cacheKey = `menu_${weekInfo.weekKey}`;
+    if (this._syncMenuCache && this._syncMenuCache[cacheKey]) {
+      return this._syncMenuCache[cacheKey];
+    }
+    if (!this._syncMenuCache) this._syncMenuCache = {};
+
+    this._syncMenuCache[cacheKey] = fetch(`${API_BASE_URL}/api/royal/menu/actual?semana=${weekInfo.weekKey}&empresa=Royal%20Canin`)
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (data && data.isPublished && Array.isArray(data.days) && data.days.length > 0) {
+          const formattedMenu = {
+            weekKey: data.weekKey || weekInfo.weekKey,
+            weekNumber: data.weekNumber || weekInfo.weekNumber,
+            dateRange: weekInfo.dateRange,
+            title: weekInfo.title,
+            daysPerWeek: data.daysPerWeek || String(data.days.length),
+            dietOptionA: data.dietOptionA,
+            dietOptionB: data.dietOptionB,
+            publishedAt: data.publishedAt || new Date().toISOString(),
+            isPublished: true,
+            days: data.days
+          };
+          const currentStored = localStorage.getItem(`${MENU_STORAGE_PREFIX}${weekInfo.weekKey}`);
+          const stringified = JSON.stringify(formattedMenu);
+          if (currentStored !== stringified) {
+            localStorage.setItem(`${MENU_STORAGE_PREFIX}${weekInfo.weekKey}`, stringified);
+            localStorage.setItem(`${MENU_STORAGE_PREFIX}w${weekInfo.weekNumber}`, stringified);
+            if (weekInfo.weekNumber === 1) {
+              localStorage.setItem(LEGACY_MENU_KEY, stringified);
+            }
+            window.dispatchEvent(new CustomEvent('royal_canin_menu_updated', {
+              detail: {
+                weekKey: weekInfo.weekKey,
+                weekNumber: weekInfo.weekNumber,
+                week: weekInfo.weekNumber,
+                activeMenu: formattedMenu
+              }
+            }));
+          }
+          return formattedMenu;
+        }
+        return null;
+      })
+      .catch(() => null)
+      .finally(() => {
+        setTimeout(() => {
+          if (this._syncMenuCache) delete this._syncMenuCache[cacheKey];
+        }, 4000);
+      });
+
+    return this._syncMenuCache[cacheKey];
+  },
+
+  // Sincronizar pedidos desde el backend REST (PostgreSQL 3FN)
+  async syncOrdersFromBackend(weekInput) {
+    const weekInfo = this.normalizeWeek(weekInput);
+    const cacheKey = `orders_${weekInfo.weekKey}`;
+    if (this._syncOrdersCache && this._syncOrdersCache[cacheKey]) {
+      return this._syncOrdersCache[cacheKey];
+    }
+    if (!this._syncOrdersCache) this._syncOrdersCache = {};
+
+    this._syncOrdersCache[cacheKey] = fetch(`${API_BASE_URL}/api/royal/pedidos/${weekInfo.weekKey}?empresa=Royal%20Canin`)
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (data && data.orders && Object.keys(data.orders).length > 0) {
+          const currentStored = localStorage.getItem(`${ORDERS_STORAGE_PREFIX}${weekInfo.weekKey}`);
+          const stringified = JSON.stringify(data.orders);
+          if (currentStored !== stringified) {
+            localStorage.setItem(`${ORDERS_STORAGE_PREFIX}${weekInfo.weekKey}`, stringified);
+            localStorage.setItem(`${ORDERS_STORAGE_PREFIX}w${weekInfo.weekNumber}`, stringified);
+            if (weekInfo.weekNumber === 1) {
+              localStorage.setItem(LEGACY_ORDERS_KEY, stringified);
+            }
+            window.dispatchEvent(new CustomEvent('royal_canin_orders_updated', {
+              detail: {
+                weekKey: weekInfo.weekKey,
+                weekNumber: weekInfo.weekNumber,
+                week: weekInfo.weekNumber,
+                orders: data.orders
+              }
+            }));
+          }
+          return data.orders;
+        }
+        return null;
+      })
+      .catch(() => null)
+      .finally(() => {
+        setTimeout(() => {
+          if (this._syncOrdersCache) delete this._syncOrdersCache[cacheKey];
+        }, 4000);
+      });
+
+    return this._syncOrdersCache[cacheKey];
+  },
+
   // Obtener menú activo de una semana específica (por objeto weekInfo, fecha o número)
   getActiveMenu(weekInput = 1) {
     const weekInfo = this.normalizeWeek(weekInput);
+    // Sincronización transparente en segundo plano contra backend
+    this.syncMenuFromBackend(weekInfo);
+
     try {
       const stored = localStorage.getItem(`${MENU_STORAGE_PREFIX}${weekInfo.weekKey}`);
       if (stored) return JSON.parse(stored);
@@ -274,12 +381,40 @@ export const menuStore = {
         activeMenu
       }
     }));
+
+    // Persistir asíncronamente en backend PostgreSQL (3FN)
+    fetch(`${API_BASE_URL}/api/royal/menu`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        empresa: 'Royal Canin',
+        weekKey: activeMenu.weekKey,
+        weekNumber: activeMenu.weekNumber,
+        daysPerWeek: activeMenu.daysPerWeek,
+        dietOptionA: activeMenu.dietOptionA,
+        dietOptionB: activeMenu.dietOptionB,
+        days: activeMenu.days
+      })
+    })
+      .then(res => res.json())
+      .then(result => {
+        if (result.success) {
+          console.log('✅ Menú semanal persistido en PostgreSQL:', result.menuId);
+        }
+      })
+      .catch(err => {
+        console.warn('⚠️ No se pudo persistir en backend, menú guardado en localStorage:', err.message);
+      });
+
     return activeMenu;
   },
 
   // Obtener pedidos de empleados de cualquier semana
   getEmployeeOrders(weekInput = 1) {
     const weekInfo = this.normalizeWeek(weekInput);
+    // Sincronización transparente en segundo plano contra backend
+    this.syncOrdersFromBackend(weekInfo);
+
     try {
       const stored = localStorage.getItem(`${ORDERS_STORAGE_PREFIX}${weekInfo.weekKey}`);
       if (stored) return JSON.parse(stored);
@@ -318,6 +453,29 @@ export const menuStore = {
         orders
       }
     }));
+
+    // Persistir asíncronamente en backend PostgreSQL (3FN)
+    fetch(`${API_BASE_URL}/api/royal/pedidos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        empresa: 'Royal Canin',
+        usuarioId: employeeId,
+        semanaKey: weekInfo.weekKey,
+        selections: orderData.selections || {},
+        estado: 'confirmado'
+      })
+    })
+      .then(res => res.json())
+      .then(result => {
+        if (result.success) {
+          console.log('✅ Pedido de empleado persistido en PostgreSQL:', result.pedidoId);
+        }
+      })
+      .catch(err => {
+        console.warn('⚠️ No se pudo persistir pedido en backend, guardado en localStorage:', err.message);
+      });
+
     return orders;
   },
 
