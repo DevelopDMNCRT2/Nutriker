@@ -419,21 +419,28 @@ export async function guardarPedidoEmpleado(req, res) {
 
       // Buscar si existe el platillo en menu_b2b_dias
       const diaRes = await client.query(
-        `SELECT id, nombre_platillo, calorias, proteinas_g FROM menu_b2b_dias 
+        `SELECT id, nombre_platillo, calorias, proteinas_g, carbohidratos_g, grasas_g, fecha, imagen_url 
+         FROM menu_b2b_dias 
          WHERE menu_id = $1 AND dia_semana = $2 AND tipo_opcion = $3`,
         [menuId, diaSemana, opcion]
       )
       const menuDiaId = diaRes.rowCount > 0 ? diaRes.rows[0].id : null
       const platilloNombre = diaRes.rowCount > 0 ? diaRes.rows[0].nombre_platillo : (val.nombrePlatillo || `Platillo Opción ${opcion}`)
-      const calorias = diaRes.rowCount > 0 ? diaRes.rows[0].calorias : null
-      const proteina = diaRes.rowCount > 0 ? `${diaRes.rows[0].proteinas_g}g` : null
+      const calorias = diaRes.rowCount > 0 ? diaRes.rows[0].calorias : (val.calories || val.calorias || null)
+      const proteina = diaRes.rowCount > 0 && diaRes.rows[0].proteinas_g != null ? `${diaRes.rows[0].proteinas_g}g` : (val.protein || val.proteina || null)
+      const carbohidratos = diaRes.rowCount > 0 && diaRes.rows[0].carbohidratos_g != null ? `${diaRes.rows[0].carbohidratos_g}g` : (val.carbs || val.carbohidratos || null)
+      const fecha = diaRes.rowCount > 0 ? diaRes.rows[0].fecha : (val.fecha || null)
+      const imagenUrl = diaRes.rowCount > 0 ? diaRes.rows[0].imagen_url : (val.image || val.imagenUrl || null)
 
       summaryPlatillos.push({
         diaSemana,
         opcion,
         platilloNombre,
         calorias,
-        proteina
+        proteina,
+        carbohidratos,
+        fecha,
+        imagenUrl
       })
 
       const detalleId = await generarIdUnico('pedido_b2b_detalles')

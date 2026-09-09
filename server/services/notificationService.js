@@ -155,23 +155,59 @@ export async function enviarConfirmacionCita({
 }
 
 /**
- * Genera el cuerpo HTML para la confirmación de pedidos semanales B2B
+ * Formatea la fecha de un platillo al estilo legible del simulador: "Lunes (10 de agosto de 2026)"
+ */
+function formatearFechaCard(diaSemana, fecha) {
+  if (!fecha) return diaSemana
+  try {
+    const d = new Date(fecha)
+    if (isNaN(d.getTime())) return diaSemana
+    const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+    const dia = d.getUTCDate()
+    const mes = meses[d.getUTCMonth()]
+    const anio = d.getUTCFullYear()
+    return `${diaSemana} (${dia} de ${mes} de ${anio})`
+  } catch {
+    return diaSemana
+  }
+}
+
+/**
+ * Genera el cuerpo HTML para la confirmación de pedidos semanales B2B estilo Simulador
  */
 function generarPlantillaPedidoB2B({ empleadoNombre, semana, platillos = [], empresa = 'Royal Canin' }) {
-  const platillosRows = platillos.map(p => `
-    <tr>
-      <td style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0; font-weight: 700; color: #0F172A;">${p.diaSemana}</td>
-      <td style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0; text-align: center;">
-        <span style="background: ${p.opcion === 'A' ? '#DCFCE7' : '#FEF3C7'}; color: ${p.opcion === 'A' ? '#166534' : '#92400E'}; padding: 3px 8px; border-radius: 6px; font-weight: 800; font-size: 11px;">
-          Opción ${p.opcion}
-        </span>
-      </td>
-      <td style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0; color: #334155; font-weight: 600;">
-        ${p.platilloNombre || 'Platillo Aprobado'}
-        ${p.calorias ? `<div style="font-size: 11px; color: #64748B; font-weight: normal;">${p.calorias} kcal • ${p.proteina || ''} prot</div>` : ''}
-      </td>
-    </tr>
-  `).join('')
+  const platillosCards = platillos.map(p => {
+    const fechaLabel = formatearFechaCard(p.diaSemana, p.fecha)
+    const macros = []
+    if (p.calorias) macros.push(`${p.calorias} kcal`)
+    if (p.proteina) macros.push(`Proteína: ${p.proteina}`)
+    if (p.carbohidratos) macros.push(`Carbohidratos: ${p.carbohidratos}`)
+    const macrosText = macros.join(' • ') || 'Nutrición clínica balanceada'
+
+    return `
+      <div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; padding: 14px 18px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            ${p.imagenUrl ? `
+            <td style="width: 68px; vertical-align: middle; padding-right: 14px;">
+              <img src="${p.imagenUrl}" alt="${p.platilloNombre}" style="width: 60px; height: 60px; border-radius: 10px; object-fit: cover; display: block;" />
+            </td>` : ''}
+            <td style="vertical-align: middle;">
+              <div style="font-size: 13px; font-weight: 700; color: #E11D48; margin-bottom: 4px;">
+                ${fechaLabel}
+              </div>
+              <div style="font-size: 16px; font-weight: 800; color: #0F172A; margin: 0 0 4px 0;">
+                ${p.platilloNombre || 'Platillo Seleccionado'}
+              </div>
+              <div style="font-size: 12px; color: #64748B; margin: 0;">
+                ${macrosText}
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `
+  }).join('')
 
   return `
   <!DOCTYPE html>
@@ -184,47 +220,35 @@ function generarPlantillaPedidoB2B({ empleadoNombre, semana, platillos = [], emp
     <div style="max-width: 600px; margin: 0 auto; background: #FFFFFF; border-radius: 16px; border: 1px solid #E2E8F0; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.04);">
       
       <!-- Header Corporativo -->
-      <div style="background: #E11D48; padding: 28px 32px; color: #FFFFFF; text-align: center;">
+      <div style="background: #E11D48; padding: 26px 32px; color: #FFFFFF; text-align: center;">
         <h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">NutriKer</h1>
         <p style="margin: 6px 0 0 0; font-size: 14px; opacity: 0.95;">Nutrición Empresarial • <strong>${empresa}</strong></p>
       </div>
 
-      <!-- Contenido -->
+      <!-- Contenido Principal -->
       <div style="padding: 32px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-          <span style="background: #EFF6FF; color: #2563EB; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 700;">
-            Semana del Servicio: ${semana}
-          </span>
-          <span style="background: #DCFCE7; color: #166534; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 700;">
+        <div style="margin-bottom: 16px;">
+          <span style="background: #DCFCE7; color: #166534; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 700; display: inline-block;">
             ✓ Pedido Confirmado
           </span>
         </div>
 
-        <h2 style="font-size: 18px; font-weight: 700; margin: 0 0 10px 0; color: #0F172A;">
+        <h2 style="font-size: 20px; font-weight: 800; margin: 0 0 10px 0; color: #0F172A;">
           ¡Hola, ${empleadoNombre}!
         </h2>
-        <p style="font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 20px 0;">
-          Tus selecciones de comida para la semana han sido registradas exitosamente y enviadas a la estación del Chef para su preparación en planta.
+        <p style="font-size: 14px; color: #334155; line-height: 1.5; margin: 0 0 20px 0;">
+          Aquí tienes la selección gastronómica programada para tus entregas de la semana en las instalaciones de ${empresa}:
         </p>
 
-        <!-- Tabla de Platillos Seleccionados -->
-        <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 24px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; overflow: hidden;">
-          <thead>
-            <tr style="background: #F8FAFC; text-align: left; color: #64748B; font-size: 12px;">
-              <th style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0;">Día</th>
-              <th style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0; text-align: center;">Opción</th>
-              <th style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0;">Platillo Seleccionado</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${platillosRows || '<tr><td colspan="3" style="padding: 12px; text-align: center; color: #94A3B8;">Platillos registrados para entrega corporativa.</td></tr>'}
-          </tbody>
-        </table>
+        <!-- Tarjetas de Platillos Seleccionados (Estilo Simulador) -->
+        <div style="margin-bottom: 16px;">
+          ${platillosCards || '<p style="color: #94A3B8; font-size: 13px; text-align: center;">Platillos registrados para entrega corporativa.</p>'}
+        </div>
 
-        <!-- Nota Culinaria -->
-        <div style="background: #F0FDF4; border-left: 4px solid #16A34A; padding: 14px 18px; border-radius: 8px; margin-bottom: 24px;">
-          <p style="margin: 0; font-size: 13px; color: #166534; line-height: 1.5;">
-            🥗 <strong>Servicio Incluido:</strong> Todos los platillos son preparados frescos el mismo día con ingredientes de primera calidad e incluyen tu agua fresca natural del día.
+        <!-- Banner Servicio Confirmado -->
+        <div style="background: #ECFDF5; border: 1px solid #A7F3D0; padding: 14px 18px; border-radius: 12px; margin-top: 18px; margin-bottom: 24px;">
+          <p style="margin: 0; font-size: 13px; color: #065F46; line-height: 1.5;">
+            <strong style="color: #047857;">✓ Servicio Confirmado:</strong> Platillos frescos elaborados directamente en las instalaciones de ${empresa} según tu selección semanal.
           </p>
         </div>
 
