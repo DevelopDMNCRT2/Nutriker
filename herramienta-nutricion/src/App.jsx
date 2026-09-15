@@ -19,18 +19,24 @@ export default function App() {
 
   // Active logged-in user state
   const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('royal_user');
+      if (savedUser) return JSON.parse(savedUser);
+    } catch (e) {}
     const role = localStorage.getItem('royal_role');
     if (role === 'chef') return { nombre: chefInfo.name, rol: 'Chef' };
     if (role === 'nutriologa') return { nombre: nutriologaInfo.name, rol: 'Nutrióloga' };
     return { nombre: 'Ana Sofía Morales', rol: 'Empleado' };
   });
 
+  const isAdmin = currentUser?.rol === 'Administrador' || currentUser?.rol === 'Admin';
+
   // Detectar rol activo por parámetro de URL (?role=chef | ?role=nutriologa)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roleParam = params.get('role');
     if (roleParam && ['participant', 'chef', 'nutriologa', 'admin'].includes(roleParam)) {
-      handleLoginSuccess(roleParam, null);
+      handleLoginSuccess(roleParam === 'admin' ? 'nutriologa' : roleParam, null);
     }
   }, []);
 
@@ -41,6 +47,7 @@ export default function App() {
 
     if (userObj) {
       setCurrentUser(userObj);
+      localStorage.setItem('royal_user', JSON.stringify(userObj));
     } else {
       if (roleKey === 'chef') setCurrentUser({ nombre: chefInfo.name, rol: 'Chef' });
       else if (roleKey === 'nutriologa') setCurrentUser({ nombre: nutriologaInfo.name, rol: 'Nutrióloga' });
@@ -50,6 +57,7 @@ export default function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('royal_role');
+    localStorage.removeItem('royal_user');
     localStorage.removeItem('token');
     setIsLoggedIn(false);
   };
@@ -70,15 +78,20 @@ export default function App() {
         'Nutriologa': 'nutriologa',
         'Chef': 'chef',
         'Empleado': 'participant',
-        'Administrador': 'participant',
+        'Administrador': 'nutriologa',
       };
-      const vista = rolMap[payload.rol] || 'participant';
-      setCurrentView(vista);
+      const vista = rolMap[payload.rol] || 'nutriologa';
 
-      // Actualizar info del usuario si viene en el payload
-      if (payload.nombre) {
-        setCurrentUser(prev => ({ ...prev, name: payload.nombre }));
-      }
+      const userObj = {
+        id: payload.id,
+        nombre: payload.nombre || (payload.rol === 'Administrador' ? 'Administrador' : 'Nutrióloga'),
+        correo: payload.correo,
+        rol: payload.rol || 'Administrador',
+        empresa: 'Royal Canin'
+      };
+
+      handleLoginSuccess(vista, userObj);
+      localStorage.setItem('token', ssoToken);
     } catch (e) {
       console.error('SSO: token inválido', e);
     } finally {
@@ -114,13 +127,14 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#F8FAFC' }}>
       
-      {/* Header con Rol Aislado y Botón de Cerrar Sesión */}
+      {/* Header con Selector Exclusivo para Admins */}
       <Header
         currentView={currentView}
         setCurrentView={setCurrentView}
         selectedWeek={selectedWeek}
         setSelectedWeek={setSelectedWeek}
         currentUser={currentUser}
+        isAdmin={isAdmin}
         onLogout={handleLogout}
       />
 
@@ -160,11 +174,13 @@ export default function App() {
       }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div>
-            <strong>Nutrición</strong> • Plataforma Corporativa (Cliente: Retodali)
+            <strong>Nutrición</strong> • Plataforma Corporativa (Royal Canin)
           </div>
-          <div>
-            Acceso Directo de Presentación: 👤 Empleado • 👨‍🍳 Chef • 🥗 Nutrióloga
-          </div>
+          {isAdmin && (
+            <div style={{ fontSize: '0.75rem', color: '#6366F1', fontWeight: '700' }}>
+              Modo Administrador Activo • Acceso Total a Herramientas
+            </div>
+          )}
         </div>
       </footer>
 
