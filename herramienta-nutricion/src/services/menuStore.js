@@ -461,6 +461,8 @@ export const menuStore = {
       body: JSON.stringify({
         empresa: 'Royal Canin',
         usuarioId: employeeId,
+        empleadoNombre: orderData.employeeName || orderData.nombre || undefined,
+        empleadoEmail: orderData.employeeEmail || orderData.email || undefined,
         semanaKey: weekInfo.weekKey,
         selections: orderData.selections || {},
         estado: 'confirmado'

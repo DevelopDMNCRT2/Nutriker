@@ -96,9 +96,10 @@ export default function ParticipantView({ selectedWeek, onOpenNotification, curr
   };
 
   const handleConfirmOrder = () => {
-    const employeeKey = (currentUser && (currentUser.email || currentUser.id || currentUser.name)) || 'empleado-royal-1';
+    const employeeKey = (currentUser && (currentUser.email || currentUser.id || currentUser.nombre || currentUser.name)) || 'empleado_rc';
     menuStore.saveEmployeeOrder(employeeKey, {
-      employeeName: currentUser?.name || 'Empleado Royal Canin',
+      employeeName: currentUser?.nombre || currentUser?.name || 'Empleado Royal Canin',
+      employeeEmail: currentUser?.email,
       selections,
       confirmedAt: new Date().toISOString()
     }, participantWeekInfo);
@@ -533,8 +534,17 @@ export default function ParticipantView({ selectedWeek, onOpenNotification, curr
             <button
               onClick={handleConfirmOrder}
               className="btn-uber-primary"
+              style={isOrderSaved ? { background: '#16A34A', borderColor: '#16A34A', display: 'flex', alignItems: 'center', gap: '0.4rem' } : { display: 'flex', alignItems: 'center', gap: '0.4rem' }}
             >
-              <Sparkles size={16} /> Confirmar Selección
+              {isOrderSaved ? (
+                <>
+                  <CheckCircle2 size={16} /> ¡Selección Confirmada!
+                </>
+              ) : (
+                <>
+                  <Sparkles size={16} /> Confirmar Selección
+                </>
+              )}
             </button>
           </div>
 

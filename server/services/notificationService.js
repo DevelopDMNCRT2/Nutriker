@@ -5,22 +5,22 @@ import nodemailer from 'nodemailer'
  * Maneja el despacho asíncrono de confirmaciones para citas generales y corporativas.
  */
 
-// Configuración opcional de transporte SMTP para producción
-const hasSmtpConfig = Boolean(
-  process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS
-)
-
-let transporter = null
-if (hasSmtpConfig) {
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    }
-  })
+/**
+ * Obtiene el transporte SMTP dinámicamente según variables de entorno
+ */
+function getTransporter() {
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    })
+  }
+  return null
 }
 
 /**
@@ -120,6 +120,7 @@ export async function enviarConfirmacionCita({
   try {
     const htmlContent = generarPlantillaEmail({ nombre, fecha, horario, servicio, tipo, empresa })
     const subject = `Confirmación de tu Cita Nutricional (${fecha} - ${horario}) - NutriKer`
+    const transporter = getTransporter()
 
     // 1. Envío Real por SMTP si las credenciales están configuradas
     if (transporter && correo) {
@@ -149,6 +150,167 @@ export async function enviarConfirmacionCita({
   } catch (error) {
     // Aislamiento total: no frenar la creación de la cita en caso de fallo de red
     console.error('⚠️ [NotificationService Error]: Error al enviar notificación:', error.message)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Formatea la fecha de un platillo al estilo legible del simulador: "Lunes (10 de agosto de 2026)"
+ */
+function formatearFechaCard(diaSemana, fecha) {
+  if (!fecha) return diaSemana
+  try {
+    const d = new Date(fecha)
+    if (isNaN(d.getTime())) return diaSemana
+    const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+    const dia = d.getUTCDate()
+    const mes = meses[d.getUTCMonth()]
+    const anio = d.getUTCFullYear()
+    return `${diaSemana} (${dia} de ${mes} de ${anio})`
+  } catch {
+    return diaSemana
+  }
+}
+
+/**
+ * Genera el cuerpo HTML para la confirmación de pedidos semanales B2B estilo Simulador
+ */
+function generarPlantillaPedidoB2B({ empleadoNombre, semana, platillos = [], empresa = 'Royal Canin' }) {
+  const platillosCards = platillos.map(p => {
+    const fechaLabel = formatearFechaCard(p.diaSemana, p.fecha)
+    const macros = []
+    if (p.calorias) macros.push(`${p.calorias} kcal`)
+    if (p.proteina) macros.push(`Proteína: ${p.proteina}`)
+    if (p.carbohidratos) macros.push(`Carbohidratos: ${p.carbohidratos}`)
+    const macrosText = macros.join(' • ') || 'Nutrición clínica balanceada'
+
+    return `
+      <div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; padding: 14px 18px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            ${p.imagenUrl ? `
+            <td style="width: 68px; vertical-align: middle; padding-right: 14px;">
+              <img src="${p.imagenUrl}" alt="${p.platilloNombre}" style="width: 60px; height: 60px; border-radius: 10px; object-fit: cover; display: block;" />
+            </td>` : ''}
+            <td style="vertical-align: middle;">
+              <div style="font-size: 13px; font-weight: 700; color: #E11D48; margin-bottom: 4px;">
+                ${fechaLabel}
+              </div>
+              <div style="font-size: 16px; font-weight: 800; color: #0F172A; margin: 0 0 4px 0;">
+                ${p.platilloNombre || 'Platillo Seleccionado'}
+              </div>
+              <div style="font-size: 12px; color: #64748B; margin: 0;">
+                ${macrosText}
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `
+  }).join('')
+
+  return `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <title>Confirmación de Pedido Semanal - NutriKer B2B</title>
+  </head>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 24px; color: #0F172A;">
+    <div style="max-width: 600px; margin: 0 auto; background: #FFFFFF; border-radius: 16px; border: 1px solid #E2E8F0; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.04);">
+      
+      <!-- Header Corporativo -->
+      <div style="background: #E11D48; padding: 26px 32px; color: #FFFFFF; text-align: center;">
+        <h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">NutriKer</h1>
+        <p style="margin: 6px 0 0 0; font-size: 14px; opacity: 0.95;">Nutrición Empresarial • <strong>${empresa}</strong></p>
+      </div>
+
+      <!-- Contenido Principal -->
+      <div style="padding: 32px;">
+        <div style="margin-bottom: 16px;">
+          <span style="background: #DCFCE7; color: #166534; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 700; display: inline-block;">
+            ✓ Pedido Confirmado
+          </span>
+        </div>
+
+        <h2 style="font-size: 20px; font-weight: 800; margin: 0 0 10px 0; color: #0F172A;">
+          ¡Hola, ${empleadoNombre}!
+        </h2>
+        <p style="font-size: 14px; color: #334155; line-height: 1.5; margin: 0 0 20px 0;">
+          Aquí tienes la selección gastronómica programada para tus entregas de la semana en las instalaciones de ${empresa}:
+        </p>
+
+        <!-- Tarjetas de Platillos Seleccionados (Estilo Simulador) -->
+        <div style="margin-bottom: 16px;">
+          ${platillosCards || '<p style="color: #94A3B8; font-size: 13px; text-align: center;">Platillos registrados para entrega corporativa.</p>'}
+        </div>
+
+        <!-- Banner Servicio Confirmado -->
+        <div style="background: #ECFDF5; border: 1px solid #A7F3D0; padding: 14px 18px; border-radius: 12px; margin-top: 18px; margin-bottom: 24px;">
+          <p style="margin: 0; font-size: 13px; color: #065F46; line-height: 1.5;">
+            <strong style="color: #047857;">✓ Servicio Confirmado:</strong> Platillos frescos elaborados directamente en las instalaciones de ${empresa} según tu selección semanal.
+          </p>
+        </div>
+
+        <p style="font-size: 12px; color: #94A3B8; text-align: center; margin: 0;">
+          Si requieres realizar alguna modificación de último momento, consulta con la Nutrióloga de planta.
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <div style="background: #F1F5F9; padding: 16px 32px; text-align: center; font-size: 12px; color: #64748B; border-top: 1px solid #E2E8F0;">
+        NutriKer • Plataforma Corporativa ${empresa}
+      </div>
+
+    </div>
+  </body>
+  </html>
+  `
+}
+
+/**
+ * Despacha la notificación transaccional de confirmación de pedido semanal B2B.
+ * Soporta envío real SMTP o simulación limpia en consola.
+ */
+export async function enviarConfirmacionPedidoB2B({
+  empleadoNombre,
+  empleadoEmail,
+  semana,
+  platillos = [],
+  empresa = 'Royal Canin'
+}) {
+  try {
+    const htmlContent = generarPlantillaPedidoB2B({ empleadoNombre, semana, platillos, empresa })
+    const subject = `Confirmación de Menú Semanal B2B (${semana}) - ${empresa}`
+    const transporter = getTransporter()
+
+    // 1. Envío Real por SMTP si las credenciales están configuradas
+    if (transporter && empleadoEmail) {
+      const info = await transporter.sendMail({
+        from: process.env.SMTP_FROM || `"${empresa} Nutrición" <pedidos@nutriker.com>`,
+        to: empleadoEmail,
+        subject,
+        html: htmlContent
+      })
+      console.log(`📧 [Notificación Pedido B2B] Correo enviado a: ${empleadoEmail} (ID: ${info.messageId})`)
+      return { success: true, channel: 'email', messageId: info.messageId }
+    }
+
+    // 2. Simulación en Entorno Local / Dev
+    console.log('\n======================================================')
+    console.log('🍽️ [NOTIFICACIÓN PEDIDO B2B SIMULADA - SMTP / EMAIL]')
+    console.log(`👤 Empleado: ${empleadoNombre}`)
+    console.log(`📬 Correo:   ${empleadoEmail || 'No proporcionado / Modo simulación'}`)
+    console.log(`🏢 Empresa:  ${empresa}`)
+    console.log(`📅 Semana:   ${semana}`)
+    console.log(`📋 Platillos: ${platillos.map(p => `${p.diaSemana}: Opción ${p.opcion} (${p.platilloNombre || 'Platillo'})`).join(' | ')}`)
+    console.log('💬 WhatsApp Simulador:')
+    console.log(`   "¡Hola ${empleadoNombre}! Tu pedido de menú para la semana ${semana} en ${empresa} ha sido confirmado con el Chef."`)
+    console.log('======================================================\n')
+
+    return { success: true, simulated: true }
+  } catch (error) {
+    console.error('⚠️ [NotificationService Error]: Error al enviar confirmación de pedido B2B:', error.message)
     return { success: false, error: error.message }
   }
 }
