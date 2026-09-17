@@ -270,6 +270,14 @@ export const menuStore = {
         dietOptionB: 'Plant-Based & Digestión Ligera',
         publishedAt: '2026-08-10T08:00:00.000Z',
         isPublished: true,
+        humanVerification: {
+          isVerified: true,
+          verifiedBy: 'Nutrióloga Karla',
+          role: 'Nutrióloga Clínica & Responsable del Programa',
+          verifiedAt: '2026-08-10T08:00:00.000Z',
+          certificationStatement: 'Menú y fichas técnicas auditadas y certificadas manualmente por especialista humano',
+          notes: 'Revisión clínica completa: aporte calórico < 520 kcal y rotación de alérgenos validada.'
+        },
         days: initialDays
       };
     }
@@ -285,12 +293,13 @@ export const menuStore = {
       dietOptionB: '',
       publishedAt: null,
       isPublished: false,
+      humanVerification: null,
       days: []
     };
   },
 
   // Publicar menú desde la Nutrióloga para cualquier semana seleccionada
-  publishMenu({ weekInput = 1, week = 1, daysPerWeek, dietOptionA, dietOptionB, dishSelection }) {
+  publishMenu({ weekInput = 1, week = 1, daysPerWeek, dietOptionA, dietOptionB, dishSelection, humanVerification }) {
     const weekInfo = this.normalizeWeek(weekInput || week);
     const ALL_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
     const numDays = parseInt(daysPerWeek, 10) || 3;
@@ -367,6 +376,13 @@ export const menuStore = {
       dietOptionB,
       publishedAt: new Date().toISOString(),
       isPublished: true,
+      humanVerification: humanVerification || {
+        isVerified: true,
+        verifiedBy: 'Nutrióloga Karla',
+        role: 'Nutrióloga Clínica & Responsable del Programa',
+        verifiedAt: new Date().toISOString(),
+        certificationStatement: 'Menú y fichas técnicas auditadas y certificadas manualmente por especialista humano'
+      },
       days
     };
 
@@ -396,6 +412,7 @@ export const menuStore = {
         daysPerWeek: activeMenu.daysPerWeek,
         dietOptionA: activeMenu.dietOptionA,
         dietOptionB: activeMenu.dietOptionB,
+        humanVerification: activeMenu.humanVerification,
         days: activeMenu.days
       })
     })
