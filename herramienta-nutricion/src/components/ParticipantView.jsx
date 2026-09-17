@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, Plus, Sparkles, ChevronDown, ChevronUp, MessageCircle, Clock, Info, ArrowRightLeft, Building2, ShieldCheck, Moon, Droplets, Footprints, UploadCloud, Trophy, TrendingUp, Utensils, CheckCircle2 } from 'lucide-react';
+import { Check, Plus, Sparkles, ChevronDown, ChevronUp, MessageCircle, Clock, Info, ArrowRightLeft, Building2, ShieldCheck, Moon, Droplets, Footprints, UploadCloud, Trophy, TrendingUp, Utensils, CheckCircle2, HeartPulse } from 'lucide-react';
 import { cyclicMenus, chefInfo, programInfo } from '../data/mockData';
 import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
 import ProgressSection from './ProgressSection';
@@ -12,7 +12,7 @@ function getInitialDayIndex(days) {
   return foundIdx !== -1 ? foundIdx : 0;
 }
 
-export default function ParticipantView({ selectedWeek, onOpenNotification, currentUser, onOpenLogin }) {
+export default function ParticipantView({ selectedWeek, onOpenNotification, currentUser, onOpenLogin, serviceProfileKey = 'corporate' }) {
   const [participantWeekInfo, setParticipantWeekInfo] = useState(() => getWeekInfoFromDate(new Date()));
   const currentWeek = participantWeekInfo.weekNumber;
   const [activeMenu, setActiveMenu] = useState(() => menuStore.getActiveMenu(participantWeekInfo));
@@ -258,6 +258,26 @@ export default function ParticipantView({ selectedWeek, onOpenNotification, curr
         <ProgressSection />
       ) : (
         <>
+          {/* Senior Care Clinical Banner */}
+          {serviceProfileKey === 'senior_care' && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.65rem',
+              background: '#EFF6FF',
+              border: '1px solid #BFDBFE',
+              borderRadius: '12px',
+              padding: '0.65rem 1rem',
+              marginBottom: '1.25rem',
+              fontSize: '0.82rem',
+              color: '#1E40AF'
+            }}>
+              <HeartPulse size={20} color="#2563EB" style={{ flexShrink: 0 }} />
+              <div>
+                <strong>Servicio Geriátrico Santa Sofía:</strong> Monitoreo de texturas clínicas (Escala IDDSI: Fácil Masticación y Puré Suave), prevención de disfagia y balance hiposódico adaptado a cada residente.
+              </div>
+            </div>
+          )}
 
           {daysList.length === 0 ? (
             <div style={{

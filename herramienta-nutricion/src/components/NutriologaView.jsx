@@ -76,7 +76,7 @@ const INITIAL_DISH_SELECTION = {
   }
 };
 
-export default function NutriologaView({ selectedWeek }) {
+export default function NutriologaView({ selectedWeek, serviceProfileKey = 'corporate' }) {
   const [activeTab, setActiveTab] = useState('wizard'); // 'wizard' | 'audit'
 
   // Semana en curso calculada dinámicamente según la fecha actual del sistema
@@ -100,9 +100,19 @@ export default function NutriologaView({ selectedWeek }) {
   // Wizard state
   const [wizardStep, setWizardStep] = useState(1);
   const [daysPerWeek, setDaysPerWeek] = useState(3); // 1 to 5
-  const [dietOptionA, setDietOptionA] = useState('Balance Proteico');
-  const [dietOptionB, setDietOptionB] = useState('Plant-Based & Digestión Ligera');
+  const [dietOptionA, setDietOptionA] = useState(() => serviceProfileKey === 'senior_care' ? 'Fácil Masticación (IDDSI 6)' : 'Balance Proteico');
+  const [dietOptionB, setDietOptionB] = useState(() => serviceProfileKey === 'senior_care' ? 'Papilla & Puré Suave (IDDSI 4)' : 'Plant-Based & Digestión Ligera');
   const [wizardSuccess, setWizardSuccess] = useState(false);
+
+  useEffect(() => {
+    if (serviceProfileKey === 'senior_care') {
+      setDietOptionA('Fácil Masticación (IDDSI 6)');
+      setDietOptionB('Papilla & Puré Suave (IDDSI 4)');
+    } else {
+      setDietOptionA('Balance Proteico');
+      setDietOptionB('Plant-Based & Digestión Ligera');
+    }
+  }, [serviceProfileKey]);
 
   // Dishes selection for manual grid filling
   const [dishSelection, setDishSelection] = useState(INITIAL_DISH_SELECTION);
@@ -361,9 +371,20 @@ export default function NutriologaView({ selectedWeek }) {
                         e.target.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.04)';
                       }}
                     >
-                      <option value="Balance Proteico">Balance Proteico (Pollo magro / Pavo / Sirloin)</option>
-                      <option value="Low Carb Keto">Low Carb / Keto Friendly (Bajo en carbohidratos)</option>
-                      <option value="Gourmet Saludable">Gourmet Saludable de Estación</option>
+                      {serviceProfileKey === 'senior_care' ? (
+                        <>
+                          <option value="Fácil Masticación (IDDSI 6)">Fácil Masticación (IDDSI Nivel 6 - Blanda Suave)</option>
+                          <option value="Puré & Papilla Nutritiva (IDDSI 4)">Papilla Nutritiva (IDDSI Nivel 4 - Sin grumos)</option>
+                          <option value="Control Hiposódico & Sarcopenia">Enriquecida en Proteína & Hiposódica (&lt;1,500mg)</option>
+                          <option value="Balance Proteico">Balance Proteico Geriátrico</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="Balance Proteico">Balance Proteico (Pollo magro / Pavo / Sirloin)</option>
+                          <option value="Low Carb Keto">Low Carb / Keto Friendly (Bajo en carbohidratos)</option>
+                          <option value="Gourmet Saludable">Gourmet Saludable de Estación</option>
+                        </>
+                      )}
                     </select>
                     <ChevronDown
                       size={18}
@@ -380,7 +401,7 @@ export default function NutriologaView({ selectedWeek }) {
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#15803D', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
                     <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#16A34A' }}></span>
-                    Enfoque para la Opción B (Plant-Based / Light):
+                    {serviceProfileKey === 'senior_care' ? 'Enfoque para la Opción B (Texturas Asistidas / Papillas):' : 'Enfoque para la Opción B (Plant-Based / Light):'}
                   </label>
                   <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <select
@@ -413,9 +434,20 @@ export default function NutriologaView({ selectedWeek }) {
                         e.target.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.04)';
                       }}
                     >
-                      <option value="Plant-Based & Digestión Ligera">Plant-Based & Vegano (Garbanzo / Tofu / Lenteja)</option>
-                      <option value="Vegetariano Balance">Vegetariano con Quesos Artesanales Magros</option>
-                      <option value="Superfoods & Antiinflamatorio">Superfoods Antiinflamatorios & Ensaladas</option>
+                      {serviceProfileKey === 'senior_care' ? (
+                        <>
+                          <option value="Papilla & Puré Suave (IDDSI 4)">Papilla & Puré Suave (IDDSI Nivel 4)</option>
+                          <option value="Picada & Húmeda (IDDSI 5)">Picada y Húmeda con salsa (IDDSI Nivel 5)</option>
+                          <option value="Dieta Renal & Líquidos Controlados">Control Renal e Hídrico Estricto</option>
+                          <option value="Plant-Based & Digestión Ligera">Plant-Based Geriátrico & Digestión Ligera</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="Plant-Based & Digestión Ligera">Plant-Based & Vegano (Garbanzo / Tofu / Lenteja)</option>
+                          <option value="Vegetariano Balance">Vegetariano con Quesos Artesanales Magros</option>
+                          <option value="Superfoods & Antiinflamatorio">Superfoods Antiinflamatorios & Ensaladas</option>
+                        </>
+                      )}
                     </select>
                     <ChevronDown
                       size={18}

@@ -1,12 +1,28 @@
 import React from 'react';
 import { Salad, Calendar, UtensilsCrossed, ShieldCheck, Building2, User, KeyRound, ChefHat, HeartPulse, Sparkles } from 'lucide-react';
-import { programInfo } from '../data/mockData';
+import { getActiveServiceProfile } from '../data/mockData';
 
-export default function Header({ currentView, setCurrentView, selectedWeek, setSelectedWeek, currentUser, onOpenLogin, onLogout }) {
+export default function Header({
+  currentView,
+  setCurrentView,
+  selectedWeek,
+  setSelectedWeek,
+  currentUser,
+  onOpenLogin,
+  onLogout,
+  serviceProfileKey = 'corporate',
+  onServiceProfileChange
+}) {
+  const activeProfile = getActiveServiceProfile(serviceProfileKey);
+
   const getRoleBadge = () => {
     if (currentView === 'chef') return { label: 'Chef', color: 'var(--green-dark)', bg: 'var(--green-light)' };
     if (currentView === 'nutriologa') return { label: 'Nutrióloga', color: '#2563EB', bg: '#EFF6FF' };
-    return { label: 'Empleado', color: 'var(--primary)', bg: 'var(--primary-light)' };
+    return {
+      label: activeProfile.recipientRole,
+      color: activeProfile.id === 'senior_care' ? '#0891B2' : 'var(--primary)',
+      bg: activeProfile.id === 'senior_care' ? '#ECFEFF' : 'var(--primary-light)'
+    };
   };
 
   const badge = getRoleBadge();
@@ -29,29 +45,100 @@ export default function Header({ currentView, setCurrentView, selectedWeek, setS
             width: '38px',
             height: '38px',
             borderRadius: '12px',
-            background: 'var(--primary)',
+            background: activeProfile.id === 'senior_care' ? '#2563EB' : 'var(--primary)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: 'white',
-            boxShadow: '0 4px 10px rgba(225, 29, 72, 0.25)'
+            boxShadow: activeProfile.id === 'senior_care' ? '0 4px 10px rgba(37, 99, 235, 0.25)' : '0 4px 10px rgba(225, 29, 72, 0.25)',
+            transition: 'all 0.25s ease'
           }}>
-            <Salad size={20} />
+            {activeProfile.id === 'senior_care' ? <HeartPulse size={20} /> : <Salad size={20} />}
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
               <h1 style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-dark)' }}>
                 NutriKer
               </h1>
-              <span className="badge-tag badge-red" style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.7rem' }}>
-                <Building2 size={11} /> <strong>{programInfo.clientProject}</strong>
+              <span className={`badge-tag ${activeProfile.id === 'senior_care' ? '' : 'badge-red'}`} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.2rem',
+                fontSize: '0.7rem',
+                background: activeProfile.id === 'senior_care' ? '#EFF6FF' : undefined,
+                color: activeProfile.id === 'senior_care' ? '#2563EB' : undefined
+              }}>
+                {activeProfile.id === 'senior_care' ? <HeartPulse size={11} /> : <Building2 size={11} />}
+                <strong>{activeProfile.clientProject}</strong>
               </span>
             </div>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              Entregas: <strong>Lunes, Miércoles y Viernes</strong>
+              {activeProfile.id === 'senior_care' ? (
+                <>Servicio Geriátrico Continuo • <strong>Texturas IDDSI</strong></>
+              ) : (
+                <>Entregas: <strong>Lunes, Miércoles y Viernes</strong></>
+              )}
             </p>
           </div>
         </div>
+
+        {/* Service Model Switcher (Corporativo B2B vs Residencia de Mayores) */}
+        {onServiceProfileChange && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            background: '#F1F5F9',
+            padding: '0.2rem',
+            borderRadius: '9999px',
+            border: '1px solid #E2E8F0',
+            gap: '0.2rem'
+          }}>
+            <button
+              type="button"
+              onClick={() => onServiceProfileChange('corporate')}
+              style={{
+                border: 'none',
+                background: serviceProfileKey === 'corporate' ? '#FFFFFF' : 'transparent',
+                color: serviceProfileKey === 'corporate' ? '#1E293B' : '#64748B',
+                fontWeight: serviceProfileKey === 'corporate' ? '800' : '600',
+                fontSize: '0.72rem',
+                padding: '0.35rem 0.75rem',
+                borderRadius: '9999px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                boxShadow: serviceProfileKey === 'corporate' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Building2 size={13} color={serviceProfileKey === 'corporate' ? 'var(--primary)' : '#64748B'} />
+              <span>Corporativo B2B</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onServiceProfileChange('senior_care')}
+              style={{
+                border: 'none',
+                background: serviceProfileKey === 'senior_care' ? '#FFFFFF' : 'transparent',
+                color: serviceProfileKey === 'senior_care' ? '#2563EB' : '#64748B',
+                fontWeight: serviceProfileKey === 'senior_care' ? '800' : '600',
+                fontSize: '0.72rem',
+                padding: '0.35rem 0.75rem',
+                borderRadius: '9999px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                boxShadow: serviceProfileKey === 'senior_care' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <HeartPulse size={13} color={serviceProfileKey === 'senior_care' ? '#2563EB' : '#64748B'} />
+              <span>Residencia de Mayores</span>
+            </button>
+          </div>
+        )}
 
         {/* User Info & Role Lockdown Badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
