@@ -13,7 +13,7 @@ export async function getUsuarios(req, res) {
              TO_CHAR(fecha_alta, 'YYYY-MM-DD') AS "fechaAlta",
              updated_at AS "updatedAt"
       FROM usuarios
-      WHERE deleted_at IS NULL
+      WHERE deleted_at IS NULL AND rol NOT IN ('Empleado', 'Chef')
     `
     const params = []
 
