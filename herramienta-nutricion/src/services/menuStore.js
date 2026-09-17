@@ -6,9 +6,12 @@ const ORDERS_STORAGE_PREFIX = 'royal_canin_orders_';
 const LEGACY_MENU_KEY = 'royal_canin_active_menu';
 const LEGACY_ORDERS_KEY = 'royal_canin_employee_orders';
 
-const API_BASE_URL = (typeof window !== 'undefined' && window.__VITE_API_URL__)
+const isLocalhost = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+export const API_BASE_URL = (typeof window !== 'undefined' && window.__VITE_API_URL__)
   || (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
-  || 'http://localhost:3000';
+  || (isLocalhost ? 'http://localhost:3000' : 'https://nutriker-server.vercel.app');
 
 export const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',

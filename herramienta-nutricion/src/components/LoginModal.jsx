@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Lock, Mail, Building2, ShieldCheck, User, ChefHat, HeartPulse, Sparkles, ArrowRight } from 'lucide-react';
 import { sampleParticipants, chefInfo, nutriologaInfo } from '../data/mockData';
+import { API_BASE_URL } from '../services/menuStore';
 
 export default function LoginModal({ isOpen, onClose, onSelectRole }) {
   if (!isOpen) return null;
@@ -82,7 +83,7 @@ export default function LoginModal({ isOpen, onClose, onSelectRole }) {
               const email = formData.get('usuario');
               const password = formData.get('password');
               try {
-                const res = await fetch('http://localhost:3000/api/auth/login', {
+                const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ email, password })
@@ -97,7 +98,7 @@ export default function LoginModal({ isOpen, onClose, onSelectRole }) {
                     'Administrador': 'nutriologa'
                   };
                   const mappedRole = roleMap[data.usuario?.rol] || 'participant';
-                  onSelectRole(mappedRole);
+                  onSelectRole(mappedRole, data.usuario);
                   onClose();
                 } else {
                   alert(data.error || 'Credenciales incorrectas');

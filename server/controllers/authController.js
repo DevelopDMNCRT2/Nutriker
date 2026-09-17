@@ -344,17 +344,17 @@ export async function resetPassword(req, res) {
 // a la herramienta de nutrición como Nutriologa (SSO Royal Canin).
 export function generarSSOToken(req, res) {
   try {
-    const { id, nombre, correo } = req.usuario
+    const { id, nombre, correo, rol } = req.usuario
 
     const ssoPayload = {
       id,
       nombre,
       correo,
-      rol: 'Nutriologa',
+      rol: rol || 'Nutriologa',
       type: 'sso'
     }
 
-    const ssoToken = jwt.sign(ssoPayload, JWT_SECRET, { expiresIn: '30s' })
+    const ssoToken = jwt.sign(ssoPayload, JWT_SECRET, { expiresIn: '60s' })
 
     res.json({ ssoToken })
   } catch (error) {
