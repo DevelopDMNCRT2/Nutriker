@@ -4,6 +4,7 @@ import { cyclicMenus, nutriologaInfo, programInfo } from '../data/mockData';
 import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
 import { scaleIngredients, scaleNutrition } from '../utils/recipeScaler';
 import WeekCalendarPicker from './WeekCalendarPicker';
+import IngredientEditorModal from './IngredientEditorModal';
 
 const GET_ACTIVE_DAYS = (numDays) => {
   const n = parseInt(numDays, 10) || 3;
@@ -120,6 +121,21 @@ export default function NutriologaView({ selectedWeek }) {
   const isMenuPublished = Boolean(activeMenu && activeMenu.isPublished && activeMenu.days && activeMenu.days.length > 0);
   const weekData = isMenuPublished ? activeMenu : { days: [] };
   const safeDayIndex = selectedDayIndex < weekData.days.length ? selectedDayIndex : 0;
+  const [editingDish, setEditingDish] = useState(null);
+
+  const handleSaveIngredients = (newIngredients) => {
+    if (!editingDish || !currentDay) return;
+    menuStore.updateDishIngredients(targetWeekInfo, currentDay.dayName || safeDayIndex, editingDish.optionKey, newIngredients, 'Dra. Karla (Nutrióloga)');
+    setActiveMenu(menuStore.getActiveMenu(targetWeekInfo));
+    setEditingDish(null);
+  };
+
+  const handleResetIngredients = () => {
+    if (!editingDish || !currentDay) return;
+    menuStore.resetDishIngredients(targetWeekInfo, currentDay.dayName || safeDayIndex, editingDish.optionKey);
+    setActiveMenu(menuStore.getActiveMenu(targetWeekInfo));
+    setEditingDish(null);
+  };
   const currentDay = (weekData.days && weekData.days[safeDayIndex]) || null;
 
   const activeDays = GET_ACTIVE_DAYS(daysPerWeek);
@@ -1024,6 +1040,7 @@ export default function NutriologaView({ selectedWeek }) {
         </div>
       )}
 
+      <IngredientEditorModal isOpen={!!editingDish} onClose={() => setEditingDish(null)} dish={editingDish?.dish} dayName={currentDay?.dayName} optionKey={editingDish?.optionKey} role="nutriologa" onSave={handleSaveIngredients} onReset={handleResetIngredients} />
     </div>
   );
 }

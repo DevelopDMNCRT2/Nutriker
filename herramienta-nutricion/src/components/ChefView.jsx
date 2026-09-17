@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { ChefHat, ArrowLeft, ArrowRight, Scale, Activity, Plus, Minus, RotateCcw, Utensils } from 'lucide-react';
+import { ChefHat, ArrowLeft, Edit3, ArrowRight, Scale, Activity, Plus, Minus, RotateCcw, Utensils } from 'lucide-react';
 import { programInfo } from '../data/mockData';
 import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
 import { scaleIngredients, scaleNutrition } from '../utils/recipeScaler';
 import WeekCalendarPicker from './WeekCalendarPicker';
+import IngredientEditorModal from './IngredientEditorModal';
 
 function getInitialDayIndex(days) {
   if (!days || days.length === 0) return 0;
@@ -25,6 +26,21 @@ export default function ChefView({ selectedWeek }) {
   const [overrideCountB, setOverrideCountB] = useState(null);
   const [activeTabA, setActiveTabA] = useState('ingredients'); // 'ingredients' | 'nutrition'
   const [activeTabB, setActiveTabB] = useState('ingredients');
+  const [editingDish, setEditingDish] = useState(null);
+
+  const handleSaveIngredients = (newIngredients) => {
+    if (!editingDish) return;
+    menuStore.updateDishIngredients(chefWeekInfo, currentDay.dayName || safeDayIndex, editingDish.optionKey, newIngredients, 'Chef Mateo');
+    setActiveMenu(menuStore.getActiveMenu(chefWeekInfo));
+    setEditingDish(null);
+  };
+
+  const handleResetIngredients = () => {
+    if (!editingDish) return;
+    menuStore.resetDishIngredients(chefWeekInfo, currentDay.dayName || safeDayIndex, editingDish.optionKey);
+    setActiveMenu(menuStore.getActiveMenu(chefWeekInfo));
+    setEditingDish(null);
+  };
 
   useEffect(() => {
     setActiveMenu(menuStore.getActiveMenu(chefWeekInfo));
@@ -470,6 +486,7 @@ export default function ChefView({ selectedWeek }) {
         </>
       )}
 
+      <IngredientEditorModal isOpen={!!editingDish} onClose={() => setEditingDish(null)} dish={editingDish?.dish} dayName={currentDay?.dayName} optionKey={editingDish?.optionKey} role="chef" onSave={handleSaveIngredients} onReset={handleResetIngredients} />
     </div>
   );
 }
