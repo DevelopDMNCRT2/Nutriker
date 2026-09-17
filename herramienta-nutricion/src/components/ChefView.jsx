@@ -14,7 +14,7 @@ function getInitialDayIndex(days) {
   return foundIdx !== -1 ? foundIdx : 0;
 }
 
-export default function ChefView({ selectedWeek }) {
+export default function ChefView({ selectedWeek, serviceProfileKey = 'corporate' }) {
   const [chefWeekInfo, setChefWeekInfo] = useState(() => getWeekInfoFromDate(new Date()));
   const [activeMenu, setActiveMenu] = useState(() => menuStore.getActiveMenu(chefWeekInfo));
   const daysList = activeMenu.days || [];
@@ -338,6 +338,27 @@ export default function ChefView({ selectedWeek }) {
           label="Planificación de Cocina & Previsión de Producción:"
         />
       </div>
+
+      {/* Senior Care Kitchen Alert Banner */}
+      {serviceProfileKey === 'senior_care' && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.65rem',
+          background: '#EFF6FF',
+          border: '1px solid #BFDBFE',
+          borderRadius: '12px',
+          padding: '0.65rem 1rem',
+          marginBottom: '1.25rem',
+          fontSize: '0.82rem',
+          color: '#1E40AF'
+        }}>
+          <HeartPulse size={20} color="#2563EB" style={{ flexShrink: 0 }} />
+          <div>
+            <strong>Estación de Cocina Geriátrica (Santa Sofía):</strong> Asegurar consistencia según ficha técnica IDDSI (Nivel 6 para Fácil Masticación, Nivel 4 para Puré sin grumos) y respetar la dosificación hiposódica estricta.
+          </div>
+        </div>
+      )}
       {daysList.length === 0 ? (
         <div style={{
           background: '#FFFFFF',

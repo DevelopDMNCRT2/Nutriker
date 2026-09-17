@@ -14,6 +14,39 @@ export const nutriologaInfo = {
   standards: "Cumplimiento del 100% de aportes proteicos sin exceder 520 kcal por porción."
 };
 
+export const serviceProfiles = {
+  corporate: {
+    id: 'corporate',
+    label: 'Corporativo B2B',
+    name: 'Nutrición Corporativa',
+    clientProject: 'Retodali',
+    clientName: 'Empresa Retodali S.A. de C.V.',
+    serviceType: 'Oficina / B2B',
+    deliveryDays: ['Lunes', 'Miércoles', 'Viernes'],
+    scheduleNote: 'Entregas fijas en oficina antes de las 12:30 PM en contenedores ergonómicos',
+    recipientRole: 'Empleado',
+    dietOptions: ['Balance Proteico', 'Plant-Based & Digestión Ligera'],
+    activeParticipantsCount: 45
+  },
+  senior_care: {
+    id: 'senior_care',
+    label: 'Residencia de Mayores',
+    name: 'Nutriker Senior Care',
+    clientProject: 'Residencia Santa Sofía',
+    clientName: 'Centro Residencial Geriátrico Santa Sofía',
+    serviceType: 'Senior Living & Residencia Asistida',
+    deliveryDays: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
+    scheduleNote: 'Servicio geriátrico continuo de 4 tomas diarias con texturas adaptadas IDDSI',
+    recipientRole: 'Residente / Enfermería',
+    dietOptions: ['Fácil Masticación (IDDSI 6)', 'Papilla & Puré Suave (IDDSI 4)'],
+    activeParticipantsCount: 68
+  }
+};
+
+export const getActiveServiceProfile = (profileKey = 'corporate') => {
+  return serviceProfiles[profileKey] || serviceProfiles.corporate;
+};
+
 export const programInfo = {
   name: "Nutrición",
   clientProject: "Retodali",

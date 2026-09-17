@@ -29,6 +29,14 @@ export default function App() {
     return { nombre: 'Ana Sofía Morales', rol: 'Empleado' };
   });
 
+  // Active Service Profile (Corporate B2B vs Senior Care)
+  const [serviceProfileKey, setServiceProfileKey] = useState(() => localStorage.getItem('nutriker_service_profile') || 'corporate');
+
+  const handleServiceProfileChange = (newKey) => {
+    setServiceProfileKey(newKey);
+    localStorage.setItem('nutriker_service_profile', newKey);
+  };
+
   const isAdmin = currentUser?.rol === 'Administrador' || currentUser?.rol === 'Admin';
 
   // Detectar rol activo por parámetro de URL (?role=chef | ?role=nutriologa)
@@ -127,6 +135,8 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#F8FAFC' }}>
       
+      {/* Header con Rol Aislado, Selector de Modelo de Servicio y Botón de Cerrar Sesión */}
+
       {/* Header con Selector Exclusivo para Admins */}
       <Header
         currentView={currentView}
@@ -136,6 +146,8 @@ export default function App() {
         currentUser={currentUser}
         isAdmin={isAdmin}
         onLogout={handleLogout}
+        serviceProfileKey={serviceProfileKey}
+        onServiceProfileChange={handleServiceProfileChange}
       />
 
       {/* Main Container para el Rol Autenticado */}
@@ -146,18 +158,21 @@ export default function App() {
             selectedWeek={selectedWeek}
             onOpenNotification={handleOpenNotification}
             currentUser={currentUser}
+            serviceProfileKey={serviceProfileKey}
           />
         )}
 
         {currentView === 'chef' && (
           <ChefView
             selectedWeek={selectedWeek}
+            serviceProfileKey={serviceProfileKey}
           />
         )}
 
         {currentView === 'nutriologa' && (
           <NutriologaView
             selectedWeek={selectedWeek}
+            serviceProfileKey={serviceProfileKey}
           />
         )}
 
@@ -174,7 +189,12 @@ export default function App() {
       }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div>
-            <strong>Nutrición</strong> • Plataforma Corporativa (Royal Canin)
+            <strong>Nutrición</strong> • {serviceProfileKey === 'senior_care' ? 'Modelo Especializado: Residencia de Mayores (Santa Sofía)' : 'Plataforma Corporativa B2B (Cliente: Retodali)'}
+          </div>
+          <div>
+            Acceso Directo de Presentación: 👤 {serviceProfileKey === 'senior_care' ? 'Residente / Enfermería' : 'Empleado'} • 👨‍🍳 Chef • 🥗 Nutrióloga
+
+<strong>Nutrición</strong> • Plataforma Corporativa (Royal Canin)
           </div>
           {isAdmin && (
             <div style={{ fontSize: '0.75rem', color: '#6366F1', fontWeight: '700' }}>
