@@ -8,6 +8,7 @@ export default function Header({
   selectedWeek,
   setSelectedWeek,
   currentUser,
+  isAdmin,
   onOpenLogin,
   onLogout,
   serviceProfileKey = 'corporate',
@@ -16,6 +17,7 @@ export default function Header({
   const activeProfile = getActiveServiceProfile(serviceProfileKey);
 
   const getRoleBadge = () => {
+    if (isAdmin) return { label: 'Administrador', color: '#7C3AED', bg: '#F5F3FF' };
     if (currentView === 'chef') return { label: 'Chef', color: 'var(--green-dark)', bg: 'var(--green-light)' };
     if (currentView === 'nutriologa') return { label: 'Nutrióloga', color: '#2563EB', bg: '#EFF6FF' };
     return {
@@ -83,6 +85,19 @@ export default function Header({
         </div>
 
         {/* Service Model Switcher (Corporativo B2B vs Residencia de Mayores) */}
+        {isAdmin && (
+          <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', padding: '3px', borderRadius: '10px', border: '1px solid #CBD5E1', gap: '3px', marginRight: '0.5rem' }}>
+            <button type="button" onClick={() => setCurrentView('nutriologa')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', borderRadius: '8px', border: 'none', background: currentView === 'nutriologa' ? '#FFFFFF' : 'transparent', color: currentView === 'nutriologa' ? '#2563EB' : '#64748B', fontWeight: currentView === 'nutriologa' ? '800' : '600', fontSize: '0.78rem', cursor: 'pointer' }}>
+              <HeartPulse size={14} /> Nutrióloga
+            </button>
+            <button type="button" onClick={() => setCurrentView('chef')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', borderRadius: '8px', border: 'none', background: currentView === 'chef' ? '#FFFFFF' : 'transparent', color: currentView === 'chef' ? 'var(--green-dark)' : '#64748B', fontWeight: currentView === 'chef' ? '800' : '600', fontSize: '0.78rem', cursor: 'pointer' }}>
+              <ChefHat size={14} /> Chef
+            </button>
+            <button type="button" onClick={() => setCurrentView('participant')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', borderRadius: '8px', border: 'none', background: currentView === 'participant' ? '#FFFFFF' : 'transparent', color: currentView === 'participant' ? 'var(--primary)' : '#64748B', fontWeight: currentView === 'participant' ? '800' : '600', fontSize: '0.78rem', cursor: 'pointer' }}>
+              <User size={14} /> Empleado
+            </button>
+          </div>
+        )}
         {onServiceProfileChange && (
           <div style={{
             display: 'flex',

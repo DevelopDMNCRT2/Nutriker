@@ -213,11 +213,28 @@ export default function ParticipantView({ selectedWeek, onOpenNotification, curr
           </p>
         </div>
 
-        {/* Schedule note */}
+        {/* Schedule note & Human Certification Badge */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem' }}>
           <div style={{ background: 'var(--green-light)', border: '1px solid var(--green-border)', padding: '0.65rem 1.15rem', borderRadius: '12px', color: 'var(--green-dark)', fontSize: '0.8rem', fontWeight: '600' }}>
             📍 Entregas en oficina: <strong>{daysList.length > 0 ? daysList.map(d => d.dayName).join(', ') : 'Pendiente de publicación'}</strong>
           </div>
+          {activeMenu.humanVerification?.isVerified && (
+            <div style={{
+              background: '#F0FDF4',
+              border: '1px solid #86EFAC',
+              padding: '0.35rem 0.85rem',
+              borderRadius: '8px',
+              color: '#15803D',
+              fontSize: '0.75rem',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem'
+            }}>
+              <ShieldCheck size={14} color="#16A34A" />
+              <span>✓ Supervisión Clínica Humana Certificada • {activeMenu.humanVerification.verifiedBy}</span>
+            </div>
+          )}
           {isOrderSaved && (
             <div style={{ background: '#DCFCE7', border: '1px solid #86EFAC', padding: '0.35rem 0.75rem', borderRadius: '8px', color: '#166534', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <CheckCircle2 size={14} /> ¡Elecciones de la Semana {currentWeek} confirmadas!

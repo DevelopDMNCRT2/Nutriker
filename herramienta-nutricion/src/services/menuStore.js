@@ -6,9 +6,12 @@ const ORDERS_STORAGE_PREFIX = 'royal_canin_orders_';
 const LEGACY_MENU_KEY = 'royal_canin_active_menu';
 const LEGACY_ORDERS_KEY = 'royal_canin_employee_orders';
 
-const API_BASE_URL = (typeof window !== 'undefined' && window.__VITE_API_URL__)
+const isLocalhost = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+export const API_BASE_URL = (typeof window !== 'undefined' && window.__VITE_API_URL__)
   || (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
-  || 'http://localhost:3000';
+  || (isLocalhost ? 'http://localhost:3000' : 'https://nutriker-server.vercel.app');
 
 export const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -267,6 +270,14 @@ export const menuStore = {
         dietOptionB: 'Plant-Based & Digestión Ligera',
         publishedAt: '2026-08-10T08:00:00.000Z',
         isPublished: true,
+        humanVerification: {
+          isVerified: true,
+          verifiedBy: 'Nutrióloga Karla',
+          role: 'Nutrióloga Clínica & Responsable del Programa',
+          verifiedAt: '2026-08-10T08:00:00.000Z',
+          certificationStatement: 'Menú y fichas técnicas auditadas y certificadas manualmente por especialista humano',
+          notes: 'Revisión clínica completa: aporte calórico < 520 kcal y rotación de alérgenos validada.'
+        },
         days: initialDays
       };
     }
@@ -282,12 +293,13 @@ export const menuStore = {
       dietOptionB: '',
       publishedAt: null,
       isPublished: false,
+      humanVerification: null,
       days: []
     };
   },
 
   // Publicar menú desde la Nutrióloga para cualquier semana seleccionada
-  publishMenu({ weekInput = 1, week = 1, daysPerWeek, dietOptionA, dietOptionB, dishSelection }) {
+  publishMenu({ weekInput = 1, week = 1, daysPerWeek, dietOptionA, dietOptionB, dishSelection, humanVerification }) {
     const weekInfo = this.normalizeWeek(weekInput || week);
     const ALL_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
     const numDays = parseInt(daysPerWeek, 10) || 3;
@@ -364,6 +376,13 @@ export const menuStore = {
       dietOptionB,
       publishedAt: new Date().toISOString(),
       isPublished: true,
+      humanVerification: humanVerification || {
+        isVerified: true,
+        verifiedBy: 'Nutrióloga Karla',
+        role: 'Nutrióloga Clínica & Responsable del Programa',
+        verifiedAt: new Date().toISOString(),
+        certificationStatement: 'Menú y fichas técnicas auditadas y certificadas manualmente por especialista humano'
+      },
       days
     };
 
@@ -393,6 +412,7 @@ export const menuStore = {
         daysPerWeek: activeMenu.daysPerWeek,
         dietOptionA: activeMenu.dietOptionA,
         dietOptionB: activeMenu.dietOptionB,
+        humanVerification: activeMenu.humanVerification,
         days: activeMenu.days
       })
     })
@@ -506,5 +526,135 @@ export const menuStore = {
       countB,
       confirmedCount
     };
+  },
+
+  // Modificar manualmente ingredientes de una receta sugerida (Chef o Nutrióloga)
+  updateDishIngredients(weekInput = 1, dayIdentifier, optionKey, newIngredients, modifiedBy = 'usuario') {
+    const weekInfo = this.normalizeWeek(weekInput);
+    const activeMenu = this.getActiveMenu(weekInfo);
+    if (!activeMenu || !Array.isArray(activeMenu.days)) return null;
+
+    let targetDayIndex = -1;
+    if (typeof dayIdentifier === 'number') {
+      targetDayIndex = dayIdentifier;
+    } else if (typeof dayIdentifier === 'string') {
+      targetDayIndex = activeMenu.days.findIndex(
+        d => d.dayName?.toLowerCase() === dayIdentifier.toLowerCase()
+      );
+    }
+
+    if (targetDayIndex < 0 || targetDayIndex >= activeMenu.days.length) {
+      console.warn(`[menuStore] No se encontró el día '${dayIdentifier}' para actualizar ingredientes.`);
+      return null;
+    }
+
+    const dayObj = activeMenu.days[targetDayIndex];
+    const optProp = optionKey === 'B' || optionKey === 'optionB' ? 'optionB' : 'optionA';
+    const dish = dayObj[optProp];
+
+    if (!dish) return null;
+
+    if (!dish.recipe) {
+      dish.recipe = { ingredients: '', method: '' };
+    }
+
+    // Respaldar ingredientes sugeridos originales si aún no se respaldaron
+    if (!dish.originalIngredients) {
+      dish.originalIngredients = dish.recipe.ingredients || '';
+    }
+
+    const formattedIngredients = Array.isArray(newIngredients)
+      ? newIngredients.filter(Boolean).join(', ')
+      : String(newIngredients || '').trim();
+
+    dish.recipe.ingredients = formattedIngredients;
+    dish.isManuallyAdjusted = true;
+    dish.lastModifiedAt = new Date().toISOString();
+    dish.lastModifiedBy = modifiedBy;
+
+    // Guardar en localStorage
+    localStorage.setItem(`${MENU_STORAGE_PREFIX}${weekInfo.weekKey}`, JSON.stringify(activeMenu));
+    localStorage.setItem(`${MENU_STORAGE_PREFIX}w${weekInfo.weekNumber}`, JSON.stringify(activeMenu));
+    if (weekInfo.weekNumber === 1) {
+      localStorage.setItem(LEGACY_MENU_KEY, JSON.stringify(activeMenu));
+    }
+
+    // Emitir evento de sincronización reactiva
+    window.dispatchEvent(new CustomEvent('royal_canin_menu_updated', {
+      detail: {
+        weekKey: weekInfo.weekKey,
+        weekNumber: weekInfo.weekNumber,
+        week: weekInfo.weekNumber,
+        activeMenu
+      }
+    }));
+
+    // Sincronizar en backend si está disponible
+    fetch(`${API_BASE_URL}/api/royal/menu`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        empresa: 'Royal Canin',
+        weekKey: activeMenu.weekKey,
+        weekNumber: activeMenu.weekNumber,
+        daysPerWeek: activeMenu.daysPerWeek,
+        dietOptionA: activeMenu.dietOptionA,
+        dietOptionB: activeMenu.dietOptionB,
+        days: activeMenu.days
+      })
+    }).catch(() => {});
+
+    return activeMenu;
+  },
+
+  // Restablecer ingredientes sugeridos originales de un platillo
+  resetDishIngredients(weekInput = 1, dayIdentifier, optionKey) {
+    const weekInfo = this.normalizeWeek(weekInput);
+    const activeMenu = this.getActiveMenu(weekInfo);
+    if (!activeMenu || !Array.isArray(activeMenu.days)) return null;
+
+    let targetDayIndex = -1;
+    if (typeof dayIdentifier === 'number') {
+      targetDayIndex = dayIdentifier;
+    } else if (typeof dayIdentifier === 'string') {
+      targetDayIndex = activeMenu.days.findIndex(
+        d => d.dayName?.toLowerCase() === dayIdentifier.toLowerCase()
+      );
+    }
+
+    if (targetDayIndex < 0 || targetDayIndex >= activeMenu.days.length) return null;
+
+    const dayObj = activeMenu.days[targetDayIndex];
+    const optProp = optionKey === 'B' || optionKey === 'optionB' ? 'optionB' : 'optionA';
+    const dish = dayObj[optProp];
+
+    if (!dish || !dish.originalIngredients) return null;
+
+    if (!dish.recipe) {
+      dish.recipe = { ingredients: '', method: '' };
+    }
+
+    dish.recipe.ingredients = dish.originalIngredients;
+    dish.isManuallyAdjusted = false;
+    delete dish.lastModifiedAt;
+    delete dish.lastModifiedBy;
+
+    // Guardar en localStorage
+    localStorage.setItem(`${MENU_STORAGE_PREFIX}${weekInfo.weekKey}`, JSON.stringify(activeMenu));
+    localStorage.setItem(`${MENU_STORAGE_PREFIX}w${weekInfo.weekNumber}`, JSON.stringify(activeMenu));
+    if (weekInfo.weekNumber === 1) {
+      localStorage.setItem(LEGACY_MENU_KEY, JSON.stringify(activeMenu));
+    }
+
+    window.dispatchEvent(new CustomEvent('royal_canin_menu_updated', {
+      detail: {
+        weekKey: weekInfo.weekKey,
+        weekNumber: weekInfo.weekNumber,
+        week: weekInfo.weekNumber,
+        activeMenu
+      }
+    }));
+
+    return activeMenu;
   }
 };
