@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { HeartPulse, ShieldCheck, CheckCircle2, AlertTriangle, Activity, Apple, Flame, Wand2, ChevronRight, ChevronDown, ArrowLeft, Check, RefreshCw, Layers } from 'lucide-react';
+import { HeartPulse, ShieldCheck, CheckCircle2, AlertTriangle, Activity, Apple, Flame, Wand2, ChevronRight, ChevronDown, ArrowLeft, Check, RefreshCw, Layers, Edit3, Sparkles } from 'lucide-react';
 import { cyclicMenus, nutriologaInfo, programInfo } from '../data/mockData';
 import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
 import WeekCalendarPicker from './WeekCalendarPicker';
+import IngredientEditorModal from './IngredientEditorModal';
 
 const GET_ACTIVE_DAYS = (numDays) => {
   const n = parseInt(numDays, 10) || 3;
@@ -110,6 +111,7 @@ export default function NutriologaView({ selectedWeek }) {
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
+  const [editingDish, setEditingDish] = useState(null); // { dish, optionKey }
   const isMenuPublished = Boolean(activeMenu && activeMenu.isPublished && activeMenu.days && activeMenu.days.length > 0);
   const weekData = isMenuPublished ? activeMenu : { days: [] };
   const safeDayIndex = selectedDayIndex < weekData.days.length ? selectedDayIndex : 0;
@@ -128,6 +130,30 @@ export default function NutriologaView({ selectedWeek }) {
         }
       }
     }));
+  };
+
+  const handleSaveIngredients = (newIngredients) => {
+    if (!editingDish || !currentDay) return;
+    menuStore.updateDishIngredients(
+      targetWeekInfo,
+      currentDay.dayName || safeDayIndex,
+      editingDish.optionKey,
+      newIngredients,
+      'Nutrióloga Karla'
+    );
+    setActiveMenu(menuStore.getActiveMenu(targetWeekInfo));
+    setEditingDish(null);
+  };
+
+  const handleResetIngredients = () => {
+    if (!editingDish || !currentDay) return;
+    menuStore.resetDishIngredients(
+      targetWeekInfo,
+      currentDay.dayName || safeDayIndex,
+      editingDish.optionKey
+    );
+    setActiveMenu(menuStore.getActiveMenu(targetWeekInfo));
+    setEditingDish(null);
   };
 
   const handlePublishMenu = () => {
@@ -759,6 +785,48 @@ export default function NutriologaView({ selectedWeek }) {
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                     <strong>Alérgenos registrados:</strong> {(currentDay.optionA?.allergens || []).length > 0 ? currentDay.optionA.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
                   </div>
+
+                  {/* Insumos & Receta Técnica */}
+                  <div style={{ borderTop: '1px solid #F1F5F9', marginTop: '1rem', paddingTop: '0.85rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                      <strong style={{ fontSize: '0.8rem', color: 'var(--text-dark)' }}>
+                        Insumos Base & Gramajes:
+                      </strong>
+                      <button
+                        type="button"
+                        onClick={() => setEditingDish({ dish: currentDay.optionA, optionKey: 'A' })}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          background: '#EFF6FF',
+                          color: '#2563EB',
+                          border: '1px solid #BFDBFE',
+                          borderRadius: '6px',
+                          padding: '0.25rem 0.6rem',
+                          fontSize: '0.75rem',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                        title="Ajustar o sustituir ingredientes clínicamente"
+                      >
+                        <Edit3 size={13} /> Ajustar Insumos
+                      </button>
+                    </div>
+
+                    {currentDay.optionA?.isManuallyAdjusted && (
+                      <div style={{ marginBottom: '0.4rem' }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: '700', background: '#FEF3C7', color: '#92400E', padding: '0.15rem 0.45rem', borderRadius: '4px', border: '1px solid #FCD34D', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Sparkles size={11} /> Ajuste manual aplicado {currentDay.optionA?.lastModifiedBy ? `por ${currentDay.optionA.lastModifiedBy}` : ''}
+                        </span>
+                      </div>
+                    )}
+
+                    <div style={{ fontSize: '0.78rem', color: '#475569', background: '#F8FAFC', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid #E2E8F0', lineHeight: '1.4' }}>
+                      {currentDay.optionA?.recipe?.ingredients || '150g Proteína base, 80g Vegetales, 50g Carbohidrato'}
+                    </div>
+                  </div>
                 </div>
 
                 {/* OPTION B AUDIT */}
@@ -801,6 +869,48 @@ export default function NutriologaView({ selectedWeek }) {
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                     <strong>Alérgenos registrados:</strong> {(currentDay.optionB?.allergens || []).length > 0 ? currentDay.optionB.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
                   </div>
+
+                  {/* Insumos & Receta Técnica */}
+                  <div style={{ borderTop: '1px solid #F1F5F9', marginTop: '1rem', paddingTop: '0.85rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                      <strong style={{ fontSize: '0.8rem', color: 'var(--text-dark)' }}>
+                        Insumos Base & Gramajes:
+                      </strong>
+                      <button
+                        type="button"
+                        onClick={() => setEditingDish({ dish: currentDay.optionB, optionKey: 'B' })}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          background: '#F0FDF4',
+                          color: '#166534',
+                          border: '1px solid #BBF7D0',
+                          borderRadius: '6px',
+                          padding: '0.25rem 0.6rem',
+                          fontSize: '0.75rem',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                        title="Ajustar o sustituir ingredientes clínicamente"
+                      >
+                        <Edit3 size={13} /> Ajustar Insumos
+                      </button>
+                    </div>
+
+                    {currentDay.optionB?.isManuallyAdjusted && (
+                      <div style={{ marginBottom: '0.4rem' }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: '700', background: '#FEF3C7', color: '#92400E', padding: '0.15rem 0.45rem', borderRadius: '4px', border: '1px solid #FCD34D', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Sparkles size={11} /> Ajuste manual aplicado {currentDay.optionB?.lastModifiedBy ? `por ${currentDay.optionB.lastModifiedBy}` : ''}
+                        </span>
+                      </div>
+                    )}
+
+                    <div style={{ fontSize: '0.78rem', color: '#475569', background: '#F8FAFC', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid #E2E8F0', lineHeight: '1.4' }}>
+                      {currentDay.optionB?.recipe?.ingredients || '140g Base vegetal, 100g Vegetales, 60g Grano'}
+                    </div>
+                  </div>
                 </div>
 
               </div>
@@ -808,6 +918,18 @@ export default function NutriologaView({ selectedWeek }) {
           )}
         </div>
       )}
+
+      {/* Modal Reutilizable de Ajuste Manual de Ingredientes */}
+      <IngredientEditorModal
+        isOpen={!!editingDish}
+        onClose={() => setEditingDish(null)}
+        dish={editingDish?.dish}
+        dayName={currentDay?.dayName}
+        optionKey={editingDish?.optionKey}
+        role="nutriologa"
+        onSave={handleSaveIngredients}
+        onReset={handleResetIngredients}
+      />
 
     </div>
   );

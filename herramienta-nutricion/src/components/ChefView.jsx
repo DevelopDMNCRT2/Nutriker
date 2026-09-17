@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ChefHat, ArrowLeft, ArrowRight, CheckCircle2, Clock, MapPin, Scale, Users } from 'lucide-react';
+import { ChefHat, ArrowLeft, ArrowRight, CheckCircle2, Clock, MapPin, Scale, Users, Edit3, Sparkles } from 'lucide-react';
 import { cyclicMenus, chefInfo, programInfo } from '../data/mockData';
 import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
 import WeekCalendarPicker from './WeekCalendarPicker';
+import IngredientEditorModal from './IngredientEditorModal';
 
 function getInitialDayIndex(days) {
   if (!days || days.length === 0) return 0;
@@ -18,6 +19,7 @@ export default function ChefView({ selectedWeek }) {
   const daysList = activeMenu.days || [];
   const [currentDayIndex, setCurrentDayIndex] = useState(() => getInitialDayIndex(daysList));
   const [, setRefreshOrders] = useState(0);
+  const [editingDish, setEditingDish] = useState(null); // { dish, optionKey }
 
   useEffect(() => {
     setActiveMenu(menuStore.getActiveMenu(chefWeekInfo));
@@ -66,6 +68,30 @@ export default function ChefView({ selectedWeek }) {
 
   const handlePrevDay = () => {
     if (safeDayIndex > 0) setCurrentDayIndex(safeDayIndex - 1);
+  };
+
+  const handleSaveIngredients = (newIngredients) => {
+    if (!editingDish) return;
+    menuStore.updateDishIngredients(
+      chefWeekInfo,
+      currentDay.dayName || safeDayIndex,
+      editingDish.optionKey,
+      newIngredients,
+      'Chef Mateo'
+    );
+    setActiveMenu(menuStore.getActiveMenu(chefWeekInfo));
+    setEditingDish(null);
+  };
+
+  const handleResetIngredients = () => {
+    if (!editingDish) return;
+    menuStore.resetDishIngredients(
+      chefWeekInfo,
+      currentDay.dayName || safeDayIndex,
+      editingDish.optionKey
+    );
+    setActiveMenu(menuStore.getActiveMenu(chefWeekInfo));
+    setEditingDish(null);
   };
 
   // Helper to safely render recipe fields
@@ -220,9 +246,39 @@ export default function ChefView({ selectedWeek }) {
               
               <div style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#2563EB', marginBottom: '0.3rem', fontWeight: '700' }}>
-                    <Scale size={18} /> Ingredientes Base (Por porción)
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#2563EB', fontWeight: '700' }}>
+                      <Scale size={18} /> Ingredientes Base (Por porción)
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditingDish({ dish: currentDay.optionA, optionKey: 'A' })}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        background: '#EFF6FF',
+                        color: '#2563EB',
+                        border: '1px solid #BFDBFE',
+                        borderRadius: '8px',
+                        padding: '0.28rem 0.65rem',
+                        fontSize: '0.75rem',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      title="Ajustar o sustituir ingredientes de este platillo"
+                    >
+                      <Edit3 size={13} /> Ajustar Insumos
+                    </button>
                   </div>
+                  {currentDay.optionA?.isManuallyAdjusted && (
+                    <div style={{ marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.72rem', fontWeight: '700', background: '#FEF3C7', color: '#92400E', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid #FCD34D', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <Sparkles size={11} /> Ajuste manual aplicado
+                      </span>
+                    </div>
+                  )}
                   <div style={{ fontSize: '0.75rem', color: '#1E40AF', background: '#EFF6FF', padding: '0.5rem 0.75rem', borderRadius: '8px', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', border: '1px solid #BFDBFE' }}>
                     <strong>📋 PRODUCCIÓN:</strong> {countA === 0 ? 'Aún sin pedidos confirmados para esta opción.' : `Multiplicar ingredientes base x ${countA} para la producción.`}
                   </div>
@@ -256,9 +312,39 @@ export default function ChefView({ selectedWeek }) {
               
               <div style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#16A34A', marginBottom: '0.3rem', fontWeight: '700' }}>
-                    <Scale size={18} /> Ingredientes Base (Por porción)
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#16A34A', fontWeight: '700' }}>
+                      <Scale size={18} /> Ingredientes Base (Por porción)
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditingDish({ dish: currentDay.optionB, optionKey: 'B' })}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        background: '#F0FDF4',
+                        color: '#166534',
+                        border: '1px solid #BBF7D0',
+                        borderRadius: '8px',
+                        padding: '0.28rem 0.65rem',
+                        fontSize: '0.75rem',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      title="Ajustar o sustituir ingredientes de este platillo"
+                    >
+                      <Edit3 size={13} /> Ajustar Insumos
+                    </button>
                   </div>
+                  {currentDay.optionB?.isManuallyAdjusted && (
+                    <div style={{ marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.72rem', fontWeight: '700', background: '#FEF3C7', color: '#92400E', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid #FCD34D', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <Sparkles size={11} /> Ajuste manual aplicado
+                      </span>
+                    </div>
+                  )}
                   <div style={{ fontSize: '0.75rem', color: '#166534', background: '#F0FDF4', padding: '0.5rem 0.75rem', borderRadius: '8px', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', border: '1px solid #BBF7D0' }}>
                     <strong>📋 PRODUCCIÓN:</strong> {countB === 0 ? 'Aún sin pedidos confirmados para esta opción.' : `Multiplicar ingredientes base x ${countB} para la producción.`}
                   </div>
@@ -276,6 +362,18 @@ export default function ChefView({ selectedWeek }) {
           </div>
         </>
       )}
+
+      {/* Modal Reutilizable de Ajuste Manual de Ingredientes */}
+      <IngredientEditorModal
+        isOpen={!!editingDish}
+        onClose={() => setEditingDish(null)}
+        dish={editingDish?.dish}
+        dayName={currentDay.dayName}
+        optionKey={editingDish?.optionKey}
+        role="chef"
+        onSave={handleSaveIngredients}
+        onReset={handleResetIngredients}
+      />
 
     </div>
   );
