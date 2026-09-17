@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { HeartPulse, ShieldCheck, CheckCircle2, AlertTriangle, Activity, Apple, Flame, Wand2, ChevronRight, ChevronDown, ArrowLeft, Check, RefreshCw, Layers } from 'lucide-react';
+import { HeartPulse, ShieldCheck, CheckCircle2, AlertTriangle, Activity, Apple, Flame, Wand2, ChevronRight, ChevronDown, ArrowLeft, Check, RefreshCw, Layers, Scale, Users, Plus, Minus, Calculator } from 'lucide-react';
 import { cyclicMenus, nutriologaInfo, programInfo } from '../data/mockData';
 import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
+import { scaleIngredients, scaleNutrition } from '../utils/recipeScaler';
 import WeekCalendarPicker from './WeekCalendarPicker';
+import IngredientEditorModal from './IngredientEditorModal';
 
 const GET_ACTIVE_DAYS = (numDays) => {
   const n = parseInt(numDays, 10) || 3;
@@ -106,41 +108,39 @@ export default function NutriologaView({ selectedWeek }) {
 
   // Dishes selection for manual grid filling
   const [dishSelection, setDishSelection] = useState(INITIAL_DISH_SELECTION);
-  const [expandedRecipes, setExpandedRecipes] = useState({}); // track expanded recipes by `${dayName}-${option}`
-  const [reviewedRecipes, setReviewedRecipes] = useState({}); // track audited/reviewed recipes by `${dayName}-${option}`
+  const [expandedRecipe, setExpandedRecipe] = useState(null); // track which recipe is expanded e.g. "Lunes-optionA"
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
-  const [isHumanVerified, setIsHumanVerified] = useState(false);
-  const [humanAuditNotes, setHumanAuditNotes] = useState('');
+  const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
+
+  // Estado para cálculo automático de Tabla Nutricional y Recetas Técnicas
+  const [auditMode, setAuditMode] = useState('unit'); // 'unit' | 'production'
+  const [auditPortions, setAuditPortions] = useState(programInfo.activeParticipantsCount || 25);
+  const [expandedAuditRecipe, setExpandedAuditRecipe] = useState(null);
+
   const isMenuPublished = Boolean(activeMenu && activeMenu.isPublished && activeMenu.days && activeMenu.days.length > 0);
   const weekData = isMenuPublished ? activeMenu : { days: [] };
   const safeDayIndex = selectedDayIndex < weekData.days.length ? selectedDayIndex : 0;
+  const [editingDish, setEditingDish] = useState(null);
+
+  const handleSaveIngredients = (newIngredients) => {
+    if (!editingDish || !currentDay) return;
+    menuStore.updateDishIngredients(targetWeekInfo, currentDay.dayName || safeDayIndex, editingDish.optionKey, newIngredients, 'Dra. Karla (Nutrióloga)');
+    setActiveMenu(menuStore.getActiveMenu(targetWeekInfo));
+    setEditingDish(null);
+  };
+
+  const handleResetIngredients = () => {
+    if (!editingDish || !currentDay) return;
+    menuStore.resetDishIngredients(targetWeekInfo, currentDay.dayName || safeDayIndex, editingDish.optionKey);
+    setActiveMenu(menuStore.getActiveMenu(targetWeekInfo));
+    setEditingDish(null);
+  };
   const currentDay = (weekData.days && weekData.days[safeDayIndex]) || null;
 
   const activeDays = GET_ACTIVE_DAYS(daysPerWeek);
-  const requiredRecipeKeys = activeDays.flatMap(day => [`${day}-A`, `${day}-B`]);
-  const reviewedCount = requiredRecipeKeys.filter(key => reviewedRecipes[key]).length;
-  const allRecipesReviewed = requiredRecipeKeys.length > 0 && reviewedCount === requiredRecipeKeys.length;
-
-  const toggleRecipeExpansion = (recipeKey) => {
-    setExpandedRecipes(prev => ({
-      ...prev,
-      [recipeKey]: !prev[recipeKey]
-    }));
-    // Mark as reviewed upon opening technical recipe
-    setReviewedRecipes(prev => ({
-      ...prev,
-      [recipeKey]: true
-    }));
-  };
 
   const handleDishChange = (dayName, option, field, newValue) => {
-    const optSuffix = option === 'optionA' ? 'A' : 'B';
-    // Mark as reviewed upon editing dish or technical recipe
-    setReviewedRecipes(prev => ({
-      ...prev,
-      [`${dayName}-${optSuffix}`]: true
-    }));
     setDishSelection(prev => ({
       ...prev,
       [dayName]: {
@@ -154,23 +154,13 @@ export default function NutriologaView({ selectedWeek }) {
   };
 
   const handlePublishMenu = () => {
-    if (!isHumanVerified) return;
-
-    // Persist menu in menuStore para la semana seleccionada en calendario con certificación humana
+    // Persist menu in menuStore para la semana seleccionada en calendario
     menuStore.publishMenu({
       weekInput: targetWeekInfo,
       daysPerWeek: String(daysPerWeek),
       dietOptionA,
       dietOptionB,
-      dishSelection,
-      humanVerification: {
-        isVerified: true,
-        verifiedBy: nutriologaInfo.name,
-        role: nutriologaInfo.role,
-        verifiedAt: new Date().toISOString(),
-        certificationStatement: 'Menú auditado y certificado manualmente por especialista humano bajo responsabilidad clínica',
-        notes: humanAuditNotes || 'Auditoría sin incidencias clínicas.'
-      }
+      dishSelection
     });
 
     setWizardSuccess(true);
@@ -513,19 +503,9 @@ export default function NutriologaView({ selectedWeek }) {
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span className="badge-tag" style={{ background: '#EFF6FF', color: '#2563EB', fontWeight: '800', fontSize: '0.85rem' }}>
-                    {activeDays.length} {activeDays.length === 1 ? 'Día' : 'Días'} • {activeDays.length * 2} Platillos
-                  </span>
-                  <span className="badge-tag" style={{
-                    background: allRecipesReviewed ? '#DCFCE7' : '#FEF3C7',
-                    color: allRecipesReviewed ? '#15803D' : '#B45309',
-                    fontWeight: '800',
-                    fontSize: '0.82rem'
-                  }}>
-                    {allRecipesReviewed ? `✓ ${reviewedCount}/${requiredRecipeKeys.length} Recetas Auditadas` : `Auditoría: ${reviewedCount}/${requiredRecipeKeys.length}`}
-                  </span>
-                </div>
+                <span className="badge-tag" style={{ background: '#EFF6FF', color: '#2563EB', fontWeight: '800', fontSize: '0.85rem' }}>
+                  {activeDays.length} {activeDays.length === 1 ? 'Día' : 'Días'} • {activeDays.length * 2} Platillos
+                </span>
               </div>
 
               {/* Distributed Days Catalog (Active Days Grid) */}
@@ -551,27 +531,14 @@ export default function NutriologaView({ selectedWeek }) {
                           onChange={(e) => handleDishChange(dayName, 'optionA', 'name', e.target.value)}
                           style={{ width: '100%', fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-dark)', padding: '0.45rem', border: '1px solid #93C5FD', borderRadius: '6px', outline: 'none', marginBottom: '0.4rem', background: '#FFFFFF' }}
                         />
-                        
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.2rem' }}>
-                          <button 
-                            type="button"
-                            onClick={() => toggleRecipeExpansion(`${dayName}-A`)}
-                            style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
-                          >
-                            {expandedRecipes[`${dayName}-A`] ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
-                          </button>
-                          {reviewedRecipes[`${dayName}-A`] ? (
-                            <span style={{ fontSize: '0.7rem', color: '#16A34A', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                              <Check size={12} strokeWidth={3} /> Auditada
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '0.7rem', color: '#D97706', fontWeight: '600' }}>
-                              • Pendiente de auditar
-                            </span>
-                          )}
-                        </div>
+                        <button 
+                          onClick={() => setExpandedRecipe(expandedRecipe === `${dayName}-A` ? null : `${dayName}-A`)}
+                          style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
+                        >
+                          {expandedRecipe === `${dayName}-A` ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
+                        </button>
 
-                        {expandedRecipes[`${dayName}-A`] && (
+                        {expandedRecipe === `${dayName}-A` && (
                           <div className="animate-fade-in" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                             <textarea
                               value={dayDishes.optionA ? dayDishes.optionA.ingredients : ''}
@@ -598,27 +565,14 @@ export default function NutriologaView({ selectedWeek }) {
                           onChange={(e) => handleDishChange(dayName, 'optionB', 'name', e.target.value)}
                           style={{ width: '100%', fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-dark)', padding: '0.45rem', border: '1px solid #86EFAC', borderRadius: '6px', outline: 'none', marginBottom: '0.4rem', background: '#FFFFFF' }}
                         />
+                        <button 
+                          onClick={() => setExpandedRecipe(expandedRecipe === `${dayName}-B` ? null : `${dayName}-B`)}
+                          style={{ background: 'none', border: 'none', color: '#15803D', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
+                        >
+                          {expandedRecipe === `${dayName}-B` ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
+                        </button>
 
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.2rem' }}>
-                          <button 
-                            type="button"
-                            onClick={() => toggleRecipeExpansion(`${dayName}-B`)}
-                            style={{ background: 'none', border: 'none', color: '#15803D', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
-                          >
-                            {expandedRecipes[`${dayName}-B`] ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
-                          </button>
-                          {reviewedRecipes[`${dayName}-B`] ? (
-                            <span style={{ fontSize: '0.7rem', color: '#16A34A', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                              <Check size={12} strokeWidth={3} /> Auditada
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '0.7rem', color: '#D97706', fontWeight: '600' }}>
-                              • Pendiente de auditar
-                            </span>
-                          )}
-                        </div>
-
-                        {expandedRecipes[`${dayName}-B`] && (
+                        {expandedRecipe === `${dayName}-B` && (
                           <div className="animate-fade-in" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                             <textarea
                               value={dayDishes.optionB ? dayDishes.optionB.ingredients : ''}
@@ -646,153 +600,39 @@ export default function NutriologaView({ selectedWeek }) {
                 </div>
               ) : (
                 <>
-                  {/* Mecanismo Oficial de Certificación y Verificación Humana Obligatoria */}
-                  <div style={{
-                    background: isHumanVerified ? '#F0FDF4' : '#FFFFFF',
-                    border: `2px solid ${isHumanVerified ? '#22C55E' : '#CBD5E1'}`,
-                    borderRadius: '16px',
-                    padding: '1.25rem 1.5rem',
-                    marginBottom: '1.5rem',
-                    boxShadow: isHumanVerified ? '0 4px 16px rgba(34, 197, 94, 0.12)' : '0 2px 8px rgba(0,0,0,0.04)',
-                    transition: 'all 0.25s ease'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.85rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <div style={{
-                          width: '36px', height: '36px', borderRadius: '10px',
-                          background: isHumanVerified ? '#DCFCE7' : '#EFF6FF',
-                          color: isHumanVerified ? '#15803D' : '#2563EB',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}>
-                          <ShieldCheck size={20} />
-                        </div>
-                        <div>
-                          <h4 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-dark)', margin: 0 }}>
-                            Certificación de Verificación Humana (Obligatoria)
-                          </h4>
-                        </div>
-                      </div>
-
-                      <div style={{ fontSize: '0.72rem', background: '#FFFFFF', padding: '0.25rem 0.65rem', borderRadius: '6px', border: '1px solid #E2E8F0', color: '#475569', fontWeight: '600' }}>
-                        Auditor: <strong>{nutriologaInfo.name}</strong> • {nutriologaInfo.role.split('&')[0]}
-                      </div>
-                    </div>
-
-                    <p style={{ fontSize: '0.8rem', color: '#475569', marginBottom: '1rem', lineHeight: '1.45' }}>
-                      Para certificar la seguridad alimentaria de los colaboradores de Royal Canin y garantizar que ningún platillo se publique sin criterio profesional, la nutrióloga responsable debe confirmar haber auditado los gramajes, ingredientes y alérgenos de los días configurados.
-                    </p>
-
-                    {/* Alerta de prerrequisito de auditoría obligatoria de recetas */}
-                    {!allRecipesReviewed ? (
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.6rem',
-                        background: '#FEF3C7',
-                        border: '1px solid #FCD34D',
-                        borderRadius: '10px',
-                        padding: '0.7rem 0.9rem',
-                        marginBottom: '1rem',
-                        fontSize: '0.8rem',
-                        color: '#92400E'
-                      }}>
-                        <AlertTriangle size={18} color="#D97706" style={{ flexShrink: 0 }} />
-                        <div>
-                          <strong>Auditoría Requerida:</strong> Para poder certificar, es obligatorio abrir y revisar las recetas técnicas de todos los platillos ({reviewedCount} de {requiredRecipeKeys.length} auditadas).
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.6rem',
-                        background: '#F0FDF4',
-                        border: '1px solid #86EFAC',
-                        borderRadius: '10px',
-                        padding: '0.6rem 0.9rem',
-                        marginBottom: '1rem',
-                        fontSize: '0.8rem',
-                        color: '#15803D'
-                      }}>
-                        <Check size={18} color="#16A34A" style={{ flexShrink: 0 }} />
-                        <span>
-                          <strong>100% Auditado:</strong> Has revisado las recetas técnicas de todos los platillos ({reviewedCount}/{requiredRecipeKeys.length}). El check de certificación está habilitado.
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Checkbox interactivo de responsabilidad clínica */}
+                  {/* Mock Captcha for Human Approval */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1.25rem' }}>
                     <div 
-                      onClick={() => {
-                        if (!allRecipesReviewed) return;
-                        setIsHumanVerified(!isHumanVerified);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '0.85rem',
-                        padding: '0.85rem 1rem',
-                        background: !allRecipesReviewed ? '#F1F5F9' : (isHumanVerified ? '#FFFFFF' : '#F8FAFC'),
-                        borderRadius: '12px',
-                        border: `1.5px solid ${!allRecipesReviewed ? '#CBD5E1' : (isHumanVerified ? '#16A34A' : '#CBD5E1')}`,
-                        cursor: allRecipesReviewed ? 'pointer' : 'not-allowed',
-                        opacity: allRecipesReviewed ? 1 : 0.65,
-                        userSelect: 'none',
-                        transition: 'all 0.2s ease'
-                      }}
-                      title={!allRecipesReviewed ? 'Debes revisar todas las recetas técnicas antes de certificar' : ''}
-                    >
-                      <div style={{
-                        width: '24px',
-                        height: '24px',
-                        borderRadius: '6px',
-                        background: isHumanVerified ? '#16A34A' : '#FFFFFF',
-                        border: `2px solid ${isHumanVerified ? '#16A34A' : '#94A3B8'}`,
+                      onClick={() => setIsCaptchaVerified(!isCaptchaVerified)}
+                      style={{ 
+                        background: '#FAFAFA', 
+                        border: '1px solid #D4D4D8', 
+                        borderRadius: '3px', 
+                        padding: '0.75rem 1rem',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#FFFFFF',
-                        flexShrink: 0,
-                        marginTop: '2px',
-                        transition: 'all 0.2s ease'
+                        gap: '1rem',
+                        cursor: 'pointer',
+                        width: '300px',
+                        boxShadow: '0 0 4px rgba(0,0,0,0.1)'
+                      }}
+                    >
+                      <div style={{ 
+                        width: '28px', height: '28px', 
+                        background: '#FFFFFF', border: '2px solid #C1C1C1', borderRadius: '2px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
                       }}>
-                        {isHumanVerified && <Check size={16} strokeWidth={3} />}
+                        {isCaptchaVerified && <Check color="#0F9D58" size={20} />}
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '0.84rem', fontWeight: '700', color: isHumanVerified ? '#166534' : 'var(--text-dark)', lineHeight: '1.4' }}>
-                          Certifico bajo responsabilidad clínica que he auditado manualmente cada una de las opciones culinarias, garantizando el balance calórico, la rotación de insumos y la seguridad ante alérgenos.
+                      <span style={{ fontSize: '0.9rem', color: '#52525B', flex: 1 }}>I'm not a robot</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <div style={{ width: '24px', height: '24px', background: '#4285F4', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '12px', fontWeight: 'bold' }}>
+                          <RefreshCw size={14} />
                         </div>
-                        <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '0.25rem' }}>
-                          Firma digital: {nutriologaInfo.name} • {new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
-                        </div>
+                        <span style={{ fontSize: '0.55rem', color: '#71717A', marginTop: '2px' }}>reCAPTCHA</span>
+                        <span style={{ fontSize: '0.55rem', color: '#71717A' }}>Privacidad - Condiciones</span>
                       </div>
                     </div>
-
-                    {/* Campo de notas de auditoría */}
-                    {isHumanVerified && (
-                      <div className="animate-fade-in" style={{ marginTop: '0.75rem' }}>
-                        <label style={{ fontSize: '0.74rem', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '0.25rem' }}>
-                          Notas de verificación clínica (opcional):
-                        </label>
-                        <input
-                          type="text"
-                          value={humanAuditNotes}
-                          onChange={(e) => setHumanAuditNotes(e.target.value)}
-                          placeholder="Ej. Revisión completa: gramajes estandarizados y sustituciones balanceadas."
-                          style={{
-                            width: '100%',
-                            boxSizing: 'border-box',
-                            padding: '0.45rem 0.75rem',
-                            fontSize: '0.8rem',
-                            border: '1px solid #86EFAC',
-                            borderRadius: '8px',
-                            background: '#FFFFFF',
-                            color: 'var(--text-dark)',
-                            outline: 'none'
-                          }}
-                        />
-                      </div>
-                    )}
                   </div>
 
                   <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
@@ -821,17 +661,13 @@ export default function NutriologaView({ selectedWeek }) {
                       onClick={handlePublishMenu} 
                       className="btn-uber-primary" 
                       style={{ 
-                        background: isHumanVerified ? '#16A34A' : '#94A3B8',
-                        cursor: isHumanVerified ? 'pointer' : 'not-allowed',
-                        opacity: isHumanVerified ? 1 : 0.7,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        boxShadow: isHumanVerified ? '0 4px 14px rgba(22, 163, 74, 0.3)' : 'none'
+                        background: isCaptchaVerified ? '#2563EB' : '#94A3B8',
+                        cursor: isCaptchaVerified ? 'pointer' : 'not-allowed',
+                        opacity: isCaptchaVerified ? 1 : 0.7
                       }}
-                      disabled={!isHumanVerified}
+                      disabled={!isCaptchaVerified}
                     >
-                      <ShieldCheck size={18} /> Certificar y Publicar Menú Oficial
+                      <CheckCircle2 size={18} /> Certificar y Publicar Menú
                     </button>
                   </div>
                 </>
@@ -903,123 +739,308 @@ export default function NutriologaView({ selectedWeek }) {
                 </div>
               </div>
 
-              {/* Sello de Certificación y Supervisión Humana */}
-              {weekData.humanVerification?.isVerified && (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.6rem',
-                  background: '#F0FDF4',
-                  border: '1px solid #86EFAC',
-                  borderRadius: '12px',
-                  padding: '0.6rem 1rem',
-                  marginBottom: '1.25rem',
-                  fontSize: '0.8rem',
-                  color: '#15803D'
-                }}>
-                  <ShieldCheck size={20} color="#16A34A" style={{ flexShrink: 0 }} />
-                  <div>
-                    <strong>Supervisión Clínica Humana Certificada:</strong> Menú auditado personalmente por <strong>{weekData.humanVerification.verifiedBy}</strong> ({weekData.humanVerification.role}) el {new Date(weekData.humanVerification.verifiedAt).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}.
-                    {weekData.humanVerification.notes && (
-                      <span style={{ color: '#166534', marginLeft: '0.35rem', fontStyle: 'italic' }}>— "{weekData.humanVerification.notes}"</span>
-                    )}
-                  </div>
-                </div>
-              )}
+              {/* Control de Cálculo Automático: Porción Unitaria vs Lote de Producción */}
+              {(() => {
+                const portionsToScale = auditMode === 'production' ? Math.max(1, auditPortions) : 1;
+                const nutritionA = currentDay?.optionA ? scaleNutrition(currentDay.optionA, portionsToScale) : null;
+                const nutritionB = currentDay?.optionB ? scaleNutrition(currentDay.optionB, portionsToScale) : null;
+                const scaledA = currentDay?.optionA?.recipe?.ingredients ? scaleIngredients(currentDay.optionA.recipe.ingredients, portionsToScale) : [];
+                const scaledB = currentDay?.optionB?.recipe?.ingredients ? scaleIngredients(currentDay.optionB.recipe.ingredients, portionsToScale) : [];
 
-              {/* Comparative Clinical Cards */}
-              <div className="comparative-grid">
-                
-                {/* OPTION A AUDIT */}
-                <div className="uber-card" style={{ padding: '1.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                    <span className="badge-tag badge-red">Opción A • {currentDay.optionA?.category || dietOptionA}</span>
-                    <span style={{ fontSize: '0.75rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
-                      ✓ Aprobado por Nutrición
-                    </span>
-                  </div>
+                return (
+                  <>
+                    <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', padding: '0.85rem 1.25rem', borderRadius: '14px', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#2563EB', fontWeight: '700', fontSize: '0.85rem' }}>
+                          <Calculator size={18} />
+                          <span>Cálculo Nutricional & Recetas:</span>
+                        </div>
+                        <div style={{ display: 'flex', background: '#F1F5F9', padding: '0.2rem', borderRadius: '8px', gap: '0.2rem' }}>
+                          <button
+                            onClick={() => setAuditMode('unit')}
+                            style={{
+                              border: 'none',
+                              background: auditMode === 'unit' ? '#2563EB' : 'transparent',
+                              color: auditMode === 'unit' ? '#FFFFFF' : '#64748B',
+                              padding: '0.35rem 0.75rem',
+                              borderRadius: '6px',
+                              fontWeight: '700',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            Por Porción Unitaria
+                          </button>
+                          <button
+                            onClick={() => setAuditMode('production')}
+                            style={{
+                              border: 'none',
+                              background: auditMode === 'production' ? '#2563EB' : 'transparent',
+                              color: auditMode === 'production' ? '#FFFFFF' : '#64748B',
+                              padding: '0.35rem 0.75rem',
+                              borderRadius: '6px',
+                              fontWeight: '700',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            Lote de Producción
+                          </button>
+                        </div>
+                      </div>
 
-                  <h4 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
-                    {currentDay.optionA?.name || 'Platillo A'}
-                  </h4>
-
-                  {/* Clinical Macro Breakdown Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
-                    <div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--primary)' }}>{currentDay.optionA?.calories || 480} kcal</div>
+                      {auditMode === 'production' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: '600' }}>Porciones asignadas:</span>
+                          <button
+                            onClick={() => setAuditPortions(Math.max(1, auditPortions - 1))}
+                            style={{ width: '26px', height: '26px', borderRadius: '6px', border: '1px solid #CBD5E1', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                            title="Restar 1 porción"
+                          >
+                            <Minus size={12} />
+                          </button>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '800', minWidth: '24px', textAlign: 'center' }}>
+                            {auditPortions}
+                          </span>
+                          <button
+                            onClick={() => setAuditPortions(auditPortions + 1)}
+                            style={{ width: '26px', height: '26px', borderRadius: '6px', border: '1px solid #CBD5E1', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                            title="Sumar 1 porción"
+                          >
+                            <Plus size={12} />
+                          </button>
+                          <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#2563EB', background: '#EFF6FF', padding: '0.2rem 0.5rem', borderRadius: '6px', marginLeft: '0.25rem' }}>
+                            Total Lote
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#2563EB' }}>{currentDay.optionA?.protein || '35g'}</div>
+
+                    {/* Comparative Clinical Cards */}
+                    <div className="comparative-grid">
+                      
+                      {/* OPTION A AUDIT */}
+                      <div className="uber-card" style={{ padding: '1.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                          <span className="badge-tag badge-red">Opción A • {currentDay.optionA?.category || dietOptionA}</span>
+                          <span style={{ fontSize: '0.75rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
+                            ✓ Aprobado por Nutrición
+                          </span>
+                        </div>
+
+                        <h4 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
+                          {currentDay.optionA?.name || 'Platillo A'}
+                        </h4>
+
+                        {/* Clinical Macro Breakdown Grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
+                          <div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
+                            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--primary)' }}>
+                              {auditMode === 'production' ? `${nutritionA?.totalProduction.calories} kcal` : `${nutritionA?.unit.calories || currentDay.optionA?.calories || 480} kcal`}
+                            </div>
+                            {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionA?.unit.calories} kcal/p)</div>}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
+                            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#2563EB' }}>
+                              {auditMode === 'production' ? `${nutritionA?.totalProduction.protein}g` : `${nutritionA?.unit.protein || 35}g`}
+                            </div>
+                            {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionA?.unit.protein}g/p)</div>}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
+                            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>
+                              {auditMode === 'production' ? `${nutritionA?.totalProduction.carbs}g` : `${nutritionA?.unit.carbs || 40}g`}
+                            </div>
+                            {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionA?.unit.carbs}g/p)</div>}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
+                            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>
+                              {auditMode === 'production' ? `${nutritionA?.totalProduction.fats}g` : `${nutritionA?.unit.fats || 14}g`}
+                            </div>
+                            {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionA?.unit.fats}g/p)</div>}
+                          </div>
+                        </div>
+
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
+                          <strong>Perfil Clínico:</strong> Índice glucémico controlado, digestión ágil en oficina sin causar pesadez post-almuerzo.
+                        </div>
+
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                          <strong>Alérgenos registrados:</strong> {(currentDay.optionA?.allergens || []).length > 0 ? currentDay.optionA.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
+                        </div>
+
+                        {/* Receta Técnica Escalada Desplegable */}
+                        <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '0.75rem' }}>
+                          <button
+                            onClick={() => setExpandedAuditRecipe(expandedAuditRecipe === 'A' ? null : 'A')}
+                            style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', padding: 0 }}
+                          >
+                            <Scale size={14} />
+                            {expandedAuditRecipe === 'A' ? 'Ocultar Receta Técnica Escalada' : `Ver Insumos y Receta Escalada (${portionsToScale}p)`}
+                          </button>
+                          {expandedAuditRecipe === 'A' && (
+                            <div className="animate-fade-in" style={{ marginTop: '0.6rem' }}>
+                              {scaledA.length > 0 ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginBottom: '0.5rem' }}>
+                                  {scaledA.map((item, idx) => (
+                                    <div
+                                      key={idx}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: '0.5rem',
+                                        padding: '0.45rem 0.65rem',
+                                        background: idx % 2 === 0 ? '#F8FAFC' : '#FFFFFF',
+                                        borderRadius: '6px',
+                                        border: '1px solid #E2E8F0',
+                                        fontSize: '0.78rem'
+                                      }}
+                                    >
+                                      <div style={{ fontWeight: '600', color: 'var(--text-dark)', flex: 1, minWidth: 0, wordBreak: 'break-word' }}>
+                                        {item.name}
+                                      </div>
+                                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                        <div style={{ fontWeight: '800', color: '#2563EB', fontSize: '0.82rem' }}>
+                                          {item.amountScaled !== null ? `${item.amountScaled} ${item.unitScaled}` : item.displayScaled}
+                                        </div>
+                                        {item.amountBase !== null && (
+                                          <div style={{ fontSize: '0.68rem', color: '#64748B' }}>
+                                            Base: {item.amountBase} {item.unitBase}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sin ingredientes técnicos cargados.</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* OPTION B AUDIT */}
+                      <div className="uber-card" style={{ padding: '1.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                          <span className="badge-tag badge-green">Opción B • {currentDay.optionB?.category || dietOptionB}</span>
+                          <span style={{ fontSize: '0.75rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
+                            ✓ Aprobado por Nutrición
+                          </span>
+                        </div>
+
+                        <h4 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
+                          {currentDay.optionB?.name || 'Platillo B'}
+                        </h4>
+
+                        {/* Clinical Macro Breakdown Grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
+                          <div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
+                            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--primary)' }}>
+                              {auditMode === 'production' ? `${nutritionB?.totalProduction.calories} kcal` : `${nutritionB?.unit.calories || currentDay.optionB?.calories || 430} kcal`}
+                            </div>
+                            {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionB?.unit.calories} kcal/p)</div>}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
+                            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#2563EB' }}>
+                              {auditMode === 'production' ? `${nutritionB?.totalProduction.protein}g` : `${nutritionB?.unit.protein || 18}g`}
+                            </div>
+                            {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionB?.unit.protein}g/p)</div>}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
+                            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>
+                              {auditMode === 'production' ? `${nutritionB?.totalProduction.carbs}g` : `${nutritionB?.unit.carbs || 50}g`}
+                            </div>
+                            {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionB?.unit.carbs}g/p)</div>}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
+                            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>
+                              {auditMode === 'production' ? `${nutritionB?.totalProduction.fats}g` : `${nutritionB?.unit.fats || 16}g`}
+                            </div>
+                            {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionB?.unit.fats}g/p)</div>}
+                          </div>
+                        </div>
+
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
+                          <strong>Perfil Clínico:</strong> Alto contenido de fibra vegetal e ingredientes antioxidantes antiinflamatorios.
+                        </div>
+
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                          <strong>Alérgenos registrados:</strong> {(currentDay.optionB?.allergens || []).length > 0 ? currentDay.optionB.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
+                        </div>
+
+                        {/* Receta Técnica Escalada Desplegable */}
+                        <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '0.75rem' }}>
+                          <button
+                            onClick={() => setExpandedAuditRecipe(expandedAuditRecipe === 'B' ? null : 'B')}
+                            style={{ background: 'none', border: 'none', color: '#15803D', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', padding: 0 }}
+                          >
+                            <Scale size={14} />
+                            {expandedAuditRecipe === 'B' ? 'Ocultar Receta Técnica Escalada' : `Ver Insumos y Receta Escalada (${portionsToScale}p)`}
+                          </button>
+                          {expandedAuditRecipe === 'B' && (
+                            <div className="animate-fade-in" style={{ marginTop: '0.6rem' }}>
+                              {scaledB.length > 0 ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginBottom: '0.5rem' }}>
+                                  {scaledB.map((item, idx) => (
+                                    <div
+                                      key={idx}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: '0.5rem',
+                                        padding: '0.45rem 0.65rem',
+                                        background: idx % 2 === 0 ? '#F8FAFC' : '#FFFFFF',
+                                        borderRadius: '6px',
+                                        border: '1px solid #E2E8F0',
+                                        fontSize: '0.78rem'
+                                      }}
+                                    >
+                                      <div style={{ fontWeight: '600', color: 'var(--text-dark)', flex: 1, minWidth: 0, wordBreak: 'break-word' }}>
+                                        {item.name}
+                                      </div>
+                                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                        <div style={{ fontWeight: '800', color: '#15803D', fontSize: '0.82rem' }}>
+                                          {item.amountScaled !== null ? `${item.amountScaled} ${item.unitScaled}` : item.displayScaled}
+                                        </div>
+                                        {item.amountBase !== null && (
+                                          <div style={{ fontSize: '0.68rem', color: '#64748B' }}>
+                                            Base: {item.amountBase} {item.unitBase}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sin ingredientes técnicos cargados.</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
                     </div>
-                    <div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>{currentDay.optionA?.carbs || '40g'}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>{currentDay.optionA?.fats || '14g'}</div>
-                    </div>
-                  </div>
-
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                    <strong>Perfil Clínico:</strong> Índice glucémico controlado, digestión ágil en oficina sin causar pesadez post-almuerzo.
-                  </div>
-
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    <strong>Alérgenos registrados:</strong> {(currentDay.optionA?.allergens || []).length > 0 ? currentDay.optionA.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
-                  </div>
-                </div>
-
-                {/* OPTION B AUDIT */}
-                <div className="uber-card" style={{ padding: '1.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                    <span className="badge-tag badge-green">Opción B • {currentDay.optionB?.category || dietOptionB}</span>
-                    <span style={{ fontSize: '0.75rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
-                      ✓ Aprobado por Nutrición
-                    </span>
-                  </div>
-
-                  <h4 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
-                    {currentDay.optionB?.name || 'Platillo B'}
-                  </h4>
-
-                  {/* Clinical Macro Breakdown Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
-                    <div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--primary)' }}>{currentDay.optionB?.calories || 430} kcal</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#2563EB' }}>{currentDay.optionB?.protein || '18g'}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>{currentDay.optionB?.carbs || '50g'}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>{currentDay.optionB?.fats || '16g'}</div>
-                    </div>
-                  </div>
-
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                    <strong>Perfil Clínico:</strong> Alto contenido de fibra vegetal e ingredientes antioxidantes antiinflamatorios.
-                  </div>
-
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    <strong>Alérgenos registrados:</strong> {(currentDay.optionB?.allergens || []).length > 0 ? currentDay.optionB.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
-                  </div>
-                </div>
-
-              </div>
+                  </>
+                );
+              })()}
             </>
           )}
         </div>
       )}
 
+      <IngredientEditorModal isOpen={!!editingDish} onClose={() => setEditingDish(null)} dish={editingDish?.dish} dayName={currentDay?.dayName} optionKey={editingDish?.optionKey} role="nutriologa" onSave={handleSaveIngredients} onReset={handleResetIngredients} />
     </div>
   );
 }

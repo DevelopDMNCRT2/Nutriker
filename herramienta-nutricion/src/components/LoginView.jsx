@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Lock, User, ArrowRight, Salad } from 'lucide-react';
 import { chefInfo, nutriologaInfo } from '../data/mockData';
+import { API_BASE_URL } from '../services/menuStore';
 
 export default function LoginView({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
@@ -14,7 +15,7 @@ export default function LoginView({ onLoginSuccess }) {
     setErrorMsg('');
 
     try {
-      const res = await fetch('http://localhost:3000/api/auth/login', {
+      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: username, password })
