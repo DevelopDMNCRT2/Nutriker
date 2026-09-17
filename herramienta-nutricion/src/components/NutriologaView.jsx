@@ -106,18 +106,41 @@ export default function NutriologaView({ selectedWeek }) {
 
   // Dishes selection for manual grid filling
   const [dishSelection, setDishSelection] = useState(INITIAL_DISH_SELECTION);
-  const [expandedRecipe, setExpandedRecipe] = useState(null); // track which recipe is expanded e.g. "Lunes-optionA"
+  const [expandedRecipes, setExpandedRecipes] = useState({}); // track expanded recipes by `${dayName}-${option}`
+  const [reviewedRecipes, setReviewedRecipes] = useState({}); // track audited/reviewed recipes by `${dayName}-${option}`
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
-  const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
+  const [isHumanVerified, setIsHumanVerified] = useState(false);
+  const [humanAuditNotes, setHumanAuditNotes] = useState('');
   const isMenuPublished = Boolean(activeMenu && activeMenu.isPublished && activeMenu.days && activeMenu.days.length > 0);
   const weekData = isMenuPublished ? activeMenu : { days: [] };
   const safeDayIndex = selectedDayIndex < weekData.days.length ? selectedDayIndex : 0;
   const currentDay = (weekData.days && weekData.days[safeDayIndex]) || null;
 
   const activeDays = GET_ACTIVE_DAYS(daysPerWeek);
+  const requiredRecipeKeys = activeDays.flatMap(day => [`${day}-A`, `${day}-B`]);
+  const reviewedCount = requiredRecipeKeys.filter(key => reviewedRecipes[key]).length;
+  const allRecipesReviewed = requiredRecipeKeys.length > 0 && reviewedCount === requiredRecipeKeys.length;
+
+  const toggleRecipeExpansion = (recipeKey) => {
+    setExpandedRecipes(prev => ({
+      ...prev,
+      [recipeKey]: !prev[recipeKey]
+    }));
+    // Mark as reviewed upon opening technical recipe
+    setReviewedRecipes(prev => ({
+      ...prev,
+      [recipeKey]: true
+    }));
+  };
 
   const handleDishChange = (dayName, option, field, newValue) => {
+    const optSuffix = option === 'optionA' ? 'A' : 'B';
+    // Mark as reviewed upon editing dish or technical recipe
+    setReviewedRecipes(prev => ({
+      ...prev,
+      [`${dayName}-${optSuffix}`]: true
+    }));
     setDishSelection(prev => ({
       ...prev,
       [dayName]: {
@@ -131,13 +154,23 @@ export default function NutriologaView({ selectedWeek }) {
   };
 
   const handlePublishMenu = () => {
-    // Persist menu in menuStore para la semana seleccionada en calendario
+    if (!isHumanVerified) return;
+
+    // Persist menu in menuStore para la semana seleccionada en calendario con certificación humana
     menuStore.publishMenu({
       weekInput: targetWeekInfo,
       daysPerWeek: String(daysPerWeek),
       dietOptionA,
       dietOptionB,
-      dishSelection
+      dishSelection,
+      humanVerification: {
+        isVerified: true,
+        verifiedBy: nutriologaInfo.name,
+        role: nutriologaInfo.role,
+        verifiedAt: new Date().toISOString(),
+        certificationStatement: 'Menú auditado y certificado manualmente por especialista humano bajo responsabilidad clínica',
+        notes: humanAuditNotes || 'Auditoría sin incidencias clínicas.'
+      }
     });
 
     setWizardSuccess(true);
@@ -480,9 +513,19 @@ export default function NutriologaView({ selectedWeek }) {
                     </div>
                   </div>
                 </div>
-                <span className="badge-tag" style={{ background: '#EFF6FF', color: '#2563EB', fontWeight: '800', fontSize: '0.85rem' }}>
-                  {activeDays.length} {activeDays.length === 1 ? 'Día' : 'Días'} • {activeDays.length * 2} Platillos
-                </span>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span className="badge-tag" style={{ background: '#EFF6FF', color: '#2563EB', fontWeight: '800', fontSize: '0.85rem' }}>
+                    {activeDays.length} {activeDays.length === 1 ? 'Día' : 'Días'} • {activeDays.length * 2} Platillos
+                  </span>
+                  <span className="badge-tag" style={{
+                    background: allRecipesReviewed ? '#DCFCE7' : '#FEF3C7',
+                    color: allRecipesReviewed ? '#15803D' : '#B45309',
+                    fontWeight: '800',
+                    fontSize: '0.82rem'
+                  }}>
+                    {allRecipesReviewed ? `✓ ${reviewedCount}/${requiredRecipeKeys.length} Recetas Auditadas` : `Auditoría: ${reviewedCount}/${requiredRecipeKeys.length}`}
+                  </span>
+                </div>
               </div>
 
               {/* Distributed Days Catalog (Active Days Grid) */}
@@ -508,14 +551,27 @@ export default function NutriologaView({ selectedWeek }) {
                           onChange={(e) => handleDishChange(dayName, 'optionA', 'name', e.target.value)}
                           style={{ width: '100%', fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-dark)', padding: '0.45rem', border: '1px solid #93C5FD', borderRadius: '6px', outline: 'none', marginBottom: '0.4rem', background: '#FFFFFF' }}
                         />
-                        <button 
-                          onClick={() => setExpandedRecipe(expandedRecipe === `${dayName}-A` ? null : `${dayName}-A`)}
-                          style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
-                        >
-                          {expandedRecipe === `${dayName}-A` ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
-                        </button>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.2rem' }}>
+                          <button 
+                            type="button"
+                            onClick={() => toggleRecipeExpansion(`${dayName}-A`)}
+                            style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
+                          >
+                            {expandedRecipes[`${dayName}-A`] ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
+                          </button>
+                          {reviewedRecipes[`${dayName}-A`] ? (
+                            <span style={{ fontSize: '0.7rem', color: '#16A34A', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <Check size={12} strokeWidth={3} /> Auditada
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.7rem', color: '#D97706', fontWeight: '600' }}>
+                              • Pendiente de auditar
+                            </span>
+                          )}
+                        </div>
 
-                        {expandedRecipe === `${dayName}-A` && (
+                        {expandedRecipes[`${dayName}-A`] && (
                           <div className="animate-fade-in" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                             <textarea
                               value={dayDishes.optionA ? dayDishes.optionA.ingredients : ''}
@@ -542,14 +598,27 @@ export default function NutriologaView({ selectedWeek }) {
                           onChange={(e) => handleDishChange(dayName, 'optionB', 'name', e.target.value)}
                           style={{ width: '100%', fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-dark)', padding: '0.45rem', border: '1px solid #86EFAC', borderRadius: '6px', outline: 'none', marginBottom: '0.4rem', background: '#FFFFFF' }}
                         />
-                        <button 
-                          onClick={() => setExpandedRecipe(expandedRecipe === `${dayName}-B` ? null : `${dayName}-B`)}
-                          style={{ background: 'none', border: 'none', color: '#15803D', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
-                        >
-                          {expandedRecipe === `${dayName}-B` ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
-                        </button>
 
-                        {expandedRecipe === `${dayName}-B` && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.2rem' }}>
+                          <button 
+                            type="button"
+                            onClick={() => toggleRecipeExpansion(`${dayName}-B`)}
+                            style={{ background: 'none', border: 'none', color: '#15803D', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
+                          >
+                            {expandedRecipes[`${dayName}-B`] ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
+                          </button>
+                          {reviewedRecipes[`${dayName}-B`] ? (
+                            <span style={{ fontSize: '0.7rem', color: '#16A34A', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <Check size={12} strokeWidth={3} /> Auditada
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.7rem', color: '#D97706', fontWeight: '600' }}>
+                              • Pendiente de auditar
+                            </span>
+                          )}
+                        </div>
+
+                        {expandedRecipes[`${dayName}-B`] && (
                           <div className="animate-fade-in" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                             <textarea
                               value={dayDishes.optionB ? dayDishes.optionB.ingredients : ''}
@@ -577,39 +646,153 @@ export default function NutriologaView({ selectedWeek }) {
                 </div>
               ) : (
                 <>
-                  {/* Mock Captcha for Human Approval */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1.25rem' }}>
-                    <div 
-                      onClick={() => setIsCaptchaVerified(!isCaptchaVerified)}
-                      style={{ 
-                        background: '#FAFAFA', 
-                        border: '1px solid #D4D4D8', 
-                        borderRadius: '3px', 
-                        padding: '0.75rem 1rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '1rem',
-                        cursor: 'pointer',
-                        width: '300px',
-                        boxShadow: '0 0 4px rgba(0,0,0,0.1)'
-                      }}
-                    >
-                      <div style={{ 
-                        width: '28px', height: '28px', 
-                        background: '#FFFFFF', border: '2px solid #C1C1C1', borderRadius: '2px',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                      }}>
-                        {isCaptchaVerified && <Check color="#0F9D58" size={20} />}
-                      </div>
-                      <span style={{ fontSize: '0.9rem', color: '#52525B', flex: 1 }}>I'm not a robot</span>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <div style={{ width: '24px', height: '24px', background: '#4285F4', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '12px', fontWeight: 'bold' }}>
-                          <RefreshCw size={14} />
+                  {/* Mecanismo Oficial de Certificación y Verificación Humana Obligatoria */}
+                  <div style={{
+                    background: isHumanVerified ? '#F0FDF4' : '#FFFFFF',
+                    border: `2px solid ${isHumanVerified ? '#22C55E' : '#CBD5E1'}`,
+                    borderRadius: '16px',
+                    padding: '1.25rem 1.5rem',
+                    marginBottom: '1.5rem',
+                    boxShadow: isHumanVerified ? '0 4px 16px rgba(34, 197, 94, 0.12)' : '0 2px 8px rgba(0,0,0,0.04)',
+                    transition: 'all 0.25s ease'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.85rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <div style={{
+                          width: '36px', height: '36px', borderRadius: '10px',
+                          background: isHumanVerified ? '#DCFCE7' : '#EFF6FF',
+                          color: isHumanVerified ? '#15803D' : '#2563EB',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                          <ShieldCheck size={20} />
                         </div>
-                        <span style={{ fontSize: '0.55rem', color: '#71717A', marginTop: '2px' }}>reCAPTCHA</span>
-                        <span style={{ fontSize: '0.55rem', color: '#71717A' }}>Privacidad - Condiciones</span>
+                        <div>
+                          <h4 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-dark)', margin: 0 }}>
+                            Certificación de Verificación Humana (Obligatoria)
+                          </h4>
+                        </div>
+                      </div>
+
+                      <div style={{ fontSize: '0.72rem', background: '#FFFFFF', padding: '0.25rem 0.65rem', borderRadius: '6px', border: '1px solid #E2E8F0', color: '#475569', fontWeight: '600' }}>
+                        Auditor: <strong>{nutriologaInfo.name}</strong> • {nutriologaInfo.role.split('&')[0]}
                       </div>
                     </div>
+
+                    <p style={{ fontSize: '0.8rem', color: '#475569', marginBottom: '1rem', lineHeight: '1.45' }}>
+                      Para certificar la seguridad alimentaria de los colaboradores de Royal Canin y garantizar que ningún platillo se publique sin criterio profesional, la nutrióloga responsable debe confirmar haber auditado los gramajes, ingredientes y alérgenos de los días configurados.
+                    </p>
+
+                    {/* Alerta de prerrequisito de auditoría obligatoria de recetas */}
+                    {!allRecipesReviewed ? (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.6rem',
+                        background: '#FEF3C7',
+                        border: '1px solid #FCD34D',
+                        borderRadius: '10px',
+                        padding: '0.7rem 0.9rem',
+                        marginBottom: '1rem',
+                        fontSize: '0.8rem',
+                        color: '#92400E'
+                      }}>
+                        <AlertTriangle size={18} color="#D97706" style={{ flexShrink: 0 }} />
+                        <div>
+                          <strong>Auditoría Requerida:</strong> Para poder certificar, es obligatorio abrir y revisar las recetas técnicas de todos los platillos ({reviewedCount} de {requiredRecipeKeys.length} auditadas).
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.6rem',
+                        background: '#F0FDF4',
+                        border: '1px solid #86EFAC',
+                        borderRadius: '10px',
+                        padding: '0.6rem 0.9rem',
+                        marginBottom: '1rem',
+                        fontSize: '0.8rem',
+                        color: '#15803D'
+                      }}>
+                        <Check size={18} color="#16A34A" style={{ flexShrink: 0 }} />
+                        <span>
+                          <strong>100% Auditado:</strong> Has revisado las recetas técnicas de todos los platillos ({reviewedCount}/{requiredRecipeKeys.length}). El check de certificación está habilitado.
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Checkbox interactivo de responsabilidad clínica */}
+                    <div 
+                      onClick={() => {
+                        if (!allRecipesReviewed) return;
+                        setIsHumanVerified(!isHumanVerified);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '0.85rem',
+                        padding: '0.85rem 1rem',
+                        background: !allRecipesReviewed ? '#F1F5F9' : (isHumanVerified ? '#FFFFFF' : '#F8FAFC'),
+                        borderRadius: '12px',
+                        border: `1.5px solid ${!allRecipesReviewed ? '#CBD5E1' : (isHumanVerified ? '#16A34A' : '#CBD5E1')}`,
+                        cursor: allRecipesReviewed ? 'pointer' : 'not-allowed',
+                        opacity: allRecipesReviewed ? 1 : 0.65,
+                        userSelect: 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                      title={!allRecipesReviewed ? 'Debes revisar todas las recetas técnicas antes de certificar' : ''}
+                    >
+                      <div style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '6px',
+                        background: isHumanVerified ? '#16A34A' : '#FFFFFF',
+                        border: `2px solid ${isHumanVerified ? '#16A34A' : '#94A3B8'}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#FFFFFF',
+                        flexShrink: 0,
+                        marginTop: '2px',
+                        transition: 'all 0.2s ease'
+                      }}>
+                        {isHumanVerified && <Check size={16} strokeWidth={3} />}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '0.84rem', fontWeight: '700', color: isHumanVerified ? '#166534' : 'var(--text-dark)', lineHeight: '1.4' }}>
+                          Certifico bajo responsabilidad clínica que he auditado manualmente cada una de las opciones culinarias, garantizando el balance calórico, la rotación de insumos y la seguridad ante alérgenos.
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '0.25rem' }}>
+                          Firma digital: {nutriologaInfo.name} • {new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Campo de notas de auditoría */}
+                    {isHumanVerified && (
+                      <div className="animate-fade-in" style={{ marginTop: '0.75rem' }}>
+                        <label style={{ fontSize: '0.74rem', fontWeight: '700', color: '#166534', display: 'block', marginBottom: '0.25rem' }}>
+                          Notas de verificación clínica (opcional):
+                        </label>
+                        <input
+                          type="text"
+                          value={humanAuditNotes}
+                          onChange={(e) => setHumanAuditNotes(e.target.value)}
+                          placeholder="Ej. Revisión completa: gramajes estandarizados y sustituciones balanceadas."
+                          style={{
+                            width: '100%',
+                            boxSizing: 'border-box',
+                            padding: '0.45rem 0.75rem',
+                            fontSize: '0.8rem',
+                            border: '1px solid #86EFAC',
+                            borderRadius: '8px',
+                            background: '#FFFFFF',
+                            color: 'var(--text-dark)',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
@@ -638,13 +821,17 @@ export default function NutriologaView({ selectedWeek }) {
                       onClick={handlePublishMenu} 
                       className="btn-uber-primary" 
                       style={{ 
-                        background: isCaptchaVerified ? '#2563EB' : '#94A3B8',
-                        cursor: isCaptchaVerified ? 'pointer' : 'not-allowed',
-                        opacity: isCaptchaVerified ? 1 : 0.7
+                        background: isHumanVerified ? '#16A34A' : '#94A3B8',
+                        cursor: isHumanVerified ? 'pointer' : 'not-allowed',
+                        opacity: isHumanVerified ? 1 : 0.7,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        boxShadow: isHumanVerified ? '0 4px 14px rgba(22, 163, 74, 0.3)' : 'none'
                       }}
-                      disabled={!isCaptchaVerified}
+                      disabled={!isHumanVerified}
                     >
-                      <CheckCircle2 size={18} /> Certificar y Publicar Menú
+                      <ShieldCheck size={18} /> Certificar y Publicar Menú Oficial
                     </button>
                   </div>
                 </>
@@ -715,6 +902,30 @@ export default function NutriologaView({ selectedWeek }) {
                   ))}
                 </div>
               </div>
+
+              {/* Sello de Certificación y Supervisión Humana */}
+              {weekData.humanVerification?.isVerified && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  background: '#F0FDF4',
+                  border: '1px solid #86EFAC',
+                  borderRadius: '12px',
+                  padding: '0.6rem 1rem',
+                  marginBottom: '1.25rem',
+                  fontSize: '0.8rem',
+                  color: '#15803D'
+                }}>
+                  <ShieldCheck size={20} color="#16A34A" style={{ flexShrink: 0 }} />
+                  <div>
+                    <strong>Supervisión Clínica Humana Certificada:</strong> Menú auditado personalmente por <strong>{weekData.humanVerification.verifiedBy}</strong> ({weekData.humanVerification.role}) el {new Date(weekData.humanVerification.verifiedAt).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}.
+                    {weekData.humanVerification.notes && (
+                      <span style={{ color: '#166534', marginLeft: '0.35rem', fontStyle: 'italic' }}>— "{weekData.humanVerification.notes}"</span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Comparative Clinical Cards */}
               <div className="comparative-grid">
