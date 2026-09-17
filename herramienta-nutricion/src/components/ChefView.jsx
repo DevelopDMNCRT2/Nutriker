@@ -436,6 +436,11 @@ export default function ChefView({ selectedWeek }) {
               <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#16A34A', background: '#F0FDF4', padding: '0.3rem 0.75rem', borderRadius: '6px', border: '1px solid #BBF7D0' }}>
                 👥 {confirmedCount} {confirmedCount === 1 ? 'Pedido Confirmado' : 'Pedidos Confirmados'} • Plantilla: {totalPortions} Empleados
               </span>
+              {activeMenu?.humanVerification?.isVerified && (
+                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#15803D', background: '#F0FDF4', padding: '0.3rem 0.75rem', borderRadius: '6px', border: '1px solid #86EFAC', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <ShieldCheck size={14} color="#16A34A" /> Fichas Certificadas por {activeMenu.humanVerification.verifiedBy}
+                </span>
+              )}
             </div>
           </div>
 
