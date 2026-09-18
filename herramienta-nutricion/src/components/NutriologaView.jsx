@@ -151,11 +151,12 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'corp
   const [humanAuditNotes, setHumanAuditNotes] = useState('');
   const [expandedRecipes, setExpandedRecipes] = useState({});
   const [reviewedRecipes, setReviewedRecipes] = useState({});
+  const activeDays = GET_ACTIVE_DAYS(daysPerWeek);
   const requiredRecipeKeys = activeDays.flatMap(day => [`${day}-A`, `${day}-B`]);
   const reviewedCount = requiredRecipeKeys.filter(key => reviewedRecipes[key]).length;
   const allRecipesReviewed = requiredRecipeKeys.length > 0 && reviewedCount === requiredRecipeKeys.length;
 
-  const activeDays = GET_ACTIVE_DAYS(daysPerWeek);
+  // activeDays moved up
 
   const handleDishChange = (dayName, option, field, newValue) => {
     setDishSelection(prev => ({
