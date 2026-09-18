@@ -17,7 +17,7 @@ export async function login(req, res) {
     const result = await pool.query(
       `SELECT id, nombre, usuario, correo, contrasena, rol
        FROM usuarios
-       WHERE (correo = $1 OR usuario = $1) AND deleted_at IS NULL`,
+       WHERE (LOWER(correo) = LOWER($1) OR LOWER(usuario) = LOWER($1)) AND deleted_at IS NULL`,
       [email.trim()]
     )
 
