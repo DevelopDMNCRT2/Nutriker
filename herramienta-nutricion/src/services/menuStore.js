@@ -11,7 +11,7 @@ const isLocalhost = typeof window !== 'undefined' &&
 
 export const API_BASE_URL = (typeof window !== 'undefined' && window.__VITE_API_URL__)
   || (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
-  || (isLocalhost ? 'http://localhost:3000' : 'https://nutriker-server.vercel.app');
+  || (isLocalhost ? 'http://localhost:3000' : 'https://nutrikerserver.vercel.app');
 
 export const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
