@@ -98,63 +98,6 @@ export default function Header({
             </button>
           </div>
         )}
-        {onServiceProfileChange && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            background: '#F1F5F9',
-            padding: '0.2rem',
-            borderRadius: '9999px',
-            border: '1px solid #E2E8F0',
-            gap: '0.2rem'
-          }}>
-            <button
-              type="button"
-              onClick={() => onServiceProfileChange('corporate')}
-              style={{
-                border: 'none',
-                background: serviceProfileKey === 'corporate' ? '#FFFFFF' : 'transparent',
-                color: serviceProfileKey === 'corporate' ? '#1E293B' : '#64748B',
-                fontWeight: serviceProfileKey === 'corporate' ? '800' : '600',
-                fontSize: '0.72rem',
-                padding: '0.35rem 0.75rem',
-                borderRadius: '9999px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                boxShadow: serviceProfileKey === 'corporate' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <Building2 size={13} color={serviceProfileKey === 'corporate' ? 'var(--primary)' : '#64748B'} />
-              <span>Corporativo B2B</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onServiceProfileChange('senior_care')}
-              style={{
-                border: 'none',
-                background: serviceProfileKey === 'senior_care' ? '#FFFFFF' : 'transparent',
-                color: serviceProfileKey === 'senior_care' ? '#2563EB' : '#64748B',
-                fontWeight: serviceProfileKey === 'senior_care' ? '800' : '600',
-                fontSize: '0.72rem',
-                padding: '0.35rem 0.75rem',
-                borderRadius: '9999px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                boxShadow: serviceProfileKey === 'senior_care' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <HeartPulse size={13} color={serviceProfileKey === 'senior_care' ? '#2563EB' : '#64748B'} />
-              <span>Residencia de Mayores</span>
-            </button>
-          </div>
-        )}
-
         {/* User Info & Role Lockdown Badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           
