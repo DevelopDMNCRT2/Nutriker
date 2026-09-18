@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChefHat, ArrowLeft, Edit3, ArrowRight, Scale, Activity, Plus, Minus, RotateCcw, Utensils } from 'lucide-react';
+import { HeartPulse, ChefHat, ArrowLeft, Edit3, ArrowRight, Scale, Activity, Plus, Minus, RotateCcw, Utensils } from 'lucide-react';
 import { programInfo } from '../data/mockData';
 import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
 import { scaleIngredients, scaleNutrition } from '../utils/recipeScaler';
