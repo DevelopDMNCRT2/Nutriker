@@ -30,7 +30,7 @@ export default function App() {
   });
 
   // Active Service Profile (Corporate B2B vs Senior Care)
-  const [serviceProfileKey, setServiceProfileKey] = useState(() => localStorage.getItem('nutriker_service_profile') || 'corporate');
+  const [serviceProfileKey, setServiceProfileKey] = useState('corporate');
 
   const handleServiceProfileChange = (newKey) => {
     setServiceProfileKey(newKey);
