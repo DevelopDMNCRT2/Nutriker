@@ -66,7 +66,7 @@ app.get('/', (req, res) => {
 
 // ── Rutas API ──────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() })
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), hasDb: !!process.env.DATABASE_URL, dbLen: process.env.DATABASE_URL ? process.env.DATABASE_URL.length : 0 })
 })
 
 app.use('/api/auth', authRouter)
