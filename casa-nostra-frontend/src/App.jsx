@@ -18,16 +18,7 @@ export default function App() {
   const [notificationTarget, setNotificationTarget] = useState(null);
 
   // Active logged-in user state
-  const [currentUser, setCurrentUser] = useState(() => {
-    try {
-      const savedUser = localStorage.getItem('royal_user');
-      if (savedUser) return JSON.parse(savedUser);
-    } catch (e) {}
-    const role = localStorage.getItem('royal_role');
-    if (role === 'chef') return { nombre: chefInfo.name, rol: 'Chef' };
-    if (role === 'nutriologa') return { nombre: nutriologaInfo.name, rol: 'Nutrióloga' };
-    return { nombre: 'Dra. Karla', rol: 'Nutrióloga' };
-  });
+  const [currentUser, setCurrentUser] = useState({ nombre: 'Dra. Karla', rol: 'Nutrióloga' });
 
   // Active Service Profile (Corporate B2B vs Senior Care)
   const [serviceProfileKey, setServiceProfileKey] = useState('casa_nostra');
