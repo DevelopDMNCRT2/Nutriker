@@ -3,8 +3,8 @@ import { cyclicMenus } from '../data/mockData';
 
 const MENU_STORAGE_PREFIX = 'royal_canin_menu_';
 const ORDERS_STORAGE_PREFIX = 'royal_canin_orders_';
-const LEGACY_MENU_KEY = 'royal_canin_active_menu';
-const LEGACY_ORDERS_KEY = 'royal_canin_employee_orders';
+const LEGACY_MENU_KEY = 'casa_nostra_active_menu';
+const LEGACY_ORDERS_KEY = 'casa_nostra_employee_orders';
 
 const isLocalhost = typeof window !== 'undefined' && 
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
