@@ -21,6 +21,7 @@ import blogRouter from './routes/blog.js'
 import ingresosRouter from './routes/ingresos.js'
 import platillosRouter from './routes/platillos.js'
 import royalRouter from './routes/royal.js'
+import residentesRouter from './routes/residentes.js'
 
 dotenv.config()
 
@@ -34,10 +35,12 @@ const allowedOrigins = [
   'http://localhost:5174',
   'http://localhost:5175',
   'http://localhost:5176',
+  'http://localhost:5179',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
   'http://127.0.0.1:5175',
   'http://127.0.0.1:5176',
+  'http://127.0.0.1:5179',
 ]
 
 app.use(cors({
@@ -87,6 +90,7 @@ app.use('/api/blog', blogRouter)
 app.use('/api/public', publicRouter)
 app.use('/api/platillos', platillosRouter)
 app.use('/api/royal', royalRouter)
+app.use('/api/residentes', residentesRouter)
 
 // ── 404 ────────────────────────────────────────────────
 app.use((req, res) => {

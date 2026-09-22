@@ -5,39 +5,60 @@ import { scaleIngredients, scaleNutrition } from '../utils/recipeScaler';
 import { programInfo } from '../data/mockData';
 
 export default function StatsView({ selectedWeek }) {
-  const [activeMenu, setActiveMenu] = useState(null);
+  const [activeMenu, setActiveMenu] = useState(() => menuStore.getActiveMenu(selectedWeek || 1));
   const [census, setCensus] = useState(programInfo.activeParticipantsCount || 25);
 
   useEffect(() => {
-    // Force a re-read when selectedWeek changes
-    const targetInfo = getWeekInfoFromDate(new Date(2026, 0, 1 + (selectedWeek - 1) * 7));
-    const menu = menuStore.getActiveMenu(targetInfo);
+    // Sincronizar menú activo según la semana seleccionada o fallback a semana 1
+    const menu = menuStore.getActiveMenu(selectedWeek || 1);
     setActiveMenu(menu);
   }, [selectedWeek]);
 
-  const days = activeMenu?.days || [];
+  // Si la semana activa no tiene menú publicado, fallback al ciclo base de residencia
+  const days = (activeMenu?.days && activeMenu.days.length > 0)
+    ? activeMenu.days
+    : (menuStore.getActiveMenu(1)?.days || []);
 
-  // Flatten logic to get global purchase summary
+  // Consolidación de compras e insumos para cotejo de facturas
   const computePurchases = () => {
     const totals = {};
     let totalCalories = 0;
     let totalProtein = 0;
     
     days.forEach(day => {
+      if (!day) return;
       ['optionA', 'optionB'].forEach(opt => {
         const dish = day[opt];
-        if (dish && dish.recipe && dish.recipe.ingredients) {
-          const scaled = scaleIngredients(dish.recipe.ingredients, census);
-          scaled.forEach(ing => {
-            const key = `${ing.item} (${ing.unit})`;
-            if (!totals[key]) totals[key] = { amount: 0, unit: ing.unit, item: ing.item };
-            totals[key].amount += ing.amount;
-          });
+        if (dish) {
+          // Extraer ingredientes desde recipe o directamente del objeto dish
+          const rawIngredients = dish.recipe?.ingredients || dish.ingredients || dish.ingredientes;
+          if (rawIngredients) {
+            const scaled = scaleIngredients(rawIngredients, census);
+            scaled.forEach(ing => {
+              if (!ing) return;
+              const name = ing.name || ing.item || ing.raw || 'Insumo';
+              const unit = ing.unitScaled || ing.unitBase || ing.unit || 'g';
+              const parsedAmt = Number(ing.amountScaled ?? ing.amountBase ?? ing.amount ?? 0);
+              const amount = parsedAmt > 0 ? parsedAmt : (census * 100);
+              const key = `${name} (${unit})`;
+              if (!totals[key]) {
+                totals[key] = { amount: 0, unit, item: name };
+              }
+              totals[key].amount += amount;
+            });
+          }
           
-          if (dish.recipe.nutrition) {
-            const nut = scaleNutrition(dish, census);
-            totalCalories += nut.calories || 0;
-            totalProtein += nut.protein || 0;
+          // Extraer nutrición desde recipe o directamente del objeto dish
+          const nutData = dish.recipe?.nutrition || dish.nutrition;
+          if (nutData) {
+            const nut = scaleNutrition(nutData, census);
+            totalCalories += nut.totalProduction?.calories ?? nut.unit?.calories ?? (nut.calories || 0);
+            totalProtein += nut.totalProduction?.protein ?? nut.unit?.protein ?? (nut.protein || 0);
+          } else if (dish.calorias || dish.proteinas_g || dish.calories || dish.protein) {
+            const c = Number(dish.calorias || dish.calories) || 380;
+            const p = Number(dish.proteinas_g || String(dish.protein).replace('g','')) || 30;
+            totalCalories += c * census;
+            totalProtein += p * census;
           }
         }
       });
@@ -89,11 +110,11 @@ export default function StatsView({ selectedWeek }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px solid #F1F5F9', paddingBottom: '0.5rem' }}>
               <span style={{ color: '#64748B', fontSize: '0.9rem' }}>Proteína Total Estimada</span>
-              <span style={{ fontSize: '1.5rem', fontWeight: '800', color: '#B45309' }}>{Math.round(totalProtein).toLocaleString()} <span style={{ fontSize: '0.9rem' }}>g</span></span>
+              <span style={{ fontSize: '1.5rem', fontWeight: '800', color: '#B45309' }}>{Math.round(totalProtein || 0).toLocaleString()} <span style={{ fontSize: '0.9rem' }}>g</span></span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px solid #F1F5F9', paddingBottom: '0.5rem' }}>
               <span style={{ color: '#64748B', fontSize: '0.9rem' }}>Calorías Servidas</span>
-              <span style={{ fontSize: '1.5rem', fontWeight: '800', color: '#334155' }}>{Math.round(totalCalories).toLocaleString()} <span style={{ fontSize: '0.9rem' }}>kcal</span></span>
+              <span style={{ fontSize: '1.5rem', fontWeight: '800', color: '#334155' }}>{Math.round(totalCalories || 0).toLocaleString()} <span style={{ fontSize: '0.9rem' }}>kcal</span></span>
             </div>
             <p style={{ margin: 0, fontSize: '0.8rem', color: '#94A3B8' }}><Info size={12} /> Cálculo proyectado para {days.length} días de servicio x {census} raciones.</p>
           </div>
@@ -109,7 +130,7 @@ export default function StatsView({ selectedWeek }) {
             {ingredients.map((ing, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid #F8FAFC' }}>
                 <span style={{ color: '#475569', fontSize: '0.85rem' }}>{ing.item}</span>
-                <span style={{ fontWeight: '600', color: '#1E293B', fontSize: '0.85rem' }}>{Math.ceil(ing.amount).toLocaleString()} {ing.unit}</span>
+                <span style={{ fontWeight: '600', color: '#1E293B', fontSize: '0.85rem' }}>{Math.ceil(ing.amount || 0).toLocaleString()} {ing.unit}</span>
               </div>
             ))}
           </div>
@@ -135,14 +156,12 @@ export default function StatsView({ selectedWeek }) {
                     if(!d) return null;
                     return (
                       <div key={oIdx} style={{ background: '#FFF', padding: '0.75rem', borderRadius: '8px', border: '1px solid #F1F5F9' }}>
-                        <div style={{ fontSize: '0.7rem', fontWeight: '800', color: '#B45309', textTransform: 'uppercase', marginBottom: '0.2rem' }}>{d.category}</div>
+                        <div style={{ fontSize: '0.7rem', fontWeight: '800', color: '#B45309', textTransform: 'uppercase', marginBottom: '0.2rem' }}>{d.category || (oIdx === 0 ? 'Fácil Masticación' : 'Papilla / Textura Suave')}</div>
                         <div style={{ fontSize: '0.9rem', fontWeight: '600', color: '#334155', marginBottom: '0.5rem' }}>{d.name}</div>
-                        {d.recipe && d.recipe.nutrition && (
-                          <div style={{ fontSize: '0.75rem', color: '#64748B', display: 'flex', gap: '0.5rem' }}>
-                            <span><strong>Cal:</strong> {d.recipe.nutrition.calories} kcal/ración</span>
-                            <span style={{ color: '#B45309' }}><strong>Prot:</strong> {d.recipe.nutrition.protein} g/ración</span>
-                          </div>
-                        )}
+                        <div style={{ fontSize: '0.75rem', color: '#64748B', display: 'flex', gap: '0.5rem' }}>
+                          <span><strong>Cal:</strong> {d.recipe?.nutrition?.calories || d.nutrition?.calories || d.calorias || (typeof d.calories === 'number' ? d.calories : 380)} kcal/ración</span>
+                          <span style={{ color: '#B45309' }}><strong>Prot:</strong> {d.recipe?.nutrition?.protein || d.nutrition?.protein || d.proteinas_g || (typeof d.protein === 'number' ? d.protein : (d.protein ? String(d.protein).replace('g','') : 30))} g/ración</span>
+                        </div>
                       </div>
                     );
                   })}

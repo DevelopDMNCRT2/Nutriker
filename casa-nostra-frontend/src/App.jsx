@@ -7,6 +7,7 @@ import NutriologaView from './components/NutriologaView';
 import ChefView from './components/ChefView';
 import NotificationModal from './components/NotificationModal';
 import LoginView from './components/LoginView';
+import AdministracionView from './components/AdministracionView';
 import { cyclicMenus, sampleParticipants, chefInfo, nutriologaInfo } from './data/mockData';
 import { getWeekInfoFromDate } from './services/menuStore';
 
@@ -160,6 +161,10 @@ export default function App() {
           />
         )}
 
+        {currentView === 'administracion' && (
+          <AdministracionView />
+        )}
+
       </main>
 
       {/* Footer */}
@@ -240,6 +245,12 @@ export default function App() {
           style={{ background: currentView === 'participant' ? '#B45309' : 'transparent', color: 'white', border: currentView === 'participant' ? 'none' : '1px solid #64748B', padding: '0.4rem 1rem', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
         >
           📊 Reportes y Compras
+        </button>
+        <button 
+          onClick={() => { setCurrentView('administracion'); setCurrentUser({ nombre: 'Lic. Mariana Gómez', rol: 'Administración' }); }}
+          style={{ background: currentView === 'administracion' ? '#B45309' : 'transparent', color: 'white', border: currentView === 'administracion' ? 'none' : '1px solid #64748B', padding: '0.4rem 1rem', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
+        >
+          👥 Administración
         </button>
       </div>
 
