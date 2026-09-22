@@ -23,6 +23,16 @@ export function verificarToken(req, res, next) {
       }
     }
 
+    // BLINDAJE DE SEGURIDAD PARA ROL "Empleado"
+    // Los empleados corporativos solo pueden acceder a menús/pedidos B2B (/api/royal) y autenticación (/api/auth)
+    // Tienen estrictamente prohibido acceder a citas médicas, expedientes clínicos, órdenes, blog o administración.
+    if (req.usuario.rol === 'Empleado') {
+      const isAllowed = req.originalUrl.startsWith('/api/royal') || req.originalUrl.startsWith('/api/auth')
+      if (!isAllowed) {
+        return res.status(403).json({ error: 'Acceso denegado: El rol de Empleado solo tiene permisos para acceder a menús y pedidos corporativos.' })
+      }
+    }
+
     next()
   } catch (err) {
     return res.status(401).json({ error: 'Acceso denegado: Token inválido o expirado' })

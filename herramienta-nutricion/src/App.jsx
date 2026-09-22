@@ -80,8 +80,12 @@ export default function App() {
       try {
         const saved = localStorage.getItem('royal_user');
         if (saved) {
-          setCurrentUser(JSON.parse(saved));
-          return;
+          const parsed = JSON.parse(saved);
+          const expectedRol = roleKey === 'chef' ? 'Chef' : (roleKey === 'nutriologa' ? 'Nutrióloga' : (roleKey === 'admin' ? 'Administrador' : 'Empleado'));
+          if (!roleKey || parsed.rol === expectedRol) {
+            setCurrentUser(parsed);
+            return;
+          }
         }
       } catch (e) {}
       if (roleKey === 'chef') setCurrentUser({ nombre: chefInfo.name, rol: 'Chef' });

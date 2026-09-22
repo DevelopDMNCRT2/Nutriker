@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Phone, Mail, Lock, ShieldCheck, ArrowRight, Eye, EyeOff, CheckCircle2, AlertCircle, Utensils, Clock } from 'lucide-react';
+import { User, Phone, Mail, Lock, ShieldCheck, ArrowRight, Eye, EyeOff, CheckCircle2, AlertCircle, Utensils, Clock, Building2 } from 'lucide-react';
 import { API_BASE_URL } from '../services/menuStore';
 import BlurredAppBackdrop from './BlurredAppBackdrop';
 
@@ -9,7 +9,8 @@ export default function RegisterView({ onRegisterSuccess, onSwitchToLogin }) {
     telefono: '',
     correo: '',
     contrasena: '',
-    confirmarContrasena: ''
+    confirmarContrasena: '',
+    codigoInvitacion: ''
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -32,7 +33,7 @@ export default function RegisterView({ onRegisterSuccess, onSwitchToLogin }) {
     setErrorMsg('');
     setSuccessMsg('');
 
-    const { nombre, telefono, correo, contrasena, confirmarContrasena } = formData;
+    const { nombre, telefono, correo, contrasena, confirmarContrasena, codigoInvitacion } = formData;
 
     if (!nombre.trim() || !telefono.trim() || !correo.trim() || !contrasena) {
       setErrorMsg('Por favor completa todos los campos del formulario.');
@@ -72,7 +73,8 @@ export default function RegisterView({ onRegisterSuccess, onSwitchToLogin }) {
           telefono: telefono.trim(),
           correo: correo.trim().toLowerCase(),
           contrasena,
-          confirmarContrasena
+          confirmarContrasena,
+          codigoInvitacion: codigoInvitacion ? codigoInvitacion.trim() : undefined
         })
       });
 
@@ -99,25 +101,8 @@ export default function RegisterView({ onRegisterSuccess, onSwitchToLogin }) {
         setErrorMsg(data.error || 'No se pudo completar el registro. Intenta de nuevo.');
       }
     } catch (err) {
-      console.warn('Backend offline, aplicando fallback de simulación:', err);
-      const fallbackUser = {
-        id: 'EMP-' + Math.floor(1000 + Math.random() * 9000),
-        nombre: nombre.trim(),
-        correo: correo.trim().toLowerCase(),
-        telefono: telefono.trim(),
-        rol: 'Empleado',
-        empresa: 'Royal Canin'
-      };
-      try {
-        const registered = JSON.parse(localStorage.getItem('royal_registered_users') || '[]');
-        registered.push(fallbackUser);
-        localStorage.setItem('royal_registered_users', JSON.stringify(registered));
-        localStorage.setItem('royal_user', JSON.stringify(fallbackUser));
-      } catch (e) {}
-      setSuccessMsg('¡Bienvenido! Entrando como colaborador Royal Canin...');
-      setTimeout(() => {
-        onRegisterSuccess(fallbackUser, 'dummy_token_' + Date.now());
-      }, 900);
+      console.error('Error de red al registrar usuario:', err);
+      setErrorMsg('No se pudo conectar con el servidor. Por favor verifica tu conexión o intenta más tarde.');
     } finally {
       setLoading(false);
     }
@@ -405,6 +390,36 @@ export default function RegisterView({ onRegisterSuccess, onSwitchToLogin }) {
                   onChange={e => handleChange('correo', e.target.value)}
                   placeholder="empleado@royalcanin.com"
                   required
+                  style={{
+                    width: '100%',
+                    padding: '0.7rem 0.75rem 0.7rem 2.4rem',
+                    borderRadius: '10px',
+                    border: '1.5px solid #CBD5E1',
+                    fontSize: '0.85rem',
+                    outline: 'none',
+                    transition: 'all 0.2s ease',
+                    background: '#F8FAFC'
+                  }}
+                  onFocus={e => { e.target.style.borderColor = '#E2001A'; e.target.style.background = '#FFFFFF'; }}
+                  onBlur={e => { e.target.style.borderColor = '#CBD5E1'; e.target.style.background = '#F8FAFC'; }}
+                />
+              </div>
+            </div>
+
+            {/* Fila 2.5: Código de Invitación / Empresa (Opcional con correo corporativo) */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#334155' }}>
+                  Código de Empresa / Invitación <span style={{ color: '#64748B', fontWeight: '500', fontSize: '0.7rem' }}>(Opcional para correo corporativo)</span>
+                </label>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <Building2 size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
+                <input
+                  type="text"
+                  value={formData.codigoInvitacion}
+                  onChange={e => handleChange('codigoInvitacion', e.target.value)}
+                  placeholder="Ej. ROYAL2026 (solo si no usas @royalcanin.com)"
                   style={{
                     width: '100%',
                     padding: '0.7rem 0.75rem 0.7rem 2.4rem',
