@@ -19,7 +19,8 @@ import {
   Sparkles,
   Info,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  ShoppingCart
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import confetti from 'canvas-confetti';
@@ -111,6 +112,111 @@ export default function AdministracionView() {
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingResident, setEditingResident] = useState(null);
+
+  // ── Compras y Gastos ────────────────────────────────────────────────────────
+  const GASTOS_KEY = 'casanostra_gastos_v1';
+  const PRESUPUESTO_KEY = 'casanostra_presupuesto_v1';
+
+  const CATEGORIAS_GASTO = [
+    'Insumos Alimentarios',
+    'Lácteos y Proteínas',
+    'Frutas y Verduras',
+    'Granos y Abarrotes',
+    'Higiene y Limpieza',
+    'Servicios (Gas, Agua, Luz)',
+    'Equipamiento y Utensilios',
+    'Medicamentos y Suplementos',
+    'Otros'
+  ];
+
+  const MOCK_GASTOS = [
+    { id: 'G-001', concepto: 'Compra semanal de pollo y res', proveedor: 'Carnicería El Rancho', categoria: 'Insumos Alimentarios', monto: 2850.00, fecha: '2026-09-16', notas: '5 kg pollo pechuga, 3 kg res molida' },
+    { id: 'G-002', concepto: 'Frutas y verduras de temporada', proveedor: 'Mercado Juárez', categoria: 'Frutas y Verduras', monto: 1240.50, fecha: '2026-09-16', notas: 'Manzana, papaya, zanahoria, calabaza, espinaca' },
+    { id: 'G-003', concepto: 'Gas LP cocina', proveedor: 'Gas Express Norte', categoria: 'Servicios (Gas, Agua, Luz)', monto: 980.00, fecha: '2026-09-15', notas: 'Recarga tanque estacionario 200 lt' },
+    { id: 'G-004', concepto: 'Lácteos: leche, yogur, queso cottage', proveedor: 'Lala Distribuidora', categoria: 'Lácteos y Proteínas', monto: 760.00, fecha: '2026-09-14', notas: 'Leche deslactosada, yogur natural sin azúcar' },
+    { id: 'G-005', concepto: 'Abarrotes y granos (arroz, lenteja, frijol)', proveedor: 'Bodega Aurrerá', categoria: 'Granos y Abarrotes', monto: 640.00, fecha: '2026-09-13', notas: 'Arroz 5kg, lenteja 2kg, frijol bayo 3kg' },
+    { id: 'G-006', concepto: 'Desinfectante y cloro cocina', proveedor: 'Distribuidora Limpieza Total', categoria: 'Higiene y Limpieza', monto: 320.00, fecha: '2026-09-12', notas: '' },
+    { id: 'G-007', concepto: 'Suplemento proteico Ensure adulto mayor', proveedor: 'Farmacia del Ahorro', categoria: 'Medicamentos y Suplementos', monto: 1580.00, fecha: '2026-09-11', notas: '4 cajas para residentes con sarcopenia' },
+    { id: 'G-008', concepto: 'Pescado blanco (tilapia y merluza)', proveedor: 'Pescadería Mar Azul', categoria: 'Insumos Alimentarios', monto: 920.00, fecha: '2026-09-10', notas: 'Para menú del jueves y viernes' },
+    { id: 'G-009', concepto: 'Aceite vegetal y espesante alimentario', proveedor: 'Costco Mayoreo', categoria: 'Granos y Abarrotes', monto: 480.00, fecha: '2026-09-09', notas: 'Espesante nivel 3 para residentes con disfagia' },
+    { id: 'G-010', concepto: 'Mantenimiento horno industrial', proveedor: 'TecnoEquip MX', categoria: 'Equipamiento y Utensilios', monto: 1200.00, fecha: '2026-09-08', notas: 'Revisión preventiva trimestral' },
+  ];
+
+  const [gastos, setGastos] = useState(() => {
+    try {
+      const saved = localStorage.getItem(GASTOS_KEY);
+      return saved ? JSON.parse(saved) : MOCK_GASTOS;
+    } catch { return MOCK_GASTOS; }
+  });
+
+  const [presupuesto, setPresupuesto] = useState(() => {
+    try {
+      const saved = localStorage.getItem(PRESUPUESTO_KEY);
+      return saved ? parseFloat(saved) : 15000;
+    } catch { return 15000; }
+  });
+
+  const [isGastoModalOpen, setIsGastoModalOpen] = useState(false);
+  const [gastoForm, setGastoForm] = useState({
+    concepto: '', proveedor: '', categoria: 'Insumos Alimentarios',
+    monto: '', fecha: new Date().toISOString().slice(0, 10), notas: ''
+  });
+  const [gastoSearchTerm, setGastoSearchTerm] = useState('');
+  const [gastoCategoryFilter, setGastoCategoryFilter] = useState('Todas');
+
+  const saveGastos = (list) => {
+    setGastos(list);
+    localStorage.setItem(GASTOS_KEY, JSON.stringify(list));
+  };
+
+  const handleAddGasto = () => {
+    if (!gastoForm.concepto.trim() || !gastoForm.monto || parseFloat(gastoForm.monto) <= 0) return;
+    const newGasto = {
+      id: `G-${Date.now()}`,
+      ...gastoForm,
+      monto: parseFloat(gastoForm.monto),
+      fecha: gastoForm.fecha || new Date().toISOString().slice(0, 10)
+    };
+    saveGastos([newGasto, ...gastos]);
+    setGastoForm({ concepto: '', proveedor: '', categoria: 'Insumos Alimentarios', monto: '', fecha: new Date().toISOString().slice(0, 10), notas: '' });
+    setIsGastoModalOpen(false);
+  };
+
+  const handleDeleteGasto = (id) => {
+    if (!window.confirm('¿Eliminar este registro de gasto?')) return;
+    saveGastos(gastos.filter(g => g.id !== id));
+  };
+
+  const totalGastos = gastos.reduce((acc, g) => acc + g.monto, 0);
+  const gastosPorCategoria = CATEGORIAS_GASTO.map(cat => ({
+    nombre: cat,
+    total: gastos.filter(g => g.categoria === cat).reduce((a, g) => a + g.monto, 0)
+  })).filter(c => c.total > 0);
+
+  const filteredGastos = gastos.filter(g => {
+    const matchSearch = g.concepto.toLowerCase().includes(gastoSearchTerm.toLowerCase()) ||
+      g.proveedor?.toLowerCase().includes(gastoSearchTerm.toLowerCase());
+    const matchCat = gastoCategoryFilter === 'Todas' || g.categoria === gastoCategoryFilter;
+    return matchSearch && matchCat;
+  });
+
+  const exportGastosCSV = () => {
+    const headers = ['Fecha', 'Concepto', 'Proveedor', 'Categoría', 'Monto (MXN)', 'Notas'];
+    const rows = gastos.map(g => [
+      `"${g.fecha}"`, `"${g.concepto.replace(/"/g, '""')}"`,
+      `"${(g.proveedor || '').replace(/"/g, '""')}"`,
+      `"${g.categoria}"`, g.monto, `"${(g.notas || '').replace(/"/g, '""')}"`
+    ]);
+    rows.push(['"TOTAL"', '', '', '', totalGastos.toFixed(2), '']);
+    const csv = '\uFEFF' + [headers.map(h => `"${h}"`).join(','), ...rows.map(r => r.join(','))].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.setAttribute('download', `Casa_Nostra_Gastos_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  };
 
   // Form State para Nuevo / Editar
   const [formData, setFormData] = useState({
@@ -484,7 +590,7 @@ export default function AdministracionView() {
         gap: '0.5rem',
         overflowX: 'auto'
       }}>
-        {/* Pestaña 1: Residentes (Activa) */}
+        {/* Pestaña 1: Residentes */}
         <button
           onClick={() => setActiveAdminTab('residentes')}
           style={{
@@ -517,11 +623,36 @@ export default function AdministracionView() {
             {residents.length}
           </span>
         </button>
+
+        {/* Pestaña 2: Compras y Gastos */}
+        <button
+          onClick={() => setActiveAdminTab('compras')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.65rem 1.25rem',
+            borderRadius: '12px',
+            border: 'none',
+            background: activeAdminTab === 'compras' ? '#B45309' : 'transparent',
+            color: activeAdminTab === 'compras' ? '#FFFFFF' : '#64748B',
+            fontWeight: '700',
+            fontSize: '0.88rem',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: activeAdminTab === 'compras' ? '0 4px 12px rgba(180, 83, 9, 0.25)' : 'none',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <ShoppingCart size={18} />
+          <span>Compras y Gastos</span>
+        </button>
       </div>
 
       {/* ─────────────────────────────────────────────────────────── */}
       {/* 3. Barra de Acciones y Filtros de Residentes */}
       {/* ─────────────────────────────────────────────────────────── */}
+      {activeAdminTab === 'residentes' && (<>
       <div style={{
         background: '#FFFFFF',
         borderRadius: '16px',
@@ -812,9 +943,199 @@ export default function AdministracionView() {
           </div>
         </div>
       </div>
+      </>)}
 
       {/* ─────────────────────────────────────────────────────────── */}
-      {/* 5. Modal: + Nuevo Residente / Editar Residente              */}
+      {/* 5. Contenido: Compras y Gastos                              */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {activeAdminTab === 'compras' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+          {/* ── Barra de acciones ── */}
+          <div style={{ background: '#FFFFFF', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#1E293B', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <ShoppingCart size={20} color="#B45309" /> Libro de Compras y Gastos
+              </h3>
+              <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.82rem', color: '#64748B' }}>Registro operativo de compras, facturas e insumos de Casa Nostra.</p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+              <button onClick={exportGastosCSV} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1.5px solid #107C41', background: '#FFFFFF', color: '#107C41', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer' }}>
+                <Download size={15} /> Exportar CSV
+              </button>
+              <button onClick={() => setIsGastoModalOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1rem', borderRadius: '10px', border: 'none', background: '#B45309', color: '#FFFFFF', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(180,83,9,0.25)' }}>
+                <Plus size={15} /> Registrar Compra
+              </button>
+            </div>
+          </div>
+
+          {/* ── Tarjetas de resumen ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+            {/* Gasto total */}
+            <div style={{ background: '#FFFFFF', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+              <div style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: '600', marginBottom: '0.4rem' }}>GASTO TOTAL REGISTRADO</div>
+              <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#1E293B' }}>${totalGastos.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</div>
+              <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '0.2rem' }}>{gastos.length} registros</div>
+            </div>
+
+            {/* Presupuesto mensual */}
+            <div style={{ background: '#FFFFFF', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+              <div style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: '600', marginBottom: '0.4rem' }}>PRESUPUESTO MENSUAL</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.1rem', fontWeight: '700', color: '#94A3B8' }}>$</span>
+                <input
+                  type="number" min="0" value={presupuesto || ''}
+                  placeholder="0.00"
+                  onChange={e => { const v = parseFloat(e.target.value) || 0; setPresupuesto(v); localStorage.setItem(PRESUPUESTO_KEY, v); }}
+                  style={{ width: '100%', border: 'none', fontSize: '1.5rem', fontWeight: '800', color: '#1E293B', outline: 'none', background: 'transparent' }}
+                />
+              </div>
+              {presupuesto > 0 && (
+                <div style={{ marginTop: '0.6rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#64748B', marginBottom: '0.25rem' }}>
+                    <span>Utilizado</span>
+                    <span style={{ fontWeight: '700', color: totalGastos > presupuesto ? '#EF4444' : '#059669' }}>{Math.min(100, Math.round((totalGastos / presupuesto) * 100))}%</span>
+                  </div>
+                  <div style={{ height: '6px', background: '#F1F5F9', borderRadius: '99px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${Math.min(100, (totalGastos / presupuesto) * 100)}%`, background: totalGastos > presupuesto ? '#EF4444' : '#10B981', borderRadius: '99px', transition: 'width 0.4s ease' }} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Restante */}
+            <div style={{ background: presupuesto > 0 && totalGastos > presupuesto ? '#FEF2F2' : '#F0FDF4', borderRadius: '16px', border: `1px solid ${presupuesto > 0 && totalGastos > presupuesto ? '#FECACA' : '#BBF7D0'}`, padding: '1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+              <div style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: '600', marginBottom: '0.4rem' }}>DISPONIBLE</div>
+              <div style={{ fontSize: '1.8rem', fontWeight: '900', color: presupuesto > 0 && totalGastos > presupuesto ? '#EF4444' : '#059669' }}>
+                {presupuesto > 0 ? `$${Math.abs(presupuesto - totalGastos).toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : '—'}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '0.2rem' }}>
+                {presupuesto > 0 ? (totalGastos > presupuesto ? 'Presupuesto excedido' : 'Restante del mes') : 'Fija un presupuesto'}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Desglose por categoría ── */}
+          {gastosPorCategoria.length > 0 && (
+            <div style={{ background: '#FFFFFF', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+              <div style={{ fontWeight: '800', fontSize: '0.88rem', color: '#475569', marginBottom: '0.85rem' }}>DESGLOSE POR CATEGORÍA</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                {gastosPorCategoria.sort((a,b) => b.total - a.total).map(cat => (
+                  <div key={cat.nombre} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ fontSize: '0.82rem', color: '#475569', minWidth: '180px', flexShrink: 0 }}>{cat.nombre}</div>
+                    <div style={{ flex: 1, height: '8px', background: '#F1F5F9', borderRadius: '99px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${totalGastos > 0 ? (cat.total / totalGastos) * 100 : 0}%`, background: 'linear-gradient(90deg, #B45309, #D97706)', borderRadius: '99px' }} />
+                    </div>
+                    <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#1E293B', minWidth: '90px', textAlign: 'right' }}>${cat.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Filtros + Tabla historial ── */}
+          <div style={{ background: '#FFFFFF', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '180px', display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#F8FAFC', borderRadius: '10px', padding: '0.5rem 0.75rem', border: '1px solid #E2E8F0' }}>
+                <Search size={15} color="#94A3B8" />
+                <input value={gastoSearchTerm} onChange={e => setGastoSearchTerm(e.target.value)} placeholder="Buscar concepto o proveedor..." style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '0.85rem', color: '#1E293B', width: '100%' }} />
+              </div>
+              <select value={gastoCategoryFilter} onChange={e => setGastoCategoryFilter(e.target.value)} style={{ padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0', background: '#F8FAFC', fontSize: '0.82rem', color: '#475569', cursor: 'pointer' }}>
+                <option value="Todas">Todas las categorías</option>
+                {CATEGORIAS_GASTO.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+
+            {filteredGastos.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#94A3B8', fontSize: '0.88rem' }}>
+                {gastos.length === 0 ? 'Aún no hay compras registradas. Presiona «Registrar Compra» para comenzar.' : 'No hay resultados con ese filtro.'}
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
+                  <thead>
+                    <tr style={{ background: '#F8FAFC', color: '#475569' }}>
+                      {['Fecha', 'Concepto', 'Proveedor', 'Categoría', 'Monto', ''].map(h => (
+                        <th key={h} style={{ padding: '0.65rem 0.75rem', fontWeight: '700', textAlign: 'left', borderBottom: '1px solid #E2E8F0' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredGastos.map((g, i) => (
+                      <tr key={g.id} style={{ borderBottom: '1px solid #F1F5F9', background: i % 2 === 0 ? '#FFFFFF' : '#FAFAFA' }}>
+                        <td style={{ padding: '0.65rem 0.75rem', color: '#64748B', whiteSpace: 'nowrap' }}>{g.fecha}</td>
+                        <td style={{ padding: '0.65rem 0.75rem', fontWeight: '600', color: '#1E293B' }}>{g.concepto}</td>
+                        <td style={{ padding: '0.65rem 0.75rem', color: '#64748B' }}>{g.proveedor || '—'}</td>
+                        <td style={{ padding: '0.65rem 0.75rem' }}>
+                          <span style={{ background: '#FEF3C7', color: '#B45309', fontSize: '0.72rem', fontWeight: '700', padding: '0.15rem 0.5rem', borderRadius: '6px' }}>{g.categoria}</span>
+                        </td>
+                        <td style={{ padding: '0.65rem 0.75rem', fontWeight: '800', color: '#1E293B', whiteSpace: 'nowrap' }}>${g.monto.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                        <td style={{ padding: '0.65rem 0.75rem' }}>
+                          <button onClick={() => handleDeleteGasto(g.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: '0.2rem' }}>
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ background: '#FEF3C7' }}>
+                      <td colSpan={4} style={{ padding: '0.75rem', fontWeight: '800', color: '#B45309', fontSize: '0.85rem' }}>TOTAL FILTRADO</td>
+                      <td style={{ padding: '0.75rem', fontWeight: '900', color: '#B45309', fontSize: '0.92rem' }}>${filteredGastos.reduce((a, g) => a + g.monto, 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* ── Modal: Registrar Compra ── */}
+          {isGastoModalOpen && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+              <div style={{ background: '#FFFFFF', borderRadius: '20px', padding: '2rem', width: '100%', maxWidth: '480px', boxShadow: '0 25px 60px rgba(0,0,0,0.2)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#1E293B' }}>Registrar Compra / Gasto</h3>
+                  <button onClick={() => setIsGastoModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}><X size={20} /></button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {[{ label: 'Concepto *', key: 'concepto', type: 'text', placeholder: 'Ej. Compra de pollo, gas, etc.' },
+                    { label: 'Proveedor', key: 'proveedor', type: 'text', placeholder: 'Ej. Superama, Mercado Local' },
+                    { label: 'Monto (MXN) *', key: 'monto', type: 'number', placeholder: '0.00' },
+                    { label: 'Fecha *', key: 'fecha', type: 'date', placeholder: '' }].map(f => (
+                    <div key={f.key}>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#64748B', marginBottom: '0.35rem' }}>{f.label}</label>
+                      <input type={f.type} value={gastoForm[f.key]} placeholder={f.placeholder}
+                        onChange={e => setGastoForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                        style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '10px', border: '1.5px solid #E2E8F0', fontSize: '0.88rem', outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                  ))}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#64748B', marginBottom: '0.35rem' }}>Categoría</label>
+                    <select value={gastoForm.categoria} onChange={e => setGastoForm(prev => ({ ...prev, categoria: e.target.value }))}
+                      style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '10px', border: '1.5px solid #E2E8F0', fontSize: '0.88rem', background: '#FFFFFF', cursor: 'pointer' }}>
+                      {CATEGORIAS_GASTO.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#64748B', marginBottom: '0.35rem' }}>Notas</label>
+                    <textarea value={gastoForm.notas} placeholder="Observaciones adicionales..."
+                      onChange={e => setGastoForm(prev => ({ ...prev, notas: e.target.value }))}
+                      rows={2} style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '10px', border: '1.5px solid #E2E8F0', fontSize: '0.88rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                  <button onClick={handleAddGasto} disabled={!gastoForm.concepto.trim() || !gastoForm.monto}
+                    style={{ padding: '0.85rem', borderRadius: '12px', border: 'none', background: !gastoForm.concepto.trim() || !gastoForm.monto ? '#E2E8F0' : '#B45309', color: !gastoForm.concepto.trim() || !gastoForm.monto ? '#94A3B8' : '#FFFFFF', fontWeight: '800', fontSize: '0.92rem', cursor: !gastoForm.concepto.trim() || !gastoForm.monto ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
+                    Guardar Registro
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* 6. Modal: + Nuevo Residente / Editar Residente              */}
       {/* ─────────────────────────────────────────────────────────── */}
       {isNewModalOpen && (
         <div style={{
