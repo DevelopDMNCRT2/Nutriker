@@ -272,18 +272,24 @@ h1, h2, h3, h4, .font-heading {
     margin: 8mm 8mm;
   }
 
-  /* Ocultar todo el sitio web por defecto */
-  body * {
+  /* Ocultar elementos únicamente cuando se imprime el reporte clínico de Casa Nostra */
+  body.printing-casanostra-report * {
     visibility: hidden !important;
   }
 
   /* Ocultar elementos de UI, navegación, botones y barras fijas */
-  header, footer, nav, button, .no-print, [style*="position: fixed"], [style*="position:fixed"] {
+  body.printing-casanostra-report header,
+  body.printing-casanostra-report footer,
+  body.printing-casanostra-report nav,
+  body.printing-casanostra-report button,
+  body.printing-casanostra-report .no-print,
+  body.printing-casanostra-report [style*="position: fixed"],
+  body.printing-casanostra-report [style*="position:fixed"] {
     display: none !important;
   }
 
   /* Liberar márgenes y límites del contenedor principal */
-  main {
+  body.printing-casanostra-report main {
     max-width: 100% !important;
     width: 100% !important;
     margin: 0 !important;
@@ -291,12 +297,12 @@ h1, h2, h3, h4, .font-heading {
   }
 
   /* Hacer visible ÚNICAMENTE el contenedor de la tabla Excel de Casa Nostra */
-  #casanostra-printable-summary,
-  #casanostra-printable-summary * {
+  body.printing-casanostra-report #casanostra-printable-summary,
+  body.printing-casanostra-report #casanostra-printable-summary * {
     visibility: visible !important;
   }
 
-  #casanostra-printable-summary {
+  body.printing-casanostra-report #casanostra-printable-summary {
     position: static !important;
     display: block !important;
     width: 100% !important;
@@ -311,7 +317,7 @@ h1, h2, h3, h4, .font-heading {
   }
 
   /* Garantizar que la tabla se imprima nítida al 100% de la hoja horizontal */
-  .printable-table-wrapper {
+  body.printing-casanostra-report .printable-table-wrapper {
     overflow: visible !important;
     border: 1px solid #CBD5E1 !important;
     border-radius: 8px !important;
@@ -320,7 +326,7 @@ h1, h2, h3, h4, .font-heading {
     box-sizing: border-box !important;
   }
 
-  .printable-table-wrapper table {
+  body.printing-casanostra-report .printable-table-wrapper table {
     width: 100% !important;
     max-width: 100% !important;
     table-layout: fixed !important;

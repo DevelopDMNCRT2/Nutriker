@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   BarChart2, TrendingUp, ShoppingCart, Calendar, Info, Scale, 
@@ -9,12 +9,24 @@ import {
 import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
 import { scaleIngredients, extractMacroNumber } from '../utils/recipeScaler';
 import { programInfo, cyclicMenus } from '../data/mockData';
+import { 
+  UNIT_TYPES, 
+  getUnitMetadata, 
+  toBaseAmount, 
+  roundNumber, 
+  formatSupplyDisplay, 
+  calculateSupplyYield, 
+  extractDishNutritionSafe 
+} from '../utils/suppliesBalance';
+
+const EMPTY_DAYS = [];
 
 export default function StatsView({ selectedWeek }) {
   const [activeMenu, setActiveMenu] = useState(null);
   const [census, setCensus] = useState(() => {
     const saved = localStorage.getItem('casanostra_active_census');
-    return saved ? parseInt(saved, 10) : (programInfo.activeParticipantsCount || 25);
+    const parsed = parseInt(saved, 10);
+    return (!isNaN(parsed) && parsed > 0) ? parsed : (programInfo.activeParticipantsCount || 25);
   });
   
   // Tab activa: 'servings' | 'supplies' | 'nutrition'
@@ -32,13 +44,21 @@ export default function StatsView({ selectedWeek }) {
   const [modalSearchTerm, setModalSearchTerm] = useState('');
   const [supplyFilterStatus, setSupplyFilterStatus] = useState('all'); // 'all' | 'optimal' | 'warning' | 'alert'
   
-  // Notificación temporal
+  // Notificación temporal con cleanup seguro
   const [toastMessage, setToastMessage] = useState(null);
+  const toastTimeoutRef = useRef(null);
 
   const showToast = (msg) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 3500);
   };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
+  }, []);
 
   // Bloquear scroll de la página de fondo mientras el modal de insumos está abierto
   useEffect(() => {
@@ -58,17 +78,35 @@ export default function StatsView({ selectedWeek }) {
     localStorage.setItem('casanostra_active_census', String(num));
   };
 
+  // Inicializar raciones por defecto (80% Opción A y 20% Opción B sumando el censo)
+  const initDefaultServings = (daysList, censusCount) => {
+    const initial = {};
+    const c = Math.max(1, parseInt(censusCount, 10) || 25);
+    const optA = Math.round(c * 0.8);
+    const optB = Math.max(0, c - optA);
+
+    daysList.forEach(day => {
+      initial[day.dayName] = {
+        optionA: optA,
+        optionB: optB,
+        savedAt: new Date().toISOString()
+      };
+    });
+    return initial;
+  };
+
   // Cargar Menú y Persistencia al cambiar selectedWeek
   useEffect(() => {
     const targetInfo = getWeekInfoFromDate(new Date(2026, 0, 1 + (selectedWeek - 1) * 7));
     let menu = menuStore.getActiveMenu(targetInfo);
     
-    // Asegurar fallback sólido si el menú no tiene días
+    // Si la semana no tiene menú configurado en backend ni store, usar plantilla de ciclo con marca
     if (!menu || !menu.days || menu.days.length === 0) {
-      const fallback = cyclicMenus[1] || Object.values(cyclicMenus)[0];
+      const fallback = cyclicMenus[selectedWeek] || cyclicMenus[1];
       if (fallback) {
         menu = {
           ...fallback,
+          isTemplate: true,
           weekKey: targetInfo.weekKey,
           weekNumber: targetInfo.weekNumber,
           dateRange: targetInfo.dateRange,
@@ -107,24 +145,7 @@ export default function StatsView({ selectedWeek }) {
     }
   }, [selectedWeek]);
 
-  // Inicializar raciones por defecto (80% Opción A y 20% Opción B sumando el censo)
-  const initDefaultServings = (daysList, censusCount) => {
-    const initial = {};
-    const c = Math.max(1, parseInt(censusCount, 10) || 25);
-    const optA = Math.round(c * 0.8);
-    const optB = Math.max(0, c - optA);
-
-    daysList.forEach(day => {
-      initial[day.dayName] = {
-        optionA: optA,
-        optionB: optB,
-        savedAt: new Date().toISOString()
-      };
-    });
-    return initial;
-  };
-
-  const days = activeMenu?.days || [];
+  const days = useMemo(() => activeMenu?.days || EMPTY_DAYS, [activeMenu]);
 
   // Actualizar raciones de un día y opción
   const handleServingChange = (dayName, optionKey, delta) => {
@@ -148,7 +169,10 @@ export default function StatsView({ selectedWeek }) {
   const handleServingDirectInput = (dayName, optionKey, value) => {
     const num = Math.max(0, parseInt(value, 10) || 0);
     setServingsByDay(prev => {
-      const current = prev[dayName] || { optionA: 20, optionB: 5 };
+      const c = Math.max(1, census || 25);
+      const defaultA = Math.round(c * 0.8);
+      const defaultB = Math.max(0, c - defaultA);
+      const current = prev[dayName] || { optionA: defaultA, optionB: defaultB };
       const updated = {
         ...prev,
         [dayName]: {
@@ -193,28 +217,26 @@ export default function StatsView({ selectedWeek }) {
     });
   };
 
-  // Helper de nutrición por platillo
+  // Helper de nutrición segura por platillo (sin inventar datos con ??)
   const getDishNutrition = (dish) => {
-    if (!dish) return { calories: 0, protein: 0, carbs: 0, fats: 0, sodium: 0 };
-    const nut = dish.recipe?.nutrition || dish.nutrition || {};
-    return {
-      calories: extractMacroNumber(nut.calories ?? dish.calories ?? 380),
-      protein: extractMacroNumber(nut.protein ?? dish.protein ?? dish.proteinas_g ?? 30),
-      carbs: extractMacroNumber(nut.carbs ?? dish.carbs ?? dish.carbohidratos_g ?? 42),
-      fats: extractMacroNumber(nut.fats ?? dish.fats ?? dish.grasas_g ?? 12),
-      sodium: extractMacroNumber(nut.sodium ?? dish.sodium ?? 420)
-    };
+    return extractDishNutritionSafe(dish);
   };
 
   // Helper para extraer lista limpia de ingredientes de un platillo para 1 porción
   const getDishIngredientsBase = (dish) => {
     if (!dish || !dish.recipe || !dish.recipe.ingredients) return [];
     const scaled = scaleIngredients(dish.recipe.ingredients, 1);
-    return scaled.map(item => ({
-      name: (item.name || item.raw || 'Insumo').trim(),
-      amountBase: item.amountBase ?? (item.amountScaled || 0),
-      unitBase: item.unitBase || item.unitScaled || 'g'
-    }));
+    return scaled.map(item => {
+      const meta = getUnitMetadata(item.unitBase || item.unitScaled);
+      const name = (item.name || item.raw || 'Insumo').trim();
+      const amount = item.amountBase ?? (item.amountScaled || 0);
+      return {
+        name,
+        amountBase: amount,
+        unitBase: item.unitBase || item.unitScaled || meta.standardUnit,
+        unitMeta: meta
+      };
+    });
   };
 
   // =========================================================================
@@ -226,24 +248,32 @@ export default function StatsView({ selectedWeek }) {
     let totalServingsA = 0;
     let totalServingsB = 0;
 
-    // Acumuladores de nutrientes ponderados consumidos
+    // Acumuladores de nutrientes ponderados consumidos (solo de días con datos reales)
     let sumCaloriesConsumed = 0;
+    let countCalServings = 0;
     let sumProteinConsumed = 0;
+    let countProtServings = 0;
     let sumCarbsConsumed = 0;
+    let countCarbServings = 0;
     let sumFatsConsumed = 0;
+    let countFatServings = 0;
     let sumSodiumConsumed = 0;
+    let countSodiumServings = 0;
 
     // Desglose nutricional por día
     const dailyNutritionSummary = [];
 
     // Demanda de ingredientes por insumo
-    // key: nombre normalizado -> { name, unit, requiredAmount, daysCount }
+    // key: nombre|tipoUnidad -> { key, name, unitType, baseUnit, standardUnit, requiredBase, dishSources }
     const suppliesMap = {};
 
     days.forEach(day => {
+      const c = Math.max(1, census || 25);
+      const defaultA = Math.round(c * 0.8);
+      const defaultB = Math.max(0, c - defaultA);
       const dayServing = servingsByDay[day.dayName] || { 
-        optionA: Math.round(census * 0.8), 
-        optionB: Math.round(census * 0.2) 
+        optionA: defaultA, 
+        optionB: defaultB 
       };
       const servA = Number(dayServing.optionA) || 0;
       const servB = Number(dayServing.optionB) || 0;
@@ -253,25 +283,76 @@ export default function StatsView({ selectedWeek }) {
       totalServingsA += servA;
       totalServingsB += servB;
 
-      // Nutrición de platillos
+      // Nutrición de platillos segura (sin inventar datos con ??)
       const nutA = getDishNutrition(day.optionA);
       const nutB = getDishNutrition(day.optionB);
 
-      // Totales del día producidos y consumidos
-      const dayCal = (nutA.calories * servA) + (nutB.calories * servB);
-      const dayProt = (nutA.protein * servA) + (nutB.protein * servB);
-      const dayCarbs = (nutA.carbs * servA) + (nutB.carbs * servB);
-      const dayFats = (nutA.fats * servA) + (nutB.fats * servB);
-      const daySod = (nutA.sodium * servA) + (nutB.sodium * servB);
+      const hasCal = nutA.calories !== null || nutB.calories !== null;
+      const dayCal = hasCal ? (((nutA.calories || 0) * servA) + ((nutB.calories || 0) * servB)) : null;
 
-      sumCaloriesConsumed += dayCal;
-      sumProteinConsumed += dayProt;
-      sumCarbsConsumed += dayCarbs;
-      sumFatsConsumed += dayFats;
-      sumSodiumConsumed += daySod;
+      const hasProt = nutA.protein !== null || nutB.protein !== null;
+      const dayProt = hasProt ? (((nutA.protein || 0) * servA) + ((nutB.protein || 0) * servB)) : null;
 
-      // Promedios por residente comensal en este día
+      const hasCarbs = nutA.carbs !== null || nutB.carbs !== null;
+      const dayCarbs = hasCarbs ? (((nutA.carbs || 0) * servA) + ((nutB.carbs || 0) * servB)) : null;
+
+      const hasFats = nutA.fats !== null || nutB.fats !== null;
+      const dayFats = hasFats ? (((nutA.fats || 0) * servA) + ((nutB.fats || 0) * servB)) : null;
+
+      // El sodio solo se evalúa si los platillos servidos cuentan con el dato (no inventar 420mg)
+      const hasSodium = (nutA.sodium !== null || servA === 0) && (nutB.sodium !== null || servB === 0) && (nutA.sodium !== null || nutB.sodium !== null);
+      const daySod = hasSodium ? (((nutA.sodium || 0) * servA) + ((nutB.sodium || 0) * servB)) : null;
+
       const avgFactor = totalDayServings > 0 ? totalDayServings : 1;
+
+      const avgCaloriesPerResident = dayCal !== null ? Math.round(dayCal / avgFactor) : null;
+      const avgProteinPerResident = dayProt !== null ? roundNumber(dayProt / avgFactor, 1) : null;
+      const avgCarbsPerResident = dayCarbs !== null ? roundNumber(dayCarbs / avgFactor, 1) : null;
+      const avgFatsPerResident = dayFats !== null ? roundNumber(dayFats / avgFactor, 1) : null;
+      const avgSodiumPerResident = daySod !== null ? Math.round(daySod / avgFactor) : null;
+
+      if (avgCaloriesPerResident !== null) {
+        sumCaloriesConsumed += dayCal;
+        countCalServings += totalDayServings;
+      }
+      if (avgProteinPerResident !== null) {
+        sumProteinConsumed += dayProt;
+        countProtServings += totalDayServings;
+      }
+      if (avgCarbsPerResident !== null) {
+        sumCarbsConsumed += dayCarbs;
+        countCarbServings += totalDayServings;
+      }
+      if (avgFatsPerResident !== null) {
+        sumFatsConsumed += dayFats;
+        countFatServings += totalDayServings;
+      }
+      if (avgSodiumPerResident !== null) {
+        sumSodiumConsumed += daySod;
+        countSodiumServings += totalDayServings;
+      }
+
+      // Evaluación geriátrica rigurosa
+      const isSarcopeniaSafe = avgProteinPerResident !== null ? (avgProteinPerResident >= 28) : null;
+      const isHyposodicSafe = avgSodiumPerResident !== null ? (avgSodiumPerResident <= 500) : null;
+
+      let complianceStatus = 'nodata'; // 'safe' | 'fail' | 'nodata'
+      let complianceLabel = 'Sin dato';
+
+      if (isSarcopeniaSafe === false || isHyposodicSafe === false) {
+        complianceStatus = 'fail';
+        complianceLabel = 'No cumple';
+      } else if (isSarcopeniaSafe === true && isHyposodicSafe === true) {
+        complianceStatus = 'safe';
+        complianceLabel = '✓ Protegido';
+      } else if (isSarcopeniaSafe === true && isHyposodicSafe === null) {
+        complianceStatus = 'partial_safe';
+        complianceLabel = 'Proteína OK (Sodio N/D)';
+      } else {
+        complianceStatus = 'nodata';
+        complianceLabel = 'Sin dato';
+      }
+
       dailyNutritionSummary.push({
         dayName: day.dayName,
         dateLabel: day.dateLabel || day.dateInfo,
@@ -280,30 +361,37 @@ export default function StatsView({ selectedWeek }) {
         dishB: day.optionB?.name || 'Opción B',
         servingsB: servB,
         totalDayServings,
-        avgCaloriesPerResident: Math.round(dayCal / avgFactor),
-        avgProteinPerResident: Math.round((dayProt / avgFactor) * 10) / 10,
-        avgCarbsPerResident: Math.round((dayCarbs / avgFactor) * 10) / 10,
-        avgFatsPerResident: Math.round((dayFats / avgFactor) * 10) / 10,
-        avgSodiumPerResident: Math.round(daySod / avgFactor),
-        // Evaluación geriátrica
-        isSarcopeniaSafe: (dayProt / avgFactor) >= 28, // Meta geriátrica >= 28-30g proteína/comida
-        isHyposodicSafe: (daySod / avgFactor) <= 500  // Meta geriátrica hiposódica <= 500mg/comida
+        avgCaloriesPerResident,
+        avgProteinPerResident,
+        avgCarbsPerResident,
+        avgFatsPerResident,
+        avgSodiumPerResident,
+        isSarcopeniaSafe,
+        isHyposodicSafe,
+        complianceStatus,
+        complianceLabel
       });
 
-      // Cálculo de Insumos según raciones reales servidas
+      // Cálculo de Insumos según raciones reales servidas con normalización de unidades
       if (servA > 0) {
         const ingsA = getDishIngredientsBase(day.optionA);
         ingsA.forEach(ing => {
-          const key = ing.name.toLowerCase();
+          const typeKey = ing.unitMeta.type === UNIT_TYPES.OTHER ? ing.unitMeta.standardUnit : ing.unitMeta.type;
+          const key = `${ing.name.toLowerCase()}|${typeKey}`;
+          const amountInBase = toBaseAmount(ing.amountBase, ing.unitBase) * servA;
+
           if (!suppliesMap[key]) {
             suppliesMap[key] = {
+              key,
               name: ing.name,
-              unit: ing.unitBase,
-              requiredAmount: 0,
+              unitType: ing.unitMeta.type,
+              baseUnit: ing.unitMeta.baseUnit,
+              standardUnit: ing.unitMeta.standardUnit,
+              requiredBase: 0,
               dishSources: []
             };
           }
-          suppliesMap[key].requiredAmount += (ing.amountBase * servA);
+          suppliesMap[key].requiredBase += amountInBase;
           if (!suppliesMap[key].dishSources.includes(day.optionA?.name)) {
             suppliesMap[key].dishSources.push(day.optionA?.name);
           }
@@ -313,16 +401,22 @@ export default function StatsView({ selectedWeek }) {
       if (servB > 0) {
         const ingsB = getDishIngredientsBase(day.optionB);
         ingsB.forEach(ing => {
-          const key = ing.name.toLowerCase();
+          const typeKey = ing.unitMeta.type === UNIT_TYPES.OTHER ? ing.unitMeta.standardUnit : ing.unitMeta.type;
+          const key = `${ing.name.toLowerCase()}|${typeKey}`;
+          const amountInBase = toBaseAmount(ing.amountBase, ing.unitBase) * servB;
+
           if (!suppliesMap[key]) {
             suppliesMap[key] = {
+              key,
               name: ing.name,
-              unit: ing.unitBase,
-              requiredAmount: 0,
+              unitType: ing.unitMeta.type,
+              baseUnit: ing.unitMeta.baseUnit,
+              standardUnit: ing.unitMeta.standardUnit,
+              requiredBase: 0,
               dishSources: []
             };
           }
-          suppliesMap[key].requiredAmount += (ing.amountBase * servB);
+          suppliesMap[key].requiredBase += amountInBase;
           if (!suppliesMap[key].dishSources.includes(day.optionB?.name)) {
             suppliesMap[key].dishSources.push(day.optionB?.name);
           }
@@ -330,57 +424,42 @@ export default function StatsView({ selectedWeek }) {
       }
     });
 
-    // Formatear Lista de Insumos y Balance de Aprovechamiento
+    // Formatear Lista de Insumos y Balance de Aprovechamiento con helper unificado
     const suppliesList = Object.values(suppliesMap).map(item => {
-      const key = item.name.toLowerCase();
-      const purchasedRecord = purchasedSupplies[key];
-      const purchasedAmount = purchasedRecord?.amount !== undefined ? Number(purchasedRecord.amount) : null;
+      // Formato homogéneo para la cantidad requerida
+      const reqDisplay = formatSupplyDisplay(item.requiredBase, item.unitType, item.standardUnit);
+
+      // Compras capturadas (clave exacta o fallback de nombre)
+      const purchasedRecord = purchasedSupplies[item.key] || purchasedSupplies[item.name.toLowerCase()];
+      const purchasedAmountRaw = purchasedRecord?.amount !== undefined && purchasedRecord?.amount !== null && purchasedRecord?.amount !== ''
+        ? Number(purchasedRecord.amount)
+        : null;
       
-      let yieldPercent = null;
-      let wasteAmount = null;
-      let status = 'pending'; // 'pending' | 'optimal' | 'warning' | 'alert'
-      let statusLabel = 'Sin Capturar';
+      const purchasedBase = purchasedAmountRaw !== null
+        ? toBaseAmount(purchasedAmountRaw, reqDisplay.unit)
+        : null;
 
-      if (purchasedAmount !== null && purchasedAmount > 0) {
-        // Aprovechamiento (%) = (Requerido / Comprado) * 100
-        yieldPercent = Math.round((item.requiredAmount / purchasedAmount) * 100);
-        wasteAmount = Math.round((purchasedAmount - item.requiredAmount) * 10) / 10;
-
-        if (yieldPercent >= 85 && yieldPercent <= 98) {
-          status = 'optimal';
-          statusLabel = 'Óptimo (85-98%)';
-        } else if ((yieldPercent >= 70 && yieldPercent < 85) || (yieldPercent > 98 && yieldPercent <= 105)) {
-          status = 'warning';
-          statusLabel = yieldPercent > 98 ? 'Inventario Justo' : 'Merma Moderada';
-        } else {
-          status = 'alert';
-          statusLabel = yieldPercent < 70 ? 'Merma Alta (>30%)' : 'Posible Subcompra';
-        }
-      }
-
-      // Convertir gramos a kg si es mayor a 1000g para lectura cómoda
-      let displayRequired = item.requiredAmount;
-      let displayPurchased = purchasedAmount;
-      let displayUnit = item.unit;
-
-      if (['g', 'gr', 'gramos'].includes(item.unit.toLowerCase()) && item.requiredAmount >= 1000) {
-        displayRequired = Math.round((item.requiredAmount / 1000) * 10) / 10;
-        displayPurchased = purchasedAmount !== null ? Math.round((purchasedAmount / 1000) * 10) / 10 : null;
-        displayUnit = 'kg';
-      }
+      const purDisplay = formatSupplyDisplay(purchasedBase, item.unitType, reqDisplay.unit);
+      const yieldCalc = calculateSupplyYield(item.requiredBase, purchasedBase);
+      const wasteDisplay = formatSupplyDisplay(yieldCalc.wasteBase, item.unitType, reqDisplay.unit);
 
       return {
         ...item,
-        purchasedAmount,
-        displayRequired,
-        displayPurchased,
-        displayUnit,
-        yieldPercent,
-        wasteAmount,
-        status,
-        statusLabel
+        purchasedAmountRaw,
+        purchasedBase,
+        displayRequired: reqDisplay.amount,
+        displayPurchased: purDisplay.amount,
+        displayWaste: wasteDisplay.amount,
+        displayUnit: reqDisplay.unit,
+        formattedRequired: reqDisplay.formattedText,
+        formattedPurchased: purDisplay.formattedText,
+        formattedWaste: wasteDisplay.formattedText,
+        yieldPercent: yieldCalc.yieldPercent,
+        wasteAmount: yieldCalc.wasteBase !== null ? roundNumber(yieldCalc.wasteBase, 1) : null,
+        status: yieldCalc.status,
+        statusLabel: yieldCalc.statusLabel
       };
-    }).sort((a, b) => b.requiredAmount - a.requiredAmount);
+    }).sort((a, b) => b.requiredBase - a.requiredBase);
 
     // Métricas Globales de Aprovechamiento
     const capturedSupplies = suppliesList.filter(s => s.yieldPercent !== null);
@@ -392,15 +471,34 @@ export default function StatsView({ selectedWeek }) {
     const warningCount = suppliesList.filter(s => s.status === 'warning').length;
     const alertCount = suppliesList.filter(s => s.status === 'alert').length;
 
-    // Promedios semanales globales por residente
-    const totalResidentDays = totalServingsWeek > 0 ? totalServingsWeek : 1;
+    // Promedios semanales globales por residente (solo de días con información válida)
     const weeklyAvgPerResident = {
-      calories: Math.round(sumCaloriesConsumed / totalResidentDays),
-      protein: Math.round((sumProteinConsumed / totalResidentDays) * 10) / 10,
-      carbs: Math.round((sumCarbsConsumed / totalResidentDays) * 10) / 10,
-      fats: Math.round((sumFatsConsumed / totalResidentDays) * 10) / 10,
-      sodium: Math.round(sumSodiumConsumed / totalResidentDays),
+      calories: countCalServings > 0 ? Math.round(sumCaloriesConsumed / countCalServings) : null,
+      protein: countProtServings > 0 ? roundNumber(sumProteinConsumed / countProtServings, 1) : null,
+      carbs: countCarbServings > 0 ? roundNumber(sumCarbsConsumed / countCarbServings, 1) : null,
+      fats: countFatServings > 0 ? roundNumber(sumFatsConsumed / countFatServings, 1) : null,
+      sodium: countSodiumServings > 0 ? Math.round(sumSodiumConsumed / countSodiumServings) : null,
     };
+
+    // Certificación general semanal
+    let weeklyComplianceStatus = 'nodata';
+    let weeklyComplianceLabel = 'Sin datos';
+
+    const evaluatedDays = dailyNutritionSummary.filter(d => d.complianceStatus !== 'nodata');
+    if (evaluatedDays.length > 0) {
+      const anyFailed = evaluatedDays.some(d => d.complianceStatus === 'fail');
+      const allPassed = evaluatedDays.every(d => d.complianceStatus === 'safe');
+      if (anyFailed) {
+        weeklyComplianceStatus = 'fail';
+        weeklyComplianceLabel = 'No cumple';
+      } else if (allPassed && evaluatedDays.length === days.length) {
+        weeklyComplianceStatus = 'safe';
+        weeklyComplianceLabel = 'Protocolo Cumplido';
+      } else {
+        weeklyComplianceStatus = 'partial';
+        weeklyComplianceLabel = 'Parcial (Faltan datos)';
+      }
+    }
 
     return {
       totalServingsWeek,
@@ -417,22 +515,23 @@ export default function StatsView({ selectedWeek }) {
       warningCount,
       alertCount,
       weeklyAvgPerResident,
-      sumCaloriesConsumed: Math.round(sumCaloriesConsumed),
-      sumProteinConsumed: Math.round(sumProteinConsumed),
-      sumCarbsConsumed: Math.round(sumCarbsConsumed),
-      sumFatsConsumed: Math.round(sumFatsConsumed),
-      sumSodiumConsumed: Math.round(sumSodiumConsumed)
+      weeklyComplianceStatus,
+      weeklyComplianceLabel,
+      sumCaloriesConsumed: sumCaloriesConsumed > 0 ? Math.round(sumCaloriesConsumed) : null,
+      sumProteinConsumed: sumProteinConsumed > 0 ? roundNumber(sumProteinConsumed, 1) : null,
+      sumCarbsConsumed: sumCarbsConsumed > 0 ? roundNumber(sumCarbsConsumed, 1) : null,
+      sumFatsConsumed: sumFatsConsumed > 0 ? roundNumber(sumFatsConsumed, 1) : null,
+      sumSodiumConsumed: sumSodiumConsumed > 0 ? Math.round(sumSodiumConsumed) : null
     };
   }, [days, servingsByDay, census, purchasedSupplies]);
 
-  // Manejador para guardar compras capturadas en el modal
-  const handleSavePurchaseItem = (itemName, amountVal) => {
-    const key = itemName.toLowerCase();
+  // Manejador para guardar compras capturadas en el modal con clave estable
+  const handleSavePurchaseItem = (itemKey, amountVal) => {
     const num = amountVal === '' ? null : Math.max(0, parseFloat(amountVal) || 0);
     setPurchasedSupplies(prev => {
       const updated = {
         ...prev,
-        [key]: {
+        [itemKey]: {
           amount: num,
           updatedAt: new Date().toISOString()
         }
@@ -442,15 +541,13 @@ export default function StatsView({ selectedWeek }) {
     });
   };
 
-  // Autocompletar compras con 10% de merma estándar para pruebas inmediatas
+  // Autocompletar compras con 10% de merma estándar usando la unidad visual del usuario
   const handleAutocompletePurchases = () => {
     const auto = {};
     computedData.suppliesList.forEach(item => {
-      const key = item.name.toLowerCase();
-      // Margen culinario estándar entre 1.08 y 1.12 (+10% promedio de compra para mermas de corte/cocción)
       const factor = 1.10;
-      const estimatedPurchase = Math.round(item.requiredAmount * factor);
-      auto[key] = {
+      const estimatedPurchase = roundNumber((item.displayRequired || 0) * factor, 2);
+      auto[item.key] = {
         amount: estimatedPurchase,
         updatedAt: new Date().toISOString()
       };
@@ -478,6 +575,18 @@ export default function StatsView({ selectedWeek }) {
     item.name.toLowerCase().includes(modalSearchTerm.toLowerCase())
   );
 
+  // Manejo de impresión acotada únicamente a esta vista para no afectar al resto de la aplicación
+  const handlePrint = () => {
+    document.body.classList.add('printing-casanostra-report');
+    const cleanup = () => {
+      document.body.classList.remove('printing-casanostra-report');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    window.print();
+    setTimeout(cleanup, 2500);
+  };
+
   // Exportar Reporte Estructurado y Compacto en Formato CSV (.csv) con soporte UTF-8 BOM
   const exportToCSV = () => {
     try {
@@ -501,12 +610,12 @@ export default function StatsView({ selectedWeek }) {
           `"${dishAText.replace(/"/g, '""')}"`,
           `"${dishBText.replace(/"/g, '""')}"`,
           item.totalDayServings,
-          item.avgCaloriesPerResident,
-          item.avgProteinPerResident,
-          item.avgCarbsPerResident,
-          item.avgFatsPerResident,
-          item.avgSodiumPerResident,
-          `"${item.isSarcopeniaSafe && item.isHyposodicSafe ? '✓ Protegido' : 'En rango'}"`
+          item.avgCaloriesPerResident !== null ? item.avgCaloriesPerResident : 'N/D',
+          item.avgProteinPerResident !== null ? item.avgProteinPerResident : 'N/D',
+          item.avgCarbsPerResident !== null ? item.avgCarbsPerResident : 'N/D',
+          item.avgFatsPerResident !== null ? item.avgFatsPerResident : 'N/D',
+          item.avgSodiumPerResident !== null ? item.avgSodiumPerResident : 'N/D',
+          `"${item.complianceLabel}"`
         ];
         csvLines.push(row.join(','));
       });
@@ -518,12 +627,12 @@ export default function StatsView({ selectedWeek }) {
         `"A: ${Math.round(computedData.totalServingsA / (computedData.dailyNutritionSummary.length || 7))} rac"`,
         `"B: ${Math.round(computedData.totalServingsB / (computedData.dailyNutritionSummary.length || 7))} rac"`,
         census,
-        computedData.weeklyAvgPerResident.calories,
-        computedData.weeklyAvgPerResident.protein,
-        computedData.weeklyAvgPerResident.carbs,
-        computedData.weeklyAvgPerResident.fats,
-        computedData.weeklyAvgPerResident.sodium,
-        '"Protocolo Cumplido"'
+        computedData.weeklyAvgPerResident.calories !== null ? computedData.weeklyAvgPerResident.calories : 'N/D',
+        computedData.weeklyAvgPerResident.protein !== null ? computedData.weeklyAvgPerResident.protein : 'N/D',
+        computedData.weeklyAvgPerResident.carbs !== null ? computedData.weeklyAvgPerResident.carbs : 'N/D',
+        computedData.weeklyAvgPerResident.fats !== null ? computedData.weeklyAvgPerResident.fats : 'N/D',
+        computedData.weeklyAvgPerResident.sodium !== null ? computedData.weeklyAvgPerResident.sodium : 'N/D',
+        `"${computedData.weeklyComplianceLabel}"`
       ];
       csvLines.push(avgRow.join(','));
 
@@ -534,11 +643,11 @@ export default function StatsView({ selectedWeek }) {
         `"${computedData.totalServingsA} raciones"`,
         `"${computedData.totalServingsB} raciones"`,
         computedData.totalServingsWeek,
-        computedData.sumCaloriesConsumed || 0,
-        computedData.sumProteinConsumed || 0,
-        computedData.sumCarbsConsumed || 0,
-        computedData.sumFatsConsumed || 0,
-        computedData.sumSodiumConsumed || 0,
+        computedData.sumCaloriesConsumed !== null ? computedData.sumCaloriesConsumed : 'N/D',
+        computedData.sumProteinConsumed !== null ? computedData.sumProteinConsumed : 'N/D',
+        computedData.sumCarbsConsumed !== null ? computedData.sumCarbsConsumed : 'N/D',
+        computedData.sumFatsConsumed !== null ? computedData.sumFatsConsumed : 'N/D',
+        computedData.sumSodiumConsumed !== null ? computedData.sumSodiumConsumed : 'N/D',
         '"Servicio Completo"'
       ];
       csvLines.push(totalRow.join(','));
@@ -1307,8 +1416,8 @@ export default function StatsView({ selectedWeek }) {
                       </td>
                     </tr>
                   ) : (
-                    filteredSupplies.map((item, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #F1F5F9', background: i % 2 === 0 ? '#FFFFFF' : '#FAFAFA' }}>
+                    filteredSupplies.map((item) => (
+                      <tr key={item.key || item.name} style={{ borderBottom: '1px solid #F1F5F9', background: '#FFFFFF' }}>
                         <td style={{ padding: '0.75rem 1rem' }}>
                           <div style={{ fontWeight: '700', color: '#1E293B' }}>{item.name}</div>
                           <div style={{ fontSize: '0.72rem', color: '#64748B' }}>
@@ -1317,12 +1426,12 @@ export default function StatsView({ selectedWeek }) {
                           </div>
                         </td>
                         <td style={{ padding: '0.75rem 1rem', fontWeight: '700', color: '#1E293B' }}>
-                          {item.displayRequired.toLocaleString()} {item.displayUnit}
+                          {item.formattedRequired}
                         </td>
                         <td style={{ padding: '0.75rem 1rem' }}>
-                          {item.displayPurchased !== null ? (
+                          {item.purchasedBase !== null ? (
                             <span style={{ fontWeight: '700', color: '#065F46' }}>
-                              {item.displayPurchased.toLocaleString()} {item.displayUnit}
+                              {item.formattedPurchased}
                             </span>
                           ) : (
                             <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>Sin capturar</span>
@@ -1347,9 +1456,9 @@ export default function StatsView({ selectedWeek }) {
                           )}
                         </td>
                         <td style={{ padding: '0.75rem 1rem' }}>
-                          {item.wasteAmount !== null ? (
-                            <span style={{ fontSize: '0.8rem', color: item.wasteAmount >= 0 ? '#64748B' : '#EF4444' }}>
-                              {item.wasteAmount > 0 ? `+${item.wasteAmount} ${item.unit} merma` : (item.wasteAmount === 0 ? '0 merma' : `${item.wasteAmount} ${item.unit} faltante`)}
+                          {item.displayWaste !== null ? (
+                            <span style={{ fontSize: '0.8rem', color: item.displayWaste >= 0 ? '#64748B' : '#EF4444' }}>
+                              {item.displayWaste > 0 ? `+${item.formattedWaste} merma` : (item.displayWaste === 0 ? '0 merma' : `${item.formattedWaste} faltante`)}
                             </span>
                           ) : (
                             <span style={{ color: '#94A3B8' }}>---</span>
@@ -1461,7 +1570,7 @@ export default function StatsView({ selectedWeek }) {
 
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={handlePrint}
                   style={{
                     background: '#B45309',
                     border: 'none',
@@ -1483,6 +1592,27 @@ export default function StatsView({ selectedWeek }) {
               </div>
             </div>
 
+            {/* Aviso si se muestra plantilla de referencia sin menú oficial */}
+            {activeMenu?.isTemplate && (
+              <div style={{
+                background: '#FFFBEB',
+                border: '1px solid #FDE68A',
+                borderRadius: '12px',
+                padding: '0.75rem 1rem',
+                marginBottom: '1.25rem',
+                fontSize: '0.82rem',
+                color: '#92400E',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <Info size={16} color="#B45309" />
+                <span>
+                  <strong>Plantilla de referencia:</strong> La Semana {selectedWeek} aún no tiene un menú oficial programado en el sistema. Los platillos y cálculos corresponden al ciclo base referencial.
+                </span>
+              </div>
+            )}
+
             {/* Tarjetas de Metas Geriátricas (Visibles en pantalla, ocultas al imprimir para que el PDF sea 100% tabular) */}
             <div className="printable-cards-grid no-print" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
               
@@ -1496,12 +1626,16 @@ export default function StatsView({ selectedWeek }) {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
                   <span style={{ fontSize: '1.85rem', fontWeight: '900', color: '#78350F' }}>
-                    {computedData.weeklyAvgPerResident.protein}g
+                    {computedData.weeklyAvgPerResident.protein !== null ? `${computedData.weeklyAvgPerResident.protein}g` : 'N/D'}
                   </span>
                   <span style={{ fontSize: '0.85rem', color: '#B45309' }}>por residente / comida</span>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#065F46', fontWeight: '700', marginTop: '0.4rem' }}>
-                  ✓ Meta cumplida (&ge; 28g). Aporte suficiente para síntesis muscular geriátrica.
+                <div style={{ fontSize: '0.75rem', color: computedData.weeklyAvgPerResident.protein >= 28 ? '#065F46' : '#92400E', fontWeight: '700', marginTop: '0.4rem' }}>
+                  {computedData.weeklyAvgPerResident.protein === null
+                    ? 'Sin datos de proteína suficientes para evaluar la semana.'
+                    : computedData.weeklyAvgPerResident.protein >= 28
+                      ? '✓ Meta cumplida (≥ 28g). Aporte suficiente para síntesis muscular geriátrica.'
+                      : '⚠️ Por debajo de la meta geriátrica (< 28g). Requiere ajuste proteico.'}
                 </div>
               </div>
 
@@ -1515,12 +1649,16 @@ export default function StatsView({ selectedWeek }) {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
                   <span style={{ fontSize: '1.85rem', fontWeight: '900', color: '#065F46' }}>
-                    {computedData.weeklyAvgPerResident.sodium}mg
+                    {computedData.weeklyAvgPerResident.sodium !== null ? `${computedData.weeklyAvgPerResident.sodium}mg` : 'N/D'}
                   </span>
                   <span style={{ fontSize: '0.85rem', color: '#047857' }}>por ración servida</span>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#065F46', fontWeight: '700', marginTop: '0.4rem' }}>
-                  ✓ Nivel controlado (&le; 500mg). Seguro para pacientes con hipertensión.
+                <div style={{ fontSize: '0.75rem', color: (computedData.weeklyAvgPerResident.sodium !== null && computedData.weeklyAvgPerResident.sodium <= 500) ? '#065F46' : '#92400E', fontWeight: '700', marginTop: '0.4rem' }}>
+                  {computedData.weeklyAvgPerResident.sodium === null
+                    ? 'Sin datos de sodio registrados en los platillos de este ciclo.'
+                    : computedData.weeklyAvgPerResident.sodium <= 500
+                      ? '✓ Nivel controlado (≤ 500mg). Seguro para pacientes con hipertensión.'
+                      : '⚠️ Excede límite hiposódico (> 500mg). Supervisar condimentos.'}
                 </div>
               </div>
 
@@ -1534,12 +1672,14 @@ export default function StatsView({ selectedWeek }) {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
                   <span style={{ fontSize: '1.85rem', fontWeight: '900', color: '#1E40AF' }}>
-                    {computedData.weeklyAvgPerResident.calories}
+                    {computedData.weeklyAvgPerResident.calories !== null ? computedData.weeklyAvgPerResident.calories : 'N/D'}
                   </span>
                   <span style={{ fontSize: '0.85rem', color: '#1D4ED8' }}>kcal / comida principal</span>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#1E40AF', fontWeight: '700', marginTop: '0.4rem' }}>
-                  ✓ Cubre el 35% del VET diario en adultos mayores (1,800-2,000 kcal).
+                  {computedData.weeklyAvgPerResident.calories !== null
+                    ? '✓ Cubre aproximadamente el 35% del VET diario en adultos mayores (1,800-2,000 kcal).'
+                    : 'Sin datos calóricos registrados en el menú activo.'}
                 </div>
               </div>
 
@@ -1554,7 +1694,7 @@ export default function StatsView({ selectedWeek }) {
                   <col style={{ width: '7%' }} />  {/* Raciones */}
                   <col style={{ width: '9%' }} />  {/* Calorías */}
                   <col style={{ width: '9%' }} />  {/* Proteína */}
-                  <col style={{ width: '9%' }} />  {/* Carbs */}
+                  <col style={{ width: '9%' }} />  {/* Carbos */}
                   <col style={{ width: '8%' }} />  {/* Grasas */}
                   <col style={{ width: '8%' }} />  {/* Sodio */}
                   <col style={{ width: '8%' }} />  {/* Validación */}
@@ -1591,19 +1731,19 @@ export default function StatsView({ selectedWeek }) {
                         {item.totalDayServings}
                       </td>
                       <td style={{ padding: '0.65rem 0.4rem', fontWeight: '700', color: '#1E293B' }}>
-                        {item.avgCaloriesPerResident}
+                        {item.avgCaloriesPerResident !== null ? `${item.avgCaloriesPerResident} kcal` : 'N/D'}
                       </td>
                       <td style={{ padding: '0.65rem 0.4rem', fontWeight: '800', color: '#B45309' }}>
-                        {item.avgProteinPerResident}g
+                        {item.avgProteinPerResident !== null ? `${item.avgProteinPerResident}g` : 'N/D'}
                       </td>
                       <td style={{ padding: '0.65rem 0.4rem', color: '#475569' }}>
-                        {item.avgCarbsPerResident}g
+                        {item.avgCarbsPerResident !== null ? `${item.avgCarbsPerResident}g` : 'N/D'}
                       </td>
                       <td style={{ padding: '0.65rem 0.4rem', color: '#475569' }}>
-                        {item.avgFatsPerResident}g
+                        {item.avgFatsPerResident !== null ? `${item.avgFatsPerResident}g` : 'N/D'}
                       </td>
                       <td style={{ padding: '0.65rem 0.4rem', color: '#475569' }}>
-                        {item.avgSodiumPerResident}mg
+                        {item.avgSodiumPerResident !== null ? `${item.avgSodiumPerResident}mg` : 'N/D'}
                       </td>
                       <td style={{ padding: '0.65rem 0.4rem', textAlign: 'center' }}>
                         <span style={{
@@ -1612,10 +1752,11 @@ export default function StatsView({ selectedWeek }) {
                           fontSize: '0.7rem',
                           fontWeight: '800',
                           display: 'inline-block',
-                          background: item.isSarcopeniaSafe && item.isHyposodicSafe ? '#ECFDF5' : '#FEF3C7',
-                          color: item.isSarcopeniaSafe && item.isHyposodicSafe ? '#065F46' : '#92400E'
+                          background: item.complianceStatus === 'safe' ? '#ECFDF5' : (item.complianceStatus === 'fail' ? '#FEF2F2' : (item.complianceStatus === 'partial_safe' ? '#EFF6FF' : '#F1F5F9')),
+                          color: item.complianceStatus === 'safe' ? '#065F46' : (item.complianceStatus === 'fail' ? '#991B1B' : (item.complianceStatus === 'partial_safe' ? '#1E40AF' : '#64748B')),
+                          border: item.complianceStatus === 'fail' ? '1px solid #FECACA' : 'none'
                         }}>
-                          {item.isSarcopeniaSafe && item.isHyposodicSafe ? '✓ Protegido' : 'En rango'}
+                          {item.complianceLabel}
                         </span>
                       </td>
                     </tr>
@@ -1627,29 +1768,35 @@ export default function StatsView({ selectedWeek }) {
                       PROMEDIO DIARIO POR RESIDENTE
                     </td>
                     <td style={{ padding: '0.75rem 0.4rem', color: '#1E293B', fontSize: '0.85rem' }}>
-                      {computedData.weeklyAvgPerResident.calories} kcal
+                      {computedData.weeklyAvgPerResident.calories !== null ? `${computedData.weeklyAvgPerResident.calories} kcal` : 'N/D'}
                     </td>
                     <td style={{ padding: '0.75rem 0.4rem', color: '#B45309', fontSize: '0.85rem' }}>
-                      {computedData.weeklyAvgPerResident.protein}g
+                      {computedData.weeklyAvgPerResident.protein !== null ? `${computedData.weeklyAvgPerResident.protein}g` : 'N/D'}
                     </td>
                     <td style={{ padding: '0.75rem 0.4rem', color: '#475569', fontSize: '0.85rem' }}>
-                      {computedData.weeklyAvgPerResident.carbs}g
+                      {computedData.weeklyAvgPerResident.carbs !== null ? `${computedData.weeklyAvgPerResident.carbs}g` : 'N/D'}
                     </td>
                     <td style={{ padding: '0.75rem 0.4rem', color: '#475569', fontSize: '0.85rem' }}>
-                      {computedData.weeklyAvgPerResident.fats}g
+                      {computedData.weeklyAvgPerResident.fats !== null ? `${computedData.weeklyAvgPerResident.fats}g` : 'N/D'}
                     </td>
                     <td style={{ padding: '0.75rem 0.4rem', color: '#475569', fontSize: '0.85rem' }}>
-                      {computedData.weeklyAvgPerResident.sodium}mg
+                      {computedData.weeklyAvgPerResident.sodium !== null ? `${computedData.weeklyAvgPerResident.sodium}mg` : 'N/D'}
                     </td>
                     <td style={{ padding: '0.75rem 0.4rem', textAlign: 'center' }}>
-                      <span style={{ background: '#10B981', color: 'white', padding: '0.2rem 0.45rem', borderRadius: '6px', fontSize: '0.7rem' }}>
-                        Certificado
+                      <span style={{
+                        background: computedData.weeklyComplianceStatus === 'safe' ? '#10B981' : (computedData.weeklyComplianceStatus === 'fail' ? '#EF4444' : '#64748B'),
+                        color: 'white',
+                        padding: '0.2rem 0.45rem',
+                        borderRadius: '6px',
+                        fontSize: '0.7rem'
+                      }}>
+                        {computedData.weeklyComplianceLabel}
                       </span>
                     </td>
                   </tr>
                   <tr style={{ background: '#FFFFFF', color: '#64748B', fontSize: '0.78rem' }}>
                     <td colSpan="9" style={{ padding: '0.65rem 0.5rem' }}>
-                      <strong>Acumulado Total de Cocina:</strong> {(computedData.sumCaloriesConsumed || 0).toLocaleString()} kcal y {(computedData.sumProteinConsumed || 0).toLocaleString()}g de proteína producidos en el servicio semanal.
+                      <strong>Acumulado Total de Cocina:</strong> {computedData.sumCaloriesConsumed !== null ? `${computedData.sumCaloriesConsumed.toLocaleString()} kcal` : 'N/D'} y {computedData.sumProteinConsumed !== null ? `${computedData.sumProteinConsumed.toLocaleString()}g de proteína` : 'N/D'} producidos en el servicio semanal.
                     </td>
                   </tr>
                 </tfoot>
@@ -1845,13 +1992,12 @@ export default function StatsView({ selectedWeek }) {
                     No se encontró ningún insumo con "{modalSearchTerm}".
                   </div>
                 ) : (
-                  modalFilteredSupplies.map((item, i) => {
-                  const key = item.name.toLowerCase();
-                  const currentPurchased = purchasedSupplies[key]?.amount ?? '';
+                  modalFilteredSupplies.map((item) => {
+                  const currentPurchased = purchasedSupplies[item.key]?.amount ?? (purchasedSupplies[item.name.toLowerCase()]?.amount ?? '');
 
                   return (
                     <div 
-                      key={i}
+                      key={item.key || item.name}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -1866,16 +2012,16 @@ export default function StatsView({ selectedWeek }) {
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: '700', color: '#1E293B', fontSize: '0.88rem' }}>{item.name}</div>
                         <div style={{ fontSize: '0.75rem', color: '#64748B' }}>
-                          Demanda Teórica: <strong>{item.requiredAmount.toLocaleString()} {item.unit}</strong>
+                          Demanda Teórica: <strong>{item.formattedRequired}</strong>
                         </div>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <input 
                           type="number"
-                          placeholder={String(Math.round(item.requiredAmount * 1.1))}
+                          placeholder={String(roundNumber((item.displayRequired || 0) * 1.1, 2))}
                           value={currentPurchased}
-                          onChange={(e) => handleSavePurchaseItem(item.name, e.target.value)}
+                          onChange={(e) => handleSavePurchaseItem(item.key, e.target.value)}
                           style={{
                             width: '100px',
                             padding: '0.45rem',
@@ -1890,7 +2036,7 @@ export default function StatsView({ selectedWeek }) {
                           step="any"
                         />
                         <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569', minWidth: '35px' }}>
-                          {item.unit}
+                          {item.displayUnit}
                         </span>
                       </div>
                     </div>
