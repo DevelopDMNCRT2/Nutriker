@@ -1,10 +1,10 @@
 // menuStore.js - Servicio sincronizado para Menús B2B Royal Canin con Selector por Calendario
 import { cyclicMenus } from '../data/mockData';
 
-const MENU_STORAGE_PREFIX = 'royal_canin_menu_';
-const ORDERS_STORAGE_PREFIX = 'royal_canin_orders_';
-const LEGACY_MENU_KEY = 'casa_nostra_active_menu';
-const LEGACY_ORDERS_KEY = 'casa_nostra_employee_orders';
+const MENU_STORAGE_PREFIX = 'casanostra_menu_v2_';
+const ORDERS_STORAGE_PREFIX = 'casanostra_orders_v2_';
+const LEGACY_MENU_KEY = 'casa_nostra_active_menu_v2';
+const LEGACY_ORDERS_KEY = 'casa_nostra_employee_orders_v2';
 
 const isLocalhost = typeof window !== 'undefined' && 
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
@@ -142,7 +142,7 @@ export const menuStore = {
     }
     if (!this._syncMenuCache) this._syncMenuCache = {};
 
-    this._syncMenuCache[cacheKey] = fetch(`${API_BASE_URL}/api/royal/menu/actual?semana=${weekInfo.weekKey}&empresa=Royal%20Canin`)
+    this._syncMenuCache[cacheKey] = fetch(`${API_BASE_URL}/api/royal/menu/actual?semana=${weekInfo.weekKey}&empresa=Casa%20Nostra`)
       .then(res => (res.ok ? res.json() : null))
       .then(data => {
         if (data && data.isPublished && Array.isArray(data.days) && data.days.length > 0) {
@@ -198,7 +198,7 @@ export const menuStore = {
     }
     if (!this._syncOrdersCache) this._syncOrdersCache = {};
 
-    this._syncOrdersCache[cacheKey] = fetch(`${API_BASE_URL}/api/royal/pedidos/${weekInfo.weekKey}?empresa=Royal%20Canin`)
+    this._syncOrdersCache[cacheKey] = fetch(`${API_BASE_URL}/api/royal/pedidos/${weekInfo.weekKey}?empresa=Casa%20Nostra`)
       .then(res => (res.ok ? res.json() : null))
       .then(data => {
         if (data && data.orders && Object.keys(data.orders).length > 0) {
@@ -254,10 +254,12 @@ export const menuStore = {
 
     // Únicamente la Semana 1 inicial cuenta con menú pre-cargado para la operación activa.
     if (weekInfo.weekNumber === 1 || weekInfo.weekKey === '2026-08-10') {
-      const initialWeek = cyclicMenus[0];
-      const initialDays = (initialWeek.days || []).map(day => ({
+      const initialWeek = Array.isArray(cyclicMenus)
+        ? (cyclicMenus[0] || cyclicMenus[1])
+        : (cyclicMenus[1] || Object.values(cyclicMenus)[0] || {});
+      const initialDays = ((initialWeek && initialWeek.days) || []).map(day => ({
         ...day,
-        dateLabel: weekInfo.dayDates[day.dayName] || day.dateLabel
+        dateLabel: (weekInfo.dayDates && weekInfo.dayDates[day.dayName]) || day.dateLabel || day.dateInfo
       }));
 
       return {
@@ -406,7 +408,7 @@ export const menuStore = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        empresa: 'Royal Canin',
+        empresa: 'Casa Nostra',
         weekKey: activeMenu.weekKey,
         weekNumber: activeMenu.weekNumber,
         daysPerWeek: activeMenu.daysPerWeek,
@@ -479,7 +481,7 @@ export const menuStore = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        empresa: 'Royal Canin',
+        empresa: 'Casa Nostra',
         usuarioId: employeeId,
         empleadoNombre: orderData.employeeName || orderData.nombre || undefined,
         empleadoEmail: orderData.employeeEmail || orderData.email || undefined,
@@ -594,7 +596,7 @@ export const menuStore = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        empresa: 'Royal Canin',
+        empresa: 'Casa Nostra',
         weekKey: activeMenu.weekKey,
         weekNumber: activeMenu.weekNumber,
         daysPerWeek: activeMenu.daysPerWeek,

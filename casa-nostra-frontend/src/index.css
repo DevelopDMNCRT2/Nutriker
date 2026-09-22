@@ -198,7 +198,7 @@ h1, h2, h3, h4, .font-heading {
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
 }
 
 /* Scrollbar */
@@ -262,3 +262,113 @@ h1, h2, h3, h4, .font-heading {
   border-radius: 12px 12px 12px 2px;
   align-self: flex-start;
 }
+
+/* ========================================================================= */
+/* REGLAS DE IMPRESIÓN Y EXPORTACIÓN CLÍNICA (CASA NOSTRA - EXCEL EN PDF)   */
+/* ========================================================================= */
+@media print {
+  @page {
+    size: landscape;
+    margin: 8mm 8mm;
+  }
+
+  /* Ocultar todo el sitio web por defecto */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Ocultar elementos de UI, navegación, botones y barras fijas */
+  header, footer, nav, button, .no-print, [style*="position: fixed"], [style*="position:fixed"] {
+    display: none !important;
+  }
+
+  /* Liberar márgenes y límites del contenedor principal */
+  main {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hacer visible ÚNICAMENTE el contenedor de la tabla Excel de Casa Nostra */
+  #casanostra-printable-summary,
+  #casanostra-printable-summary * {
+    visibility: visible !important;
+  }
+
+  #casanostra-printable-summary {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+  }
+
+  /* Garantizar que la tabla se imprima nítida al 100% de la hoja horizontal */
+  .printable-table-wrapper {
+    overflow: visible !important;
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .printable-table-wrapper table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    font-size: 7.5pt !important;
+    line-height: 1.25 !important;
+  }
+
+  .printable-table-wrapper th,
+  .printable-table-wrapper td {
+    padding: 5px 4px !important;
+    border: 1px solid #CBD5E1 !important;
+    word-break: break-word !important;
+    white-space: normal !important;
+    vertical-align: middle !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Mostrar elementos exclusivos para impresión */
+  .print-only {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  .print-only * {
+    visibility: visible !important;
+  }
+
+  /* Asegurar fidelidad de colores y fondos en PDF y papel */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  table {
+    page-break-inside: auto !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+}
+
+/* En pantalla normal, los elementos print-only no deben mostrarse */
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
+

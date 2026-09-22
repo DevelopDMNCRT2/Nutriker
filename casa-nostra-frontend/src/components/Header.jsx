@@ -1,5 +1,5 @@
 import React from 'react';
-import { Salad, Calendar, UtensilsCrossed, ShieldCheck, Building2, User, KeyRound, ChefHat, HeartPulse, Sparkles } from 'lucide-react';
+import { Salad, Calendar, UtensilsCrossed, ShieldCheck, Building2, User, KeyRound, ChefHat, HeartPulse, Sparkles, BarChart2 } from 'lucide-react';
 import { getActiveServiceProfile } from '../data/mockData';
 
 export default function Header({
@@ -93,8 +93,8 @@ export default function Header({
             <button type="button" onClick={() => setCurrentView('chef')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', borderRadius: '8px', border: 'none', background: currentView === 'chef' ? '#FFFFFF' : 'transparent', color: currentView === 'chef' ? 'var(--green-dark)' : '#64748B', fontWeight: currentView === 'chef' ? '800' : '600', fontSize: '0.78rem', cursor: 'pointer' }}>
               <ChefHat size={14} /> Chef
             </button>
-            <button type="button" onClick={() => setCurrentView('participant')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', borderRadius: '8px', border: 'none', background: currentView === 'participant' ? '#FFFFFF' : 'transparent', color: currentView === 'participant' ? 'var(--primary)' : '#64748B', fontWeight: currentView === 'participant' ? '800' : '600', fontSize: '0.78rem', cursor: 'pointer' }}>
-              <User size={14} /> Empleado
+            <button type="button" onClick={() => setCurrentView('participant')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', borderRadius: '8px', border: 'none', background: currentView === 'participant' ? '#FFFFFF' : 'transparent', color: currentView === 'participant' ? '#B45309' : '#64748B', fontWeight: currentView === 'participant' ? '800' : '600', fontSize: '0.78rem', cursor: 'pointer' }}>
+              <BarChart2 size={14} /> Reportes y Compras
             </button>
           </div>
         )}
