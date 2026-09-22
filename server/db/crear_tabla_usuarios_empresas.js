@@ -12,6 +12,7 @@ async function migrateUsuariosEmpresas() {
         empresa VARCHAR(100) NOT NULL,
         nombre VARCHAR(150) NOT NULL,
         correo VARCHAR(150) NOT NULL,
+        telefono VARCHAR(30),
         contrasena VARCHAR(255) NOT NULL,
         rol VARCHAR(50) NOT NULL CHECK (rol IN ('Chef', 'Empleado')),
         activo BOOLEAN DEFAULT TRUE,
@@ -20,6 +21,8 @@ async function migrateUsuariosEmpresas() {
         deleted_at TIMESTAMP WITH TIME ZONE,
         CONSTRAINT uq_empresa_correo UNIQUE (empresa, correo)
       );
+
+      ALTER TABLE usuarios_empresas ADD COLUMN IF NOT EXISTS telefono VARCHAR(30);
 
       CREATE INDEX IF NOT EXISTS idx_usuarios_empresas_empresa ON usuarios_empresas(empresa);
       CREATE INDEX IF NOT EXISTS idx_usuarios_empresas_correo ON usuarios_empresas(correo);
