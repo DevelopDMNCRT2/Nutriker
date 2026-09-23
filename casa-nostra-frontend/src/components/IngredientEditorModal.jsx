@@ -144,7 +144,7 @@ export default function IngredientEditorModal({
               </h3>
             </div>
             <p style={{ fontSize: '0.8rem', color: '#94A3B8', margin: 0 }}>
-              {dayName} • {roleTitle} • Royal Canin B2B
+              {dayName} • {roleTitle} • Casa Nostra
             </p>
           </div>
 

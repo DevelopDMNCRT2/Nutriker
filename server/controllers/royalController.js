@@ -173,7 +173,9 @@ export async function guardarMenuSemana(req, res) {
       'Martes': 1,
       'Miércoles': 2,
       'Jueves': 3,
-      'Viernes': 4
+      'Viernes': 4,
+      'Sábado': 5,
+      'Domingo': 6
     }
 
     for (const d of days) {

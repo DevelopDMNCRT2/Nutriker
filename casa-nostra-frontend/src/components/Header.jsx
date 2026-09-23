@@ -9,6 +9,7 @@ export default function Header({
   setSelectedWeek,
   currentUser,
   isAdmin,
+  isSuperAdmin,
   onOpenLogin,
   onLogout,
   serviceProfileKey = 'casa_nostra',
@@ -17,10 +18,18 @@ export default function Header({
   const activeProfile = getActiveServiceProfile(serviceProfileKey);
 
   const getRoleBadge = () => {
-    if (currentView === 'administracion') return { label: 'Administración', color: '#B45309', bg: '#FEF3C7' };
-    if (isAdmin) return { label: 'Administrador', color: '#7C3AED', bg: '#F5F3FF' };
-    if (currentView === 'chef') return { label: 'Cocina', color: 'var(--green-dark)', bg: 'var(--green-light)' };
-    if (currentView === 'nutriologa') return { label: 'Nutrióloga', color: '#2563EB', bg: '#EFF6FF' };
+    if (isSuperAdmin || currentUser?.rol === 'SuperAdmin' || currentUser?.rol === 'Super Administrador') {
+      return { label: 'Super Admin', color: '#7C3AED', bg: '#F5F3FF' };
+    }
+    if (currentUser?.rol === 'Admin' || currentUser?.rol === 'Administrador') {
+      return { label: 'Administración', color: '#EA580C', bg: '#FFF7ED' };
+    }
+    if (currentUser?.rol === 'Chef' || currentView === 'chef') {
+      return { label: 'Chef / Cocina', color: 'var(--green-dark)', bg: 'var(--green-light)' };
+    }
+    if (currentUser?.rol === 'Nutriologa' || currentView === 'nutriologa') {
+      return { label: 'Nutrióloga', color: '#2563EB', bg: '#EFF6FF' };
+    }
     return {
       label: activeProfile.recipientRole,
       color: activeProfile.id === 'senior_care' ? '#0891B2' : 'var(--primary)',
@@ -85,8 +94,8 @@ export default function Header({
           </div>
         </div>
 
-        {/* Service Model Switcher (Nutrióloga, Chef, Residentes, Reportes y Compras) */}
-        {isAdmin && (
+        {/* Service Model Switcher (Solo disponible para Super Administrador) */}
+        {isSuperAdmin && (
           <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', padding: '3px', borderRadius: '10px', border: '1px solid #CBD5E1', gap: '3px', marginRight: '0.5rem' }}>
             <button type="button" onClick={() => setCurrentView('nutriologa')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', borderRadius: '8px', border: 'none', background: currentView === 'nutriologa' ? '#FFFFFF' : 'transparent', color: currentView === 'nutriologa' ? '#2563EB' : '#64748B', fontWeight: currentView === 'nutriologa' ? '800' : '600', fontSize: '0.78rem', cursor: 'pointer' }}>
               <HeartPulse size={14} /> Nutrióloga
@@ -94,11 +103,8 @@ export default function Header({
             <button type="button" onClick={() => setCurrentView('chef')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', borderRadius: '8px', border: 'none', background: currentView === 'chef' ? '#FFFFFF' : 'transparent', color: currentView === 'chef' ? 'var(--green-dark)' : '#64748B', fontWeight: currentView === 'chef' ? '800' : '600', fontSize: '0.78rem', cursor: 'pointer' }}>
               <ChefHat size={14} /> Chef
             </button>
-            <button type="button" onClick={() => setCurrentView('administracion')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', borderRadius: '8px', border: 'none', background: currentView === 'administracion' ? '#FFFFFF' : 'transparent', color: currentView === 'administracion' ? '#B45309' : '#64748B', fontWeight: currentView === 'administracion' ? '800' : '600', fontSize: '0.78rem', cursor: 'pointer' }}>
-              <Users size={14} /> Residentes
-            </button>
-            <button type="button" onClick={() => setCurrentView('participant')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', borderRadius: '8px', border: 'none', background: currentView === 'participant' ? '#FFFFFF' : 'transparent', color: currentView === 'participant' ? '#059669' : '#64748B', fontWeight: currentView === 'participant' ? '800' : '600', fontSize: '0.78rem', cursor: 'pointer' }}>
-              <BarChart2 size={14} /> Reportes y Compras
+            <button type="button" onClick={() => setCurrentView('participant')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', borderRadius: '8px', border: 'none', background: (currentView === 'participant' || currentView === 'administracion') ? '#FFFFFF' : 'transparent', color: (currentView === 'participant' || currentView === 'administracion') ? '#059669' : '#64748B', fontWeight: (currentView === 'participant' || currentView === 'administracion') ? '800' : '600', fontSize: '0.78rem', cursor: 'pointer' }}>
+              <BarChart2 size={14} /> Administración y Reportes
             </button>
           </div>
         )}

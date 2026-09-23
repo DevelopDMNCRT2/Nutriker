@@ -75,7 +75,9 @@ export function getWeekInfoFromDate(inputDate) {
     Martes: `${new Date(monday.getTime() + 1 * 86400000).getDate()} de ${MONTH_NAMES[new Date(monday.getTime() + 1 * 86400000).getMonth()]}, ${new Date(monday.getTime() + 1 * 86400000).getFullYear()}`,
     Miércoles: `${new Date(monday.getTime() + 2 * 86400000).getDate()} de ${MONTH_NAMES[new Date(monday.getTime() + 2 * 86400000).getMonth()]}, ${new Date(monday.getTime() + 2 * 86400000).getFullYear()}`,
     Jueves: `${new Date(monday.getTime() + 3 * 86400000).getDate()} de ${MONTH_NAMES[new Date(monday.getTime() + 3 * 86400000).getMonth()]}, ${new Date(monday.getTime() + 3 * 86400000).getFullYear()}`,
-    Viernes: `${friDay} de ${friMonth}, ${friday.getFullYear()}`
+    Viernes: `${friDay} de ${friMonth}, ${friday.getFullYear()}`,
+    Sábado: `${new Date(monday.getTime() + 5 * 86400000).getDate()} de ${MONTH_NAMES[new Date(monday.getTime() + 5 * 86400000).getMonth()]}, ${new Date(monday.getTime() + 5 * 86400000).getFullYear()}`,
+    Domingo: `${new Date(monday.getTime() + 6 * 86400000).getDate()} de ${MONTH_NAMES[new Date(monday.getTime() + 6 * 86400000).getMonth()]}, ${new Date(monday.getTime() + 6 * 86400000).getFullYear()}`
   };
 
   return {
@@ -285,37 +287,6 @@ export const menuStore = {
       console.error(`Error reading active menu for week ${weekInfo.weekKey}:`, e);
     }
 
-    // Únicamente la Semana 1 inicial cuenta con menú pre-cargado para la operación activa.
-    if (weekInfo.weekNumber === 1 || weekInfo.weekKey === '2026-08-10') {
-      const initialWeek = Array.isArray(cyclicMenus)
-        ? (cyclicMenus[0] || cyclicMenus[1])
-        : (cyclicMenus[1] || Object.values(cyclicMenus)[0] || {});
-      const initialDays = ((initialWeek && initialWeek.days) || []).map(day => ({
-        ...day,
-        dateLabel: (weekInfo.dayDates && weekInfo.dayDates[day.dayName]) || day.dateLabel || day.dateInfo
-      }));
-
-      return {
-        weekKey: weekInfo.weekKey,
-        weekNumber: weekInfo.weekNumber,
-        dateRange: weekInfo.dateRange,
-        title: weekInfo.title,
-        daysPerWeek: '3',
-        dietOptionA: 'Balance Proteico',
-        dietOptionB: 'Plant-Based & Digestión Ligera',
-        publishedAt: '2026-08-10T08:00:00.000Z',
-        isPublished: true,
-        humanVerification: {
-          isVerified: true,
-          verifiedBy: 'Nutrióloga Karla',
-          role: 'Nutrióloga Clínica & Responsable del Programa',
-          verifiedAt: '2026-08-10T08:00:00.000Z',
-          certificationStatement: 'Menú y fichas técnicas auditadas y certificadas manualmente por especialista humano',
-          notes: 'Revisión clínica completa: aporte calórico < 520 kcal y rotación de alérgenos validada.'
-        },
-        days: initialDays
-      };
-    }
 
     // Para cualquier otra semana del calendario que aún no ha sido programada por la doctora:
     return {
@@ -334,23 +305,28 @@ export const menuStore = {
   },
 
   // Publicar menú desde la Nutrióloga para cualquier semana seleccionada
-  publishMenu({ weekInput = 1, week = 1, daysPerWeek, dietOptionA, dietOptionB, dishSelection, humanVerification }) {
+  publishMenu({ weekInput = 1, week = 1, daysPerWeek, dietOptionA, dietOptionB, dishSelection, humanVerification, daysList }) {
     const weekInfo = this.normalizeWeek(weekInput || week);
-    const ALL_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+    const ALL_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
     const numDays = parseInt(daysPerWeek, 10) || 3;
     let dayNames = [];
 
-    if (numDays === 5) {
-      dayNames = ALL_DAYS;
+    if (Array.isArray(daysList) && daysList.length > 0) {
+      dayNames = daysList;
     } else if (numDays === 3) {
       dayNames = ['Lunes', 'Miércoles', 'Viernes'];
     } else if (numDays === 2) {
-      dayNames = ['Lunes', 'Miércoles']; // Lunes y Miércoles explícito
+      dayNames = ['Lunes', 'Miércoles'];
     } else if (numDays === 1) {
       dayNames = ['Lunes'];
-    } else if (numDays === 4) {
-      dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves'];
-    } else {
+    } else if (dishSelection && typeof dishSelection === 'object') {
+      const selectedKeys = Object.keys(dishSelection);
+      // Mantener los días seleccionados en el orden natural del calendario
+      const filtered = ALL_DAYS.filter(d => selectedKeys.includes(d));
+      dayNames = filtered.slice(0, numDays);
+    }
+
+    if (dayNames.length === 0) {
       dayNames = ALL_DAYS.slice(0, numDays);
     }
 

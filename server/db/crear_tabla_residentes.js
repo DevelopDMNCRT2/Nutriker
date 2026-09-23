@@ -9,7 +9,7 @@ async function crearTablaResidentes() {
     // 1. Crear Tabla Residentes aislada e independiente
     await client.query(`
       CREATE TABLE IF NOT EXISTS residentes (
-        id VARCHAR(20) PRIMARY KEY,
+        id VARCHAR(64) PRIMARY KEY,
         centro_residencia VARCHAR(100) NOT NULL DEFAULT 'Casa Nostra',
         nombre VARCHAR(150) NOT NULL,
         edad INTEGER,
@@ -21,6 +21,7 @@ async function crearTablaResidentes() {
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
+      ALTER TABLE residentes ALTER COLUMN id TYPE VARCHAR(64);
     `)
     console.log('✅ Tabla "residentes" creada o verificada exitosamente.')
 

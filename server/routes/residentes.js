@@ -7,8 +7,12 @@ import {
   deleteResidente,
   importarResidentes
 } from '../controllers/residentesController.js'
+import { verificarToken } from '../middleware/authMiddleware.js'
 
 const router = Router()
+
+// Proteger todas las operaciones sobre residentes con autenticación
+router.use(verificarToken)
 
 // Rutas de censo e importación
 router.get('/', getResidentes)

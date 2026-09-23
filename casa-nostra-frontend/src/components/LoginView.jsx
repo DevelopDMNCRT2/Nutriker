@@ -27,8 +27,11 @@ export default function LoginView({ onLoginSuccess }) {
         const roleMap = {
           'Nutriologa': 'nutriologa',
           'Chef': 'chef',
-          'Empleado': 'participant',
-          'Administrador': 'nutriologa'
+          'Admin': 'participant',
+          'Administrador': 'participant',
+          'SuperAdmin': 'nutriologa',
+          'Super Administrador': 'nutriologa',
+          'Empleado': 'participant'
         };
         const mappedRole = roleMap[data.usuario?.rol] || 'participant';
         onLoginSuccess(mappedRole, data.usuario);
@@ -88,7 +91,7 @@ export default function LoginView({ onLoginSuccess }) {
           </div>
 
           <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0F172A' }}>
-            NutriKer <span style={{ color: 'var(--primary, #E11D48)' }}>Royal Canin</span>
+            NutriKer <span style={{ color: 'var(--primary, #B45309)' }}>Casa Nostra</span>
           </h1>
         </div>
 

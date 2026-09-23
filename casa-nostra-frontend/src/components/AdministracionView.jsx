@@ -91,8 +91,18 @@ const DEFAULT_RESIDENTS = [
   }
 ];
 
-export default function AdministracionView() {
-  const [activeAdminTab, setActiveAdminTab] = useState('residentes');
+export default function AdministracionView({
+  defaultTab = 'residentes',
+  hideHeader = false,
+  forcedTab = null
+} = {}) {
+  const [activeAdminTab, setActiveAdminTab] = useState(forcedTab || defaultTab);
+
+  useEffect(() => {
+    if (forcedTab) {
+      setActiveAdminTab(forcedTab);
+    }
+  }, [forcedTab]);
   const [residents, setResidents] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -234,20 +244,45 @@ export default function AdministracionView() {
   const [importError, setImportError] = useState('');
   const fileInputRef = useRef(null);
 
+  // Helper para headers con token de autenticación
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+  };
+
+  // Helper para sincronizar censo de residentes en el ecosistema Casa Nostra (Chef, StatsView, etc.)
+  const updateCensusStorage = (list) => {
+    const activeCount = list.filter(r => r.activo !== false).length;
+    localStorage.setItem('casa_nostra_active_census', String(activeCount));
+    localStorage.setItem('casanostra_active_census', String(activeCount));
+    window.dispatchEvent(new CustomEvent('casa_nostra_census_updated', { detail: { census: activeCount } }));
+  };
+
   // Cargar residentes desde la base de datos (con fallback a localStorage)
   const fetchResidents = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/residentes`);
+      const res = await fetch(`${API_BASE_URL}/api/residentes`, {
+        headers: getAuthHeaders()
+      });
       if (res.ok) {
         const json = await res.json();
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        if (json.success && Array.isArray(json.data)) {
           setResidents(json.data);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(json.data));
+          updateCensusStorage(json.data);
           setSyncStatus('online');
           setLoading(false);
           return;
         }
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        console.warn('Error al consultar residentes en backend:', errJson.error || res.statusText);
+        setSyncStatus('offline');
       }
     } catch (err) {
       console.warn('Backend no disponible, usando almacenamiento local:', err.message);
@@ -258,12 +293,16 @@ export default function AdministracionView() {
 
   useEffect(() => {
     fetchResidents();
+    const handleAuthReady = () => fetchResidents();
+    window.addEventListener('casa_nostra_auth_ready', handleAuthReady);
+    return () => window.removeEventListener('casa_nostra_auth_ready', handleAuthReady);
   }, []);
 
-  // Guardar en localStorage como respaldo offline
+  // Guardar en localStorage como respaldo offline y sincronizar censo
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(residents));
+      updateCensusStorage(residents);
     } catch (e) {}
   }, [residents]);
 
@@ -314,7 +353,7 @@ export default function AdministracionView() {
 
     const payload = {
       nombre: formData.nombre.trim(),
-      edad: Number(formData.edad) || 80,
+      edad: Number(formData.edad) || null,
       habitacion: formData.habitacion.trim().toUpperCase(),
       restricciones: formData.restricciones,
       asistencia: formData.asistencia,
@@ -325,40 +364,45 @@ export default function AdministracionView() {
       if (editingResident) {
         const res = await fetch(`${API_BASE_URL}/api/residentes/${editingResident.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify(payload)
         });
-        if (res.ok) {
-          const json = await res.json();
-          setResidents(prev => prev.map(r => r.id === editingResident.id ? json.data : r));
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json.success) {
+          setResidents(prev => {
+            const updated = prev.map(r => r.id === editingResident.id ? json.data : r);
+            updateCensusStorage(updated);
+            return updated;
+          });
         } else {
-          setResidents(prev => prev.map(r => r.id === editingResident.id ? { ...payload, id: editingResident.id } : r));
+          alert(json.error || 'No se pudo actualizar el residente en el servidor.');
+          return;
         }
       } else {
         const res = await fetch(`${API_BASE_URL}/api/residentes`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify(payload)
         });
-        if (res.ok) {
-          const json = await res.json();
-          setResidents(prev => [json.data, ...prev]);
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json.success) {
+          setResidents(prev => {
+            const updated = [json.data, ...prev];
+            updateCensusStorage(updated);
+            return updated;
+          });
+          try {
+            confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+          } catch (e) {}
         } else {
-          const fallbackRecord = { ...payload, id: `RES-${Math.floor(100 + Math.random() * 900)}` };
-          setResidents(prev => [fallbackRecord, ...prev]);
+          alert(json.error || 'No se pudo registrar el residente en el servidor.');
+          return;
         }
-        try {
-          confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
-        } catch (e) {}
       }
     } catch (err) {
-      console.warn('Backend no disponible para guardar, persistiendo en localStorage:', err.message);
-      const fallbackRecord = { ...payload, id: editingResident ? editingResident.id : `RES-${Math.floor(100 + Math.random() * 900)}` };
-      if (editingResident) {
-        setResidents(prev => prev.map(r => r.id === editingResident.id ? fallbackRecord : r));
-      } else {
-        setResidents(prev => [fallbackRecord, ...prev]);
-      }
+      console.error('Error de red al guardar residente:', err);
+      alert('Error de conexión con el servidor.');
+      return;
     }
 
     setIsNewModalOpen(false);
@@ -368,11 +412,24 @@ export default function AdministracionView() {
   const handleDeleteResident = async (id, nombre) => {
     if (window.confirm(`¿Confirmas que deseas retirar a "${nombre}" del censo activo de residentes?`)) {
       try {
-        await fetch(`${API_BASE_URL}/api/residentes/${id}`, { method: 'DELETE' });
+        const res = await fetch(`${API_BASE_URL}/api/residentes/${id}`, { 
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          setResidents(prev => {
+            const updated = prev.filter(r => r.id !== id);
+            updateCensusStorage(updated);
+            return updated;
+          });
+        } else {
+          const json = await res.json().catch(() => ({}));
+          alert(json.error || 'No se pudo retirar al residente del servidor.');
+        }
       } catch (err) {
-        console.warn('Backend no disponible para eliminar, eliminando localmente:', err.message);
+        console.error('Error de red al retirar residente:', err);
+        alert('No se pudo conectar con el servidor.');
       }
-      setResidents(prev => prev.filter(r => r.id !== id));
     }
   };
 
@@ -413,28 +470,57 @@ export default function AdministracionView() {
           return;
         }
 
-        // Mapeo flexible de columnas para admitir variaciones de encabezado
-        const parsedRows = rawData.map((row, index) => {
-          const nombre = row['Nombre'] || row['NOMBRE'] || row['Nombre Completo'] || row['nombre'] || `Residente #${index + 1}`;
-          const habitacion = String(row['Habitacion'] || row['HABITACION'] || row['Habitación'] || row['Cama'] || `Hab. ${100 + index}`);
-          const edad = Number(row['Edad'] || row['EDAD'] || row['edad']) || 80;
+        const parsedRows = [];
+        const omittedRows = [];
 
-          const rawRestr = String(row['Restricciones'] || row['Alergias'] || row['Dietas'] || 'Ninguna');
-          const restricciones = rawRestr.split(/[,;/]/).map(s => s.trim()).filter(Boolean);
+        rawData.forEach((row, index) => {
+          // Normalizar encabezados (minúsculas, trim y sin acentos)
+          const norm = {};
+          for (const [k, v] of Object.entries(row)) {
+            const cleanKey = String(k || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            norm[cleanKey] = v;
+          }
 
-          const asistencia = String(row['Asistencia'] || row['Comedor'] || 'Comedor Autónomo');
-          const observaciones = String(row['Observaciones'] || row['Notas'] || 'Importado vía Excel');
+          const rawNombre = norm['nombre'] || norm['residente'] || norm['paciente'] || norm['nombre completo'];
+          const rawHab = norm['habitacion'] || norm['hab'] || norm['cuarto'] || norm['cama'];
+          const rawEdad = norm['edad'] || norm['anos'] || norm['age'];
+          const rawRestr = norm['restricciones'] || norm['restriccion'] || norm['alergias'] || norm['dieta'];
+          const rawAsistencia = norm['asistencia'] || norm['comedor'] || norm['apoyo'];
+          const rawObs = norm['observaciones'] || norm['notas'] || norm['comentarios'];
 
-          return {
-            id: `RES-${Math.floor(100 + Math.random() * 900)}-XLS`,
-            nombre,
-            edad,
-            habitacion,
-            restricciones: restricciones.length > 0 ? restricciones : ['Ninguna'],
-            asistencia,
-            observaciones
-          };
+          const cleanNombre = String(rawNombre ?? '').trim();
+          const cleanHab = String(rawHab ?? '').trim().toUpperCase();
+
+          // Rechazar fila si falta nombre o habitación (no inventar datos clínicos)
+          if (!cleanNombre || !cleanHab) {
+            omittedRows.push({ fila: index + 2, motivo: 'Nombre o habitación ausente' });
+            return;
+          }
+
+          // Procesar restricciones: nunca asumir 'Ninguna', guardar solo lo especificado
+          let restricciones = [];
+          if (Array.isArray(rawRestr)) {
+            restricciones = rawRestr.map(r => String(r).trim()).filter(Boolean);
+          } else if (rawRestr && typeof rawRestr === 'string') {
+            restricciones = rawRestr
+              .split(/[,;/]+/)
+              .map(s => s.trim())
+              .filter(s => s.length > 0 && s.toLowerCase() !== 'ninguna' && s.toLowerCase() !== 'ninguno');
+          }
+
+          parsedRows.push({
+            nombre: cleanNombre,
+            edad: Number(rawEdad) || null,
+            habitacion: cleanHab,
+            restricciones,
+            asistencia: String(rawAsistencia || 'Comedor Autónomo').trim(),
+            observaciones: String(rawObs || '').trim()
+          });
         });
+
+        if (omittedRows.length > 0) {
+          setImportError(`Se procesaron ${parsedRows.length} filas válidas. ${omittedRows.length} fila(s) incompleta(s) fueron omitidas por faltar nombre o habitación.`);
+        }
 
         setImportedPreview(parsedRows);
       } catch (err) {
@@ -452,37 +538,35 @@ export default function AdministracionView() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/residentes/importar`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ residentes: importedPreview, centro_residencia: 'Casa Nostra' })
       });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && Array.isArray(json.data)) {
-          setResidents(prev => {
-            const newIds = new Set(json.data.map(d => d.id));
-            const filteredPrev = prev.filter(p => !newIds.has(p.id));
-            return [...json.data, ...filteredPrev];
-          });
-        } else {
-          setResidents(prev => [...importedPreview, ...prev]);
-        }
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.success && Array.isArray(json.data)) {
+        setResidents(prev => {
+          const newIds = new Set(json.data.map(d => d.id));
+          const filteredPrev = prev.filter(p => !newIds.has(p.id));
+          const updated = [...json.data, ...filteredPrev];
+          updateCensusStorage(updated);
+          return updated;
+        });
+
+        setIsImportModalOpen(false);
+        setImportedPreview([]);
+        setImportFileName('');
+
+        try {
+          confetti({ particleCount: 100, spread: 80, origin: { y: 0.5 } });
+        } catch (e) {}
+
+        alert(`¡Éxito! Se han importado ${json.totalImportados} residentes al censo del centro.`);
       } else {
-        setResidents(prev => [...importedPreview, ...prev]);
+        alert(json.error || 'Ocurrió un error al importar los residentes en el servidor.');
       }
     } catch (err) {
-      console.warn('Backend no disponible para importación, persistiendo localmente:', err.message);
-      setResidents(prev => [...importedPreview, ...prev]);
+      console.error('Error de red al importar residentes:', err);
+      alert('Error de conexión con el servidor durante la importación.');
     }
-
-    setIsImportModalOpen(false);
-    setImportedPreview([]);
-    setImportFileName('');
-
-    try {
-      confetti({ particleCount: 100, spread: 80, origin: { y: 0.5 } });
-    } catch (e) {}
-
-    alert(`¡Éxito! Se han importado ${importedPreview.length} residentes al censo del centro.`);
   };
 
   // Descargar Plantilla Excel de Ejemplo
@@ -524,130 +608,131 @@ export default function AdministracionView() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '5rem' }}>
       
       {/* ─────────────────────────────────────────────────────────── */}
-      {/* 1. Encabezado de Sección: Administración */}
+      {/* 1. Encabezado de Sección y Sub-Navbar: Administración */}
       {/* ─────────────────────────────────────────────────────────── */}
-      <div style={{
-        background: 'linear-gradient(135deg, #78350F 0%, #B45309 60%, #D97706 100%)',
-        color: 'white',
-        borderRadius: '20px',
-        padding: '1.75rem 2rem',
-        boxShadow: '0 10px 25px rgba(180, 83, 9, 0.2)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '1rem'
-      }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
-            <span style={{
-              background: 'rgba(255, 255, 255, 0.2)',
-              backdropFilter: 'blur(8px)',
-              fontSize: '0.75rem',
-              fontWeight: '800',
-              padding: '0.25rem 0.75rem',
-              borderRadius: '9999px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              Módulo Central Geriátrico
-            </span>
-            <span style={{ fontSize: '0.85rem', opacity: 0.9 }}>• Casa Nostra</span>
-          </div>
-          <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
-            Administración del Centro
-          </h2>
-          <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.9rem', opacity: 0.9, maxWidth: '640px' }}>
-            Control de comensales, asignación de habitaciones y restricciones clínicas individuales.
-          </p>
-        </div>
-
-        {/* Resumen numérico */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.15)',
-          backdropFilter: 'blur(10px)',
-          padding: '0.75rem 1.25rem',
-          borderRadius: '16px',
-          border: '1px solid rgba(255, 255, 255, 0.25)',
-          textAlign: 'center'
-        }}>
-          <div style={{ fontSize: '1.6rem', fontWeight: '800' }}>{residents.length}</div>
-          <div style={{ fontSize: '0.75rem', fontWeight: '600', opacity: 0.9 }}>Residentes en Censo</div>
-        </div>
-      </div>
-
-      {/* ─────────────────────────────────────────────────────────── */}
-      {/* 2. Sub-Navbar Superior de Administración */}
-      {/* ─────────────────────────────────────────────────────────── */}
-      <div style={{
-        background: '#FFFFFF',
-        borderRadius: '16px',
-        padding: '0.5rem',
-        border: '1px solid #E2E8F0',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        overflowX: 'auto'
-      }}>
-        {/* Pestaña 1: Residentes */}
-        <button
-          onClick={() => setActiveAdminTab('residentes')}
-          style={{
+      {!hideHeader && (
+        <>
+          <div style={{
+            background: 'linear-gradient(135deg, #78350F 0%, #B45309 60%, #D97706 100%)',
+            color: 'white',
+            borderRadius: '20px',
+            padding: '1.75rem 2rem',
+            boxShadow: '0 10px 25px rgba(180, 83, 9, 0.2)',
             display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.65rem 1.25rem',
-            borderRadius: '12px',
-            border: 'none',
-            background: activeAdminTab === 'residentes' ? '#B45309' : 'transparent',
-            color: activeAdminTab === 'residentes' ? '#FFFFFF' : '#64748B',
-            fontWeight: '700',
-            fontSize: '0.88rem',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            boxShadow: activeAdminTab === 'residentes' ? '0 4px 12px rgba(180, 83, 9, 0.25)' : 'none',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <Users size={18} />
-          <span>Residentes</span>
-          <span style={{
-            background: activeAdminTab === 'residentes' ? 'rgba(255, 255, 255, 0.25)' : '#F1F5F9',
-            color: activeAdminTab === 'residentes' ? '#FFFFFF' : '#475569',
-            padding: '0.15rem 0.5rem',
-            borderRadius: '9999px',
-            fontSize: '0.75rem',
-            fontWeight: '800'
+            flexWrap: 'wrap',
+            gap: '1rem'
           }}>
-            {residents.length}
-          </span>
-        </button>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
+                <span style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(8px)',
+                  fontSize: '0.75rem',
+                  fontWeight: '800',
+                  padding: '0.25rem 0.75rem',
+                  borderRadius: '9999px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  Módulo Central Geriátrico
+                </span>
+                <span style={{ fontSize: '0.85rem', opacity: 0.9 }}>• Casa Nostra</span>
+              </div>
+              <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
+                Administración del Centro
+              </h2>
+              <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.9rem', opacity: 0.9, maxWidth: '640px' }}>
+                Control de comensales, asignación de habitaciones y restricciones clínicas individuales.
+              </p>
+            </div>
 
-        {/* Pestaña 2: Compras y Gastos */}
-        <button
-          onClick={() => setActiveAdminTab('compras')}
-          style={{
+            {/* Resumen numérico */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.15)',
+              backdropFilter: 'blur(10px)',
+              padding: '0.75rem 1.25rem',
+              borderRadius: '16px',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '1.6rem', fontWeight: '800' }}>{residents.length}</div>
+              <div style={{ fontSize: '0.75rem', fontWeight: '600', opacity: 0.9 }}>Residentes en Censo</div>
+            </div>
+          </div>
+
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: '16px',
+            padding: '0.5rem',
+            border: '1px solid #E2E8F0',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
-            padding: '0.65rem 1.25rem',
-            borderRadius: '12px',
-            border: 'none',
-            background: activeAdminTab === 'compras' ? '#B45309' : 'transparent',
-            color: activeAdminTab === 'compras' ? '#FFFFFF' : '#64748B',
-            fontWeight: '700',
-            fontSize: '0.88rem',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            boxShadow: activeAdminTab === 'compras' ? '0 4px 12px rgba(180, 83, 9, 0.25)' : 'none',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <ShoppingCart size={18} />
-          <span>Compras y Gastos</span>
-        </button>
-      </div>
+            overflowX: 'auto'
+          }}>
+            {/* Pestaña 1: Residentes */}
+            <button
+              onClick={() => setActiveAdminTab('residentes')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.65rem 1.25rem',
+                borderRadius: '12px',
+                border: 'none',
+                background: activeAdminTab === 'residentes' ? '#B45309' : 'transparent',
+                color: activeAdminTab === 'residentes' ? '#FFFFFF' : '#64748B',
+                fontWeight: '700',
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: activeAdminTab === 'residentes' ? '0 4px 12px rgba(180, 83, 9, 0.25)' : 'none',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Users size={18} />
+              <span>Residentes</span>
+              <span style={{
+                background: activeAdminTab === 'residentes' ? 'rgba(255, 255, 255, 0.25)' : '#F1F5F9',
+                color: activeAdminTab === 'residentes' ? '#FFFFFF' : '#475569',
+                padding: '0.15rem 0.5rem',
+                borderRadius: '9999px',
+                fontSize: '0.75rem',
+                fontWeight: '800'
+              }}>
+                {residents.length}
+              </span>
+            </button>
+
+            {/* Pestaña 2: Compras y Gastos */}
+            <button
+              onClick={() => setActiveAdminTab('compras')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.65rem 1.25rem',
+                borderRadius: '12px',
+                border: 'none',
+                background: activeAdminTab === 'compras' ? '#B45309' : 'transparent',
+                color: activeAdminTab === 'compras' ? '#FFFFFF' : '#64748B',
+                fontWeight: '700',
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: activeAdminTab === 'compras' ? '0 4px 12px rgba(180, 83, 9, 0.25)' : 'none',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <ShoppingCart size={18} />
+              <span>Compras y Gastos</span>
+            </button>
+          </div>
+        </>
+      )}
 
       {/* ─────────────────────────────────────────────────────────── */}
       {/* 3. Barra de Acciones y Filtros de Residentes */}

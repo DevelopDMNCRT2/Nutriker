@@ -9,17 +9,49 @@ import NotificationModal from './components/NotificationModal';
 import LoginView from './components/LoginView';
 import AdministracionView from './components/AdministracionView';
 import { cyclicMenus, sampleParticipants, chefInfo, nutriologaInfo } from './data/mockData';
-import { getWeekInfoFromDate } from './services/menuStore';
+import { getWeekInfoFromDate, API_BASE_URL } from './services/menuStore';
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [currentView, setCurrentView] = useState('nutriologa'); // 'participant' | 'admin' | 'chef' | 'nutriologa'
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return Boolean(localStorage.getItem('token'));
+  });
+
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('royal_user');
+      if (savedUser) return JSON.parse(savedUser);
+      const token = localStorage.getItem('token');
+      if (token) {
+        const payloadBase64 = token.split('.')[1];
+        if (payloadBase64) {
+          const payload = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')));
+          return {
+            id: payload.id,
+            nombre: payload.nombre,
+            correo: payload.correo,
+            rol: payload.rol
+          };
+        }
+      }
+    } catch {}
+    return { nombre: 'Dra. Karla', rol: 'Nutriologa' };
+  });
+
+  const isSuperAdmin = currentUser?.rol === 'SuperAdmin' || currentUser?.rol === 'Super Administrador';
+  const isAdmin = currentUser?.rol === 'Admin' || currentUser?.rol === 'Administrador' || isSuperAdmin;
+
+  const [currentView, setCurrentView] = useState(() => {
+    const userRole = currentUser?.rol;
+    if (userRole === 'Nutriologa') return 'nutriologa';
+    if (userRole === 'Chef') return 'chef';
+    if (userRole === 'Admin' || userRole === 'Administrador') return 'participant';
+    const saved = localStorage.getItem('royal_role');
+    return saved || 'nutriologa';
+  });
+
   const [selectedWeek, setSelectedWeek] = useState(() => getWeekInfoFromDate(new Date()).weekNumber);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notificationTarget, setNotificationTarget] = useState(null);
-
-  // Active logged-in user state
-  const [currentUser, setCurrentUser] = useState({ nombre: 'Dra. Karla', rol: 'Nutrióloga' });
 
   // Active Service Profile (Corporate B2B vs Senior Care)
   const [serviceProfileKey, setServiceProfileKey] = useState('casa_nostra');
@@ -29,7 +61,18 @@ export default function App() {
     localStorage.setItem('nutriker_service_profile', newKey);
   };
 
-  const isAdmin = currentUser?.rol === 'Administrador' || currentUser?.rol === 'Admin';
+  // Bloqueo estricto de vistas según el rol autenticado
+  useEffect(() => {
+    if (!isLoggedIn || isSuperAdmin) return;
+    const userRole = currentUser?.rol;
+    if (userRole === 'Nutriologa' && currentView !== 'nutriologa') {
+      setCurrentView('nutriologa');
+    } else if (userRole === 'Chef' && currentView !== 'chef') {
+      setCurrentView('chef');
+    } else if ((userRole === 'Admin' || userRole === 'Administrador') && currentView !== 'participant') {
+      setCurrentView('participant');
+    }
+  }, [isLoggedIn, isSuperAdmin, currentUser?.rol, currentView]);
 
   // Detectar rol activo por parámetro de URL (?role=chef | ?role=nutriologa)
   useEffect(() => {
@@ -41,17 +84,26 @@ export default function App() {
   }, []);
 
   const handleLoginSuccess = (roleKey, userObj) => {
-    localStorage.setItem('royal_role', roleKey);
-    setCurrentView(roleKey);
     setIsLoggedIn(true);
 
     if (userObj) {
       setCurrentUser(userObj);
       localStorage.setItem('royal_user', JSON.stringify(userObj));
+      
+      const roleMap = {
+        'Nutriologa': 'nutriologa',
+        'Chef': 'chef',
+        'Admin': 'participant',
+        'Administrador': 'participant',
+        'SuperAdmin': 'nutriologa',
+        'Super Administrador': 'nutriologa'
+      };
+      const targetView = roleMap[userObj.rol] || roleKey;
+      setCurrentView(targetView);
+      localStorage.setItem('royal_role', targetView);
     } else {
-      if (roleKey === 'chef') setCurrentUser({ nombre: chefInfo.name, rol: 'Chef' });
-      else if (roleKey === 'nutriologa') setCurrentUser({ nombre: nutriologaInfo.name, rol: 'Nutrióloga' });
-      else setCurrentUser({ nombre: 'Ana Sofía Morales', rol: 'Empleado' });
+      setCurrentView(roleKey);
+      localStorage.setItem('royal_role', roleKey);
     }
   };
 
@@ -87,7 +139,7 @@ export default function App() {
         nombre: payload.nombre || (payload.rol === 'Administrador' ? 'Administrador' : 'Nutrióloga'),
         correo: payload.correo,
         rol: payload.rol || 'Administrador',
-        empresa: 'Royal Canin'
+        empresa: 'Casa Nostra'
       };
 
       handleLoginSuccess(vista, userObj);
@@ -100,6 +152,25 @@ export default function App() {
       window.history.replaceState({}, '', cleanUrl);
     }
   }, []);
+
+  // Asegurar token de autenticación para la demo/dev si el usuario está autenticado por defecto
+  useEffect(() => {
+    if (isLoggedIn && !localStorage.getItem('token')) {
+      fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'nutri_karla', password: 'admin123' })
+      })
+        .then(res => (res.ok ? res.json() : null))
+        .then(data => {
+          if (data && data.token) {
+            localStorage.setItem('token', data.token);
+            window.dispatchEvent(new CustomEvent('casa_nostra_auth_ready'));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isLoggedIn]);
 
 
   const handleOpenNotification = (dayData, optionKey, activeMenu, allSelections) => {
@@ -129,7 +200,7 @@ export default function App() {
       
       {/* Header con Rol Aislado, Selector de Modelo de Servicio y Botón de Cerrar Sesión */}
 
-      {/* Header con Selector Exclusivo para Admins */}
+      {/* Header con Selector Exclusivo para Super Administrador */}
       <Header
         currentView={currentView}
         setCurrentView={setCurrentView}
@@ -137,6 +208,7 @@ export default function App() {
         setSelectedWeek={setSelectedWeek}
         currentUser={currentUser}
         isAdmin={isAdmin}
+        isSuperAdmin={isSuperAdmin}
         onLogout={handleLogout}
         serviceProfileKey={serviceProfileKey}
         onServiceProfileChange={handleServiceProfileChange}
@@ -145,7 +217,11 @@ export default function App() {
       {/* Main Container para el Rol Autenticado */}
       <main style={{ flex: 1, maxWidth: '1100px', width: '100%', margin: '0 auto', padding: '1.5rem' }}>
         
-        {currentView === 'participant' && <StatsView selectedWeek={selectedWeek} />}
+        {(currentView === 'participant' || currentView === 'administracion') && (
+          <StatsView
+            selectedWeek={selectedWeek}
+          />
+        )}
 
         {currentView === 'chef' && (
           <ChefView
@@ -159,10 +235,6 @@ export default function App() {
             selectedWeek={selectedWeek}
             serviceProfileKey={serviceProfileKey}
           />
-        )}
-
-        {currentView === 'administracion' && (
-          <AdministracionView />
         )}
 
       </main>
@@ -202,57 +274,53 @@ export default function App() {
           selectedOption={notificationTarget.optionKey}
           activeMenu={notificationTarget.activeMenu}
           allSelections={notificationTarget.allSelections}
-          participantName={currentUser?.nombre || currentUser?.name || 'Empleado Royal Canin'}
+          participantName={currentUser?.nombre || currentUser?.name || 'Residente Casa Nostra'}
         />
       )}
 
 
-      {/* Demo Switcher Bar (Bottom Floating) */}
-      <div style={{
-        position: 'fixed',
-        bottom: '20px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        background: 'rgba(30, 41, 59, 0.95)',
-        backdropFilter: 'blur(10px)',
-        color: 'white',
-        padding: '0.75rem 1.5rem',
-        borderRadius: '50px',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: '1rem',
-        zIndex: 99999,
-        fontSize: '0.85rem',
-        boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
-        border: '1px solid rgba(255,255,255,0.1)'
-      }}>
-        <strong style={{ color: '#FDE68A' }}>🚀 DEMO RÁPIDO:</strong>
-        <button 
-          onClick={() => { setCurrentView('nutriologa'); setCurrentUser({ nombre: 'Dra. Karla', rol: 'Nutrióloga' }); }}
-          style={{ background: currentView === 'nutriologa' ? '#B45309' : 'transparent', color: 'white', border: currentView === 'nutriologa' ? 'none' : '1px solid #64748B', padding: '0.4rem 1rem', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
-        >
-          🩺 Nutrióloga
-        </button>
-        <button 
-          onClick={() => { setCurrentView('chef'); setCurrentUser({ nombre: 'Chef Fabiola', rol: 'Chef' }); }}
-          style={{ background: currentView === 'chef' ? '#B45309' : 'transparent', color: 'white', border: currentView === 'chef' ? 'none' : '1px solid #64748B', padding: '0.4rem 1rem', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
-        >
-          👨‍🍳 Cocina
-        </button>
-        <button 
-          onClick={() => { setCurrentView('participant'); setCurrentUser({ nombre: 'Admin Asilo', rol: 'Estadísticas / Reportes' }); }}
-          style={{ background: currentView === 'participant' ? '#B45309' : 'transparent', color: 'white', border: currentView === 'participant' ? 'none' : '1px solid #64748B', padding: '0.4rem 1rem', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
-        >
-          📊 Reportes y Compras
-        </button>
-        <button 
-          onClick={() => { setCurrentView('administracion'); setCurrentUser({ nombre: 'Lic. Mariana Gómez', rol: 'Administración' }); }}
-          style={{ background: currentView === 'administracion' ? '#B45309' : 'transparent', color: 'white', border: currentView === 'administracion' ? 'none' : '1px solid #64748B', padding: '0.4rem 1rem', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
-        >
-          👥 Administración
-        </button>
-      </div>
+      {/* Demo Switcher Bar (Bottom Floating) - Visible únicamente para Super Administrador */}
+      {isSuperAdmin && (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(30, 41, 59, 0.95)',
+          backdropFilter: 'blur(10px)',
+          color: 'white',
+          padding: '0.75rem 1.5rem',
+          borderRadius: '50px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '1rem',
+          zIndex: 99999,
+          fontSize: '0.85rem',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+          border: '1px solid rgba(255,255,255,0.1)'
+        }}>
+          <strong style={{ color: '#FDE68A' }}>🚀 SUPER ADMIN:</strong>
+          <button 
+            onClick={() => setCurrentView('nutriologa')}
+            style={{ background: currentView === 'nutriologa' ? '#B45309' : 'transparent', color: 'white', border: currentView === 'nutriologa' ? 'none' : '1px solid #64748B', padding: '0.4rem 1rem', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
+          >
+            🩺 Nutrióloga
+          </button>
+          <button 
+            onClick={() => setCurrentView('chef')}
+            style={{ background: currentView === 'chef' ? '#B45309' : 'transparent', color: 'white', border: currentView === 'chef' ? 'none' : '1px solid #64748B', padding: '0.4rem 1rem', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
+          >
+            👨‍🍳 Cocina
+          </button>
+          <button 
+            onClick={() => setCurrentView('participant')}
+            style={{ background: (currentView === 'participant' || currentView === 'administracion') ? '#B45309' : 'transparent', color: 'white', border: (currentView === 'participant' || currentView === 'administracion') ? 'none' : '1px solid #64748B', padding: '0.4rem 1rem', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
+          >
+            📊 Administración y Reportes
+          </button>
+        </div>
+      )}
 
     </div>
   );

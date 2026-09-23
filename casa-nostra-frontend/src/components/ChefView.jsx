@@ -70,21 +70,33 @@ export default function ChefView({ selectedWeek, serviceProfileKey = 'casa_nostr
         setRefreshOrders(prev => prev + 1);
       }
     };
+    const handleCensusUpdate = () => {
+      setRefreshOrders(prev => prev + 1);
+    };
 
     window.addEventListener('royal_canin_menu_updated', handleMenuUpdate);
     window.addEventListener('royal_canin_orders_updated', handleOrdersUpdate);
+    window.addEventListener('casa_nostra_census_updated', handleCensusUpdate);
 
     return () => {
       window.removeEventListener('royal_canin_menu_updated', handleMenuUpdate);
       window.removeEventListener('royal_canin_orders_updated', handleOrdersUpdate);
+      window.removeEventListener('casa_nostra_census_updated', handleCensusUpdate);
     };
   }, [chefWeekInfo]);
 
   const safeDayIndex = currentDayIndex < daysList.length ? currentDayIndex : 0;
   const currentDay = daysList[safeDayIndex] || daysList[0] || {};
   
-  // Métricas reales calculadas desde las órdenes de los empleados para la semana seleccionada
-  const metrics = menuStore.getChefMetrics(safeDayIndex, programInfo.activeParticipantsCount, chefWeekInfo);
+  // Censo activo sincronizado desde el módulo de Administración
+  const activeCensus = (() => {
+    const saved = localStorage.getItem('casa_nostra_active_census') || localStorage.getItem('casanostra_active_census');
+    const parsed = parseInt(saved, 10);
+    return (!isNaN(parsed) && parsed > 0) ? parsed : (programInfo.activeParticipantsCount || 25);
+  })();
+
+  // Métricas reales calculadas desde las órdenes o censo para la semana seleccionada
+  const metrics = menuStore.getChefMetrics(safeDayIndex, activeCensus, chefWeekInfo);
   const totalPortions = metrics.totalPortions;
   const countA = metrics.countA;
   const countB = metrics.countB;
