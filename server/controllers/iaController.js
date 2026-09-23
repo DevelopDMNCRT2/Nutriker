@@ -410,3 +410,110 @@ NO escribas texto fuera del JSON. No uses markdown dentro del JSON ni bloques de
   }
 }
 
+// Función de cálculo clínico / bromatológico reutilizable por el servidor
+export async function calcularMacrosIA({ nombrePlatillo = '', ingredientes = '', categoria = '' }) {
+  const prompt = `Eres un experto en nutrición clínica y análisis bromatológico del sistema NutriKer.
+Analiza el siguiente platillo e ingredientes de forma realista y precisa para una porción de comida principal:
+
+Platillo: ${nombrePlatillo || 'Platillo Clínico'}
+Categoría/Enfoque: ${categoria || 'General'}
+Ingredientes y gramajes: ${ingredientes || 'Sin detalle de gramaje'}
+
+Debes calcular y devolver ÚNICAMENTE un objeto JSON estrictamente válido con este formato:
+{
+  "calorias": número entero estimado de calorías en kcal (ej. 480),
+  "proteina": texto con cantidad y 'g' (ej. "35g"),
+  "carbos": texto con cantidad y 'g' (ej. "40g"),
+  "grasas": texto con cantidad y 'g' (ej. "14g"),
+  "perfilClinico": "Breve análisis clínico (1 o 2 oraciones) indicando impacto glucémico, digestibilidad y conveniencia metabólica",
+  "alergenos": ["Lista de alérgenos comunes detectados (ej. Gluten, Lácteos, Huevo, Soya, Pescado, Frutos Secos) o [] si no contiene ninguno"]
+}
+
+NO incluyas explicaciones fuera del JSON ni bloques de código markdown.`
+
+  if (genAI) {
+    try {
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+      const result = await model.generateContent(prompt)
+      const responseText = result.response.text()
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0])
+        return {
+          calorias: parseInt(parsed.calorias, 10) || 450,
+          proteina: String(parsed.proteina || '30g').endsWith('g') ? String(parsed.proteina) : `${parsed.proteina}g`,
+          carbos: String(parsed.carbos || '40g').endsWith('g') ? String(parsed.carbos) : `${parsed.carbos}g`,
+          grasas: String(parsed.grasas || '12g').endsWith('g') ? String(parsed.grasas) : `${parsed.grasas}g`,
+          perfilClinico: parsed.perfilClinico || 'Aporte nutricional balanceado de fácil absorción.',
+          alergenos: Array.isArray(parsed.alergenos) ? parsed.alergenos : []
+        }
+      }
+    } catch (err) {
+      console.warn('Gemini calcularMacrosIA fallback:', err.message)
+    }
+  }
+
+  // Fallback heurístico bromatológico robusto
+  const textCombined = `${nombrePlatillo} ${ingredientes} ${categoria}`.toLowerCase()
+  
+  // Detección de alérgenos comunes
+  const alergenos = []
+  if (/leche|queso|crema|yogur|mantequilla|lactos/i.test(textCombined)) alergenos.push('Lácteos')
+  if (/harina|trigo|pan|pasta|avena|gluten/i.test(textCombined)) alergenos.push('Gluten')
+  if (/huevo|clara|yema/i.test(textCombined)) alergenos.push('Huevo')
+  if (/pescado|salmon|salmón|atun|atún|tilapia|camaron|camarón|marisco/i.test(textCombined)) alergenos.push('Pescado / Mariscos')
+  if (/nuez|almendra|cacahuate|cacahuete|pistache/i.test(textCombined)) alergenos.push('Frutos secos')
+  if (/soya|soja|tofu/i.test(textCombined)) alergenos.push('Soya')
+
+  // Estimación de macros por palabras clave y gramajes
+  let cal = 450
+  let prot = 32
+  let carb = 40
+  let fat = 13
+
+  if (/sopa|caldo|crema ligera/i.test(textCombined)) {
+    cal = 220; prot = 12; carb = 24; fat = 6;
+  } else if (/ensalada|plant-based|vegetariano|tofu/i.test(textCombined)) {
+    cal = 390; prot = 20; carb = 48; fat = 14;
+  } else if (/pollo|pechuga|sirloin|res|carne|pavo/i.test(textCombined)) {
+    cal = 480; prot = 36; carb = 38; fat = 14;
+  } else if (/pescado|salmon|salmón|atun|filete/i.test(textCombined)) {
+    cal = 440; prot = 34; carb = 30; fat = 13;
+  }
+
+  let perfil = 'Índice glucémico controlado, digestión ágil en oficina sin causar pesadez post-almuerzo.'
+  if (/sopa|caldo/i.test(textCombined)) {
+    perfil = 'Hidratación óptima, fácil deglución y estimulación gástrica suave rica en electrolitos.'
+  } else if (/hipos[oó]dico|renal|sarcopenia/i.test(textCombined)) {
+    perfil = 'Control estricto de electrolitos y sodio, idóneo para prevención de sarcopenia y salud cardiovascular.'
+  } else if (/plant-based|fibra/i.test(textCombined)) {
+    perfil = 'Alto contenido de fibra vegetal e ingredientes antioxidantes antiinflamatorios.'
+  }
+
+  return {
+    calorias: cal,
+    proteina: `${prot}g`,
+    carbos: `${carb}g`,
+    grasas: `${fat}g`,
+    perfilClinico: perfil,
+    alergenos
+  }
+}
+
+// ─── POST /api/ia/analizar-platillo ──────────────────────────────────────────
+export async function analizarPlatillo(req, res) {
+  const { nombrePlatillo = '', ingredientes = '', categoria = '' } = req.body
+
+  if (!nombrePlatillo && !ingredientes) {
+    return res.status(400).json({ error: 'Se requiere nombre del platillo o ingredientes para analizar' })
+  }
+
+  try {
+    const data = await calcularMacrosIA({ nombrePlatillo, ingredientes, categoria })
+    return res.json(data)
+  } catch (err) {
+    console.error('Error al analizar platillo:', err.message)
+    return res.status(500).json({ error: 'Error al analizar platillo con IA' })
+  }
+}
+

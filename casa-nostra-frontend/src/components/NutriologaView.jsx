@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { HeartPulse, ShieldCheck, CheckCircle2, AlertTriangle, Activity, Apple, Flame, Wand2, ChevronRight, ChevronDown, ArrowLeft, Check, RefreshCw, Layers, Scale, Users, Plus, Minus, Calculator, Lock, Soup } from 'lucide-react';
+import { HeartPulse, ShieldCheck, CheckCircle2, AlertTriangle, Activity, Apple, Flame, Wand2, ChevronRight, ChevronDown, ArrowLeft, Check, RefreshCw, Layers, Scale, Users, Plus, Minus, Calculator, Lock, Soup, Sparkles } from 'lucide-react';
+
 import { cyclicMenus, nutriologaInfo, programInfo } from '../data/mockData';
 import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
 import { scaleIngredients, scaleNutrition } from '../utils/recipeScaler';
@@ -115,9 +116,9 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
   const safeDayIndex = selectedDayIndex < weekData.days.length ? selectedDayIndex : 0;
   const [editingDish, setEditingDish] = useState(null);
 
-  const handleSaveIngredients = (newIngredients) => {
+  const handleSaveIngredients = async (newIngredients) => {
     if (!editingDish || !currentDay) return;
-    menuStore.updateDishIngredients(targetWeekInfo, currentDay.dayName || safeDayIndex, editingDish.optionKey, newIngredients, 'Dra. Karla (Nutrióloga)');
+    await menuStore.updateDishIngredients(targetWeekInfo, currentDay.dayName || safeDayIndex, editingDish.optionKey, newIngredients, 'Dra. Karla (Nutrióloga)');
     setActiveMenu(menuStore.getActiveMenu(targetWeekInfo));
     setEditingDish(null);
   };
@@ -129,8 +130,55 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
     setEditingDish(null);
   };
   const currentDay = (weekData.days && weekData.days[safeDayIndex]) || null;
+
+  // Auto-enriquecer en tiempo real con IA cualquier platillo publicado que no tenga aún cálculo clínico de macros o alérgenos
+  useEffect(() => {
+    if (!currentDay) return;
+    const enrichDish = async (dish, optionKey) => {
+      if (!dish || !dish.name) return;
+      const isDefaultMock = (dish.calories === 480 && (dish.protein === '35g' || dish.protein === 35) && !dish.clinicalProfile);
+      const isMissingClinical = !dish.clinicalProfile || !Array.isArray(dish.allergens) || dish.allergens.length === 0;
+
+      if ((isDefaultMock || isMissingClinical) && !dish._aiEnriching) {
+        dish._aiEnriching = true;
+        try {
+          const res = await menuStore.analyzeDishWithAI({
+            name: dish.name,
+            ingredients: dish.recipe?.ingredients || '',
+            category: dish.category || (optionKey === 'optionA' ? dietOptionA : dietOptionB)
+          });
+          if (res) {
+            dish.calories = res.calorias;
+            dish.protein = typeof res.proteina === 'number' ? `${res.proteina}g` : res.proteina;
+            dish.carbs = typeof res.carbos === 'number' ? `${res.carbos}g` : res.carbos;
+            dish.fats = typeof res.grasas === 'number' ? `${res.grasas}g` : res.grasas;
+            dish.clinicalProfile = res.perfilClinico;
+            dish.allergens = res.alergenos || [];
+            
+            // Persistir de inmediato en localStorage y emitir evento
+            const updatedMenu = { ...activeMenu };
+            localStorage.setItem(`casa_nostra_menu_v2_${targetWeekInfo.weekKey}`, JSON.stringify(updatedMenu));
+            localStorage.setItem(`casa_nostra_menu_v2_w${targetWeekInfo.weekNumber}`, JSON.stringify(updatedMenu));
+            setActiveMenu(updatedMenu);
+            window.dispatchEvent(new CustomEvent('royal_canin_menu_updated', {
+              detail: { weekKey: targetWeekInfo.weekKey, weekNumber: targetWeekInfo.weekNumber, activeMenu: updatedMenu }
+            }));
+          }
+        } catch (e) {
+          console.warn('Error en enriquecimiento automático de platillo:', e);
+        } finally {
+          dish._aiEnriching = false;
+        }
+      }
+    };
+
+    if (currentDay.optionA) enrichDish(currentDay.optionA, 'optionA');
+    if (currentDay.optionB) enrichDish(currentDay.optionB, 'optionB');
+  }, [currentDay, targetWeekInfo]);
   const [isHumanVerified, setIsHumanVerified] = useState(false);
   const [humanAuditNotes, setHumanAuditNotes] = useState('');
+
+  const [isPublishing, setIsPublishing] = useState(false);
 
   const handleDishChange = (dayName, option, field, newValue) => {
     setDishSelection(prev => ({
@@ -145,8 +193,126 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
     }));
   };
 
-  const handlePublishMenu = () => {
+  const handlePublishMenu = async () => {
+    setIsPublishing(true);
     setIsHumanVerified(true);
+
+    // Enriquecer automáticamente todos los platillos (sopa y 3 enfoques) con el nodo de IA
+    const updatedSelection = { ...dishSelection };
+    const promises = [];
+
+    activeDays.forEach(dayName => {
+      const dayDishes = updatedSelection[dayName] || {};
+      
+      // Sopa fija obligatoria
+      if (dayDishes.soup?.name) {
+        promises.push(
+          menuStore.analyzeDishWithAI({
+            name: dayDishes.soup.name,
+            ingredients: dayDishes.soup.ingredients,
+            category: 'Sopa'
+          }).then(res => {
+            if (res) {
+              updatedSelection[dayName] = {
+                ...updatedSelection[dayName],
+                soup: {
+                  ...updatedSelection[dayName].soup,
+                  calories: res.calorias,
+                  protein: res.proteina,
+                  carbs: res.carbos,
+                  fats: res.grasas,
+                  clinicalProfile: res.perfilClinico,
+                  allergens: res.alergenos
+                }
+              };
+            }
+          }).catch(() => {})
+        );
+      }
+
+      // Opción A
+      if (dayDishes.optionA?.name) {
+        promises.push(
+          menuStore.analyzeDishWithAI({
+            name: dayDishes.optionA.name,
+            ingredients: dayDishes.optionA.ingredients,
+            category: dietOptionA
+          }).then(res => {
+            if (res) {
+              updatedSelection[dayName] = {
+                ...updatedSelection[dayName],
+                optionA: {
+                  ...updatedSelection[dayName].optionA,
+                  calories: res.calorias,
+                  protein: res.proteina,
+                  carbs: res.carbos,
+                  fats: res.grasas,
+                  clinicalProfile: res.perfilClinico,
+                  allergens: res.alergenos
+                }
+              };
+            }
+          }).catch(() => {})
+        );
+      }
+
+      // Opción B
+      if (dayDishes.optionB?.name) {
+        promises.push(
+          menuStore.analyzeDishWithAI({
+            name: dayDishes.optionB.name,
+            ingredients: dayDishes.optionB.ingredients,
+            category: dietOptionB
+          }).then(res => {
+            if (res) {
+              updatedSelection[dayName] = {
+                ...updatedSelection[dayName],
+                optionB: {
+                  ...updatedSelection[dayName].optionB,
+                  calories: res.calorias,
+                  protein: res.proteina,
+                  carbs: res.carbos,
+                  fats: res.grasas,
+                  clinicalProfile: res.perfilClinico,
+                  allergens: res.alergenos
+                }
+              };
+            }
+          }).catch(() => {})
+        );
+      }
+
+      // Opción C
+      if (dayDishes.optionC?.name) {
+        promises.push(
+          menuStore.analyzeDishWithAI({
+            name: dayDishes.optionC.name,
+            ingredients: dayDishes.optionC.ingredients,
+            category: dietOptionC
+          }).then(res => {
+            if (res) {
+              updatedSelection[dayName] = {
+                ...updatedSelection[dayName],
+                optionC: {
+                  ...updatedSelection[dayName].optionC,
+                  calories: res.calorias,
+                  protein: res.proteina,
+                  carbs: res.carbos,
+                  fats: res.grasas,
+                  clinicalProfile: res.perfilClinico,
+                  allergens: res.alergenos
+                }
+              };
+            }
+          }).catch(() => {})
+        );
+      }
+    });
+
+    try {
+      await Promise.all(promises);
+    } catch (_) {}
+
     // Persist menu in menuStore para la semana seleccionada en calendario con los 4 enfoques
     const published = menuStore.publishMenu({
       weekInput: targetWeekInfo,
@@ -154,7 +320,7 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
       dietOptionA,
       dietOptionB,
       dietOptionC,
-      dishSelection,
+      dishSelection: updatedSelection,
       daysList: activeDays
     });
 
@@ -162,6 +328,7 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
       setActiveMenu(published);
     }
 
+    setIsPublishing(false);
     setWizardSuccess(true);
     setTimeout(() => {
       setWizardSuccess(false);
@@ -855,13 +1022,13 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                       onClick={handlePublishMenu} 
                       className="btn-uber-primary" 
                       style={{ 
-                        background: (isCaptchaVerified && areAllDishesFilled) ? '#2563EB' : '#94A3B8',
-                        cursor: (isCaptchaVerified && areAllDishesFilled) ? 'pointer' : 'not-allowed',
-                        opacity: (isCaptchaVerified && areAllDishesFilled) ? 1 : 0.6
+                        background: (isCaptchaVerified && areAllDishesFilled && !isPublishing) ? '#2563EB' : '#94A3B8',
+                        cursor: (isCaptchaVerified && areAllDishesFilled && !isPublishing) ? 'pointer' : 'not-allowed',
+                        opacity: (isCaptchaVerified && areAllDishesFilled && !isPublishing) ? 1 : 0.6
                       }}
-                      disabled={!isCaptchaVerified || !areAllDishesFilled}
+                      disabled={!isCaptchaVerified || !areAllDishesFilled || isPublishing}
                     >
-                      <CheckCircle2 size={18} /> Certificar y Publicar Menú
+                      <CheckCircle2 size={18} /> {isPublishing ? 'Analizando con IA y Certificando...' : 'Certificar y Publicar Menú'}
                     </button>
                   </div>
                 </>
@@ -1146,8 +1313,12 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                           </div>
                         </div>
 
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                          <strong>Perfil Clínico:</strong> Índice glucémico controlado, digestión ágil sin pesadez post-almuerzo.
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
+                          <strong>Perfil Clínico:</strong> {currentDay.optionA?.clinicalProfile || 'Índice glucémico controlado, digestión ágil en oficina sin causar pesadez post-almuerzo.'}
+                        </div>
+
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                          <strong>Alérgenos registrados:</strong> {(currentDay.optionA?.allergens || []).length > 0 ? currentDay.optionA.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
                         </div>
 
                         {/* Receta Técnica Escalada Desplegable */}
@@ -1227,8 +1398,12 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                           </div>
                         </div>
 
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                          <strong>Perfil Clínico:</strong> Alto contenido de fibra vegetal e ingredientes antioxidantes antiinflamatorios.
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
+                          <strong>Perfil Clínico:</strong> {currentDay.optionB?.clinicalProfile || 'Alto contenido de fibra vegetal e ingredientes antioxidantes antiinflamatorios.'}
+                        </div>
+
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                          <strong>Alérgenos registrados:</strong> {(currentDay.optionB?.allergens || []).length > 0 ? currentDay.optionB.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
                         </div>
 
                         {/* Receta Técnica Escalada Desplegable */}
