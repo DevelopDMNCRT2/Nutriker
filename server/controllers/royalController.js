@@ -1,6 +1,7 @@
 import pool from '../db/pool.js'
 import { generarIdUnico } from '../utils/generarId.js'
 import { enviarConfirmacionPedidoB2B } from '../services/notificationService.js'
+import { calcularMacrosIA } from './iaController.js'
 
 /**
  * Obtener menú semanal B2B (3FN)
@@ -47,7 +48,7 @@ export async function obtenerMenuSemana(req, res) {
 
     // Agrupar por día para entregar el formato esperado por el frontend
     const diasMap = {}
-    diasRes.rows.forEach(row => {
+    for (const row of diasRes.rows) {
       if (!diasMap[row.dia_semana]) {
         diasMap[row.dia_semana] = {
           dayName: row.dia_semana,
@@ -57,14 +58,55 @@ export async function obtenerMenuSemana(req, res) {
         }
       }
 
+      let clinicalProfile = row.perfil_clinico || null
+      let rawAllergens = row.alergenos
+      let allergens = Array.isArray(rawAllergens) ? rawAllergens : (typeof rawAllergens === 'string' ? JSON.parse(rawAllergens || '[]') : [])
+      let calories = row.calorias
+      let protein = `${row.proteinas_g}g`
+      let carbs = `${row.carbohidratos_g}g`
+      let fats = `${row.grasas_g}g`
+
+      // Auto-enriquecer con el nodo de IA si no tiene perfil clínico o tiene macros mock genéricos
+      const needsEnrichment = !clinicalProfile || (calories === 480 && protein === '35.00g') || (calories === 430 && protein === '18.00g')
+      if (needsEnrichment && (row.nombre_platillo || row.ingredientes)) {
+        try {
+          const aiData = await calcularMacrosIA({
+            nombrePlatillo: row.nombre_platillo,
+            ingredientes: row.ingredientes,
+            categoria: row.categoria
+          })
+          if (aiData) {
+            clinicalProfile = aiData.perfilClinico
+            allergens = aiData.alergenos
+            calories = aiData.calorias
+            protein = aiData.proteina
+            carbs = aiData.carbos
+            fats = aiData.grasas
+
+            const protNum = parseFloat(String(protein).replace('g', '')) || 0
+            const carbNum = parseFloat(String(carbs).replace('g', '')) || 0
+            const fatNum = parseFloat(String(fats).replace('g', '')) || 0
+
+            pool.query(
+              `UPDATE menu_b2b_dias 
+               SET calorias = $1, proteinas_g = $2, carbohidratos_g = $3, grasas_g = $4, perfil_clinico = $5, alergenos = $6 
+               WHERE id = $7`,
+              [calories, protNum, carbNum, fatNum, clinicalProfile, JSON.stringify(allergens), row.id]
+            ).catch(() => {})
+          }
+        } catch (_) {}
+      }
+
       const optData = {
         id: row.id,
         name: row.nombre_platillo,
         category: row.categoria,
-        calories: row.calorias,
-        protein: `${row.proteinas_g}g`,
-        carbs: `${row.carbohidratos_g}g`,
-        fats: `${row.grasas_g}g`,
+        calories,
+        protein,
+        carbs,
+        fats,
+        clinicalProfile,
+        allergens,
         image: row.imagen_url,
         recipe: {
           ingredients: row.ingredientes || '',
@@ -77,7 +119,7 @@ export async function obtenerMenuSemana(req, res) {
       } else {
         diasMap[row.dia_semana].optionB = optData
       }
-    })
+    }
 
     const days = Object.values(diasMap)
 
@@ -194,8 +236,8 @@ export async function guardarMenuSemana(req, res) {
           `INSERT INTO menu_b2b_dias (
             id, menu_id, dia_semana, fecha, tipo_opcion, nombre_platillo, 
             categoria, calorias, proteinas_g, carbohidratos_g, grasas_g, 
-            ingredientes, metodo_preparacion, imagen_url
-          ) VALUES ($1, $2, $3, $4, 'A', $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+            ingredientes, metodo_preparacion, imagen_url, perfil_clinico, alergenos
+          ) VALUES ($1, $2, $3, $4, 'A', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
           [
             diaIdA,
             menuId,
@@ -209,7 +251,9 @@ export async function guardarMenuSemana(req, res) {
             fatsNum,
             d.optionA.recipe?.ingredients || '',
             d.optionA.recipe?.method || '',
-            d.optionA.image || null
+            d.optionA.image || null,
+            d.optionA.clinicalProfile || null,
+            JSON.stringify(d.optionA.allergens || [])
           ]
         )
       }
@@ -225,8 +269,8 @@ export async function guardarMenuSemana(req, res) {
           `INSERT INTO menu_b2b_dias (
             id, menu_id, dia_semana, fecha, tipo_opcion, nombre_platillo, 
             categoria, calorias, proteinas_g, carbohidratos_g, grasas_g, 
-            ingredientes, metodo_preparacion, imagen_url
-          ) VALUES ($1, $2, $3, $4, 'B', $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+            ingredientes, metodo_preparacion, imagen_url, perfil_clinico, alergenos
+          ) VALUES ($1, $2, $3, $4, 'B', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
           [
             diaIdB,
             menuId,
@@ -240,7 +284,9 @@ export async function guardarMenuSemana(req, res) {
             fatsNum,
             d.optionB.recipe?.ingredients || '',
             d.optionB.recipe?.method || '',
-            d.optionB.image || null
+            d.optionB.image || null,
+            d.optionB.clinicalProfile || null,
+            JSON.stringify(d.optionB.allergens || [])
           ]
         )
       }

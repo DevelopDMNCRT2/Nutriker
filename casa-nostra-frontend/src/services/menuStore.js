@@ -304,6 +304,23 @@ export const menuStore = {
     };
   },
 
+  // Analizar platillo mediante nodo de IA (Gemini / Heurística Bromatológica)
+  async analyzeDishWithAI({ name, ingredients, category }) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/ia/analizar-platillo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombrePlatillo: name, ingredientes, categoria: category })
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (err) {
+      console.warn('Error al consultar nodo de IA para analisis de platillo:', err);
+    }
+    return null;
+  },
+
   // Publicar menú desde la Nutrióloga para cualquier semana seleccionada
   publishMenu({ weekInput = 1, week = 1, daysPerWeek, dietOptionA, dietOptionB, dishSelection, humanVerification, daysList }) {
     const weekInfo = this.normalizeWeek(weekInput || week);
@@ -346,13 +363,14 @@ export const menuStore = {
           id: `${weekInfo.weekKey}-${dayName.toLowerCase()}-a`,
           name: optA.name || 'Platillo Proteico',
           category: dietOptionA || 'Balance Proteico',
-          calories: 480,
-          protein: '35g',
-          carbs: '40g',
-          fats: '14g',
-          allergens: [],
-          tags: ['Alto en Proteína', 'Control Glucémico'],
-          image: defaultInfo.imageA,
+          calories: optA.calories || 480,
+          protein: typeof optA.protein === 'number' ? `${optA.protein}g` : (optA.protein || '35g'),
+          carbs: typeof optA.carbs === 'number' ? `${optA.carbs}g` : (optA.carbs || '40g'),
+          fats: typeof optA.fats === 'number' ? `${optA.fats}g` : (optA.fats || '14g'),
+          clinicalProfile: optA.clinicalProfile || 'Índice glucémico controlado, digestión ágil en oficina sin causar pesadez post-almuerzo.',
+          allergens: Array.isArray(optA.allergens) ? optA.allergens : [],
+          tags: optA.tags || ['Alto en Proteína', 'Control Glucémico'],
+          image: optA.image || defaultInfo.imageA,
           recipe: {
             ingredients: (optA.ingredients && optA.ingredients.trim()) || '150g Proteína base, 80g Vegetales, 50g Carbohidrato',
             method: methodA
@@ -362,13 +380,14 @@ export const menuStore = {
           id: `${weekInfo.weekKey}-${dayName.toLowerCase()}-b`,
           name: optB.name || 'Platillo Plant-Based',
           category: dietOptionB || 'Plant-Based & Digestión Ligera',
-          calories: 430,
-          protein: '18g',
-          carbs: '50g',
-          fats: '16g',
-          allergens: [],
-          tags: ['Plant-Based', 'Fibra Activa'],
-          image: defaultInfo.imageB,
+          calories: optB.calories || 430,
+          protein: typeof optB.protein === 'number' ? `${optB.protein}g` : (optB.protein || '18g'),
+          carbs: typeof optB.carbs === 'number' ? `${optB.carbs}g` : (optB.carbs || '50g'),
+          fats: typeof optB.fats === 'number' ? `${optB.fats}g` : (optB.fats || '16g'),
+          clinicalProfile: optB.clinicalProfile || 'Alto contenido de fibra vegetal e ingredientes antioxidantes antiinflamatorios.',
+          allergens: Array.isArray(optB.allergens) ? optB.allergens : [],
+          tags: optB.tags || ['Plant-Based', 'Fibra Activa'],
+          image: optB.image || defaultInfo.imageB,
           recipe: {
             ingredients: (optB.ingredients && optB.ingredients.trim()) || '140g Base vegetal, 100g Vegetales, 60g Grano',
             method: methodB
@@ -560,7 +579,7 @@ export const menuStore = {
   },
 
   // Modificar manualmente ingredientes de una receta sugerida (Chef o Nutrióloga)
-  updateDishIngredients(weekInput = 1, dayIdentifier, optionKey, newIngredients, modifiedBy = 'usuario') {
+  async updateDishIngredients(weekInput = 1, dayIdentifier, optionKey, newIngredients, modifiedBy = 'usuario') {
     const weekInfo = this.normalizeWeek(weekInput);
     const activeMenu = this.getActiveMenu(weekInfo);
     if (!activeMenu || !Array.isArray(activeMenu.days)) return null;
@@ -602,6 +621,25 @@ export const menuStore = {
     dish.isManuallyAdjusted = true;
     dish.lastModifiedAt = new Date().toISOString();
     dish.lastModifiedBy = modifiedBy;
+
+    // Recalcular inmediatamente macros, perfil clínico y alérgenos con el nodo de IA
+    try {
+      const aiResult = await this.analyzeDishWithAI({
+        name: dish.name,
+        ingredients: formattedIngredients,
+        category: dish.category
+      });
+      if (aiResult) {
+        dish.calories = aiResult.calorias;
+        dish.protein = typeof aiResult.proteina === 'number' ? `${aiResult.proteina}g` : aiResult.proteina;
+        dish.carbs = typeof aiResult.carbos === 'number' ? `${aiResult.carbos}g` : aiResult.carbos;
+        dish.fats = typeof aiResult.grasas === 'number' ? `${aiResult.grasas}g` : aiResult.grasas;
+        dish.clinicalProfile = aiResult.perfilClinico;
+        dish.allergens = aiResult.alergenos || [];
+      }
+    } catch (e) {
+      console.warn('Error al recalcular macros con IA:', e);
+    }
 
     // Guardar en localStorage
     localStorage.setItem(`${MENU_STORAGE_PREFIX}${weekInfo.weekKey}`, JSON.stringify(activeMenu));
