@@ -1,10 +1,10 @@
 // menuStore.js - Servicio sincronizado para Menús B2B Royal Canin con Selector por Calendario
 import { cyclicMenus } from '../data/mockData';
 
-const MENU_STORAGE_PREFIX = 'royal_canin_menu_';
-const ORDERS_STORAGE_PREFIX = 'royal_canin_orders_';
-const LEGACY_MENU_KEY = 'casa_nostra_active_menu';
-const LEGACY_ORDERS_KEY = 'casa_nostra_employee_orders';
+const MENU_STORAGE_PREFIX = 'casanostra_menu_v2_';
+const ORDERS_STORAGE_PREFIX = 'casanostra_orders_v2_';
+const LEGACY_MENU_KEY = 'casa_nostra_active_menu_v2';
+const LEGACY_ORDERS_KEY = 'casa_nostra_employee_orders_v2';
 
 const isLocalhost = typeof window !== 'undefined' && 
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
@@ -142,7 +142,7 @@ export const menuStore = {
     }
     if (!this._syncMenuCache) this._syncMenuCache = {};
 
-    this._syncMenuCache[cacheKey] = fetch(`${API_BASE_URL}/api/royal/menu/actual?semana=${weekInfo.weekKey}&empresa=Royal%20Canin`)
+    this._syncMenuCache[cacheKey] = fetch(`${API_BASE_URL}/api/royal/menu/actual?semana=${weekInfo.weekKey}&empresa=Casa%20Nostra`)
       .then(res => (res.ok ? res.json() : null))
       .then(data => {
         if (data && data.isPublished && Array.isArray(data.days) && data.days.length > 0) {
@@ -198,7 +198,7 @@ export const menuStore = {
     }
     if (!this._syncOrdersCache) this._syncOrdersCache = {};
 
-    this._syncOrdersCache[cacheKey] = fetch(`${API_BASE_URL}/api/royal/pedidos/${weekInfo.weekKey}?empresa=Royal%20Canin`)
+    this._syncOrdersCache[cacheKey] = fetch(`${API_BASE_URL}/api/royal/pedidos/${weekInfo.weekKey}?empresa=Casa%20Nostra`)
       .then(res => (res.ok ? res.json() : null))
       .then(data => {
         if (data && data.orders && Object.keys(data.orders).length > 0) {
@@ -244,8 +244,29 @@ export const menuStore = {
       if (stored) return JSON.parse(stored);
       const storedByNum = localStorage.getItem(`${MENU_STORAGE_PREFIX}w${weekInfo.weekNumber}`);
       if (storedByNum) return JSON.parse(storedByNum);
+      
+      // Fallback a claves alternativas o previas de Casa Nostra y Royal Canin
+      const altKeys = [
+        `casa_nostra_menu_v2_${weekInfo.weekKey}`,
+        `casa_nostra_menu_v2_w${weekInfo.weekNumber}`,
+        `royal_canin_menu_v2_${weekInfo.weekKey}`,
+        `royal_canin_menu_v2_w${weekInfo.weekNumber}`,
+        `royal_menu_v2_${weekInfo.weekKey}`
+      ];
+      for (const k of altKeys) {
+        const altStored = localStorage.getItem(k);
+        if (altStored) {
+          try {
+            const parsed = JSON.parse(altStored);
+            // Migrar automáticamente a la clave estándar
+            localStorage.setItem(`${MENU_STORAGE_PREFIX}${weekInfo.weekKey}`, altStored);
+            return parsed;
+          } catch (_) {}
+        }
+      }
+
       if (weekInfo.weekNumber === 1) {
-        const legacy = localStorage.getItem(LEGACY_MENU_KEY);
+        const legacy = localStorage.getItem(LEGACY_MENU_KEY) || localStorage.getItem('royal_canin_active_menu_v2');
         if (legacy) return JSON.parse(legacy);
       }
     } catch (e) {
@@ -254,10 +275,12 @@ export const menuStore = {
 
     // Únicamente la Semana 1 inicial cuenta con menú pre-cargado para la operación activa.
     if (weekInfo.weekNumber === 1 || weekInfo.weekKey === '2026-08-10') {
-      const initialWeek = cyclicMenus[0];
-      const initialDays = (initialWeek.days || []).map(day => ({
+      const initialWeek = Array.isArray(cyclicMenus)
+        ? (cyclicMenus[0] || cyclicMenus[1])
+        : (cyclicMenus[1] || Object.values(cyclicMenus)[0] || {});
+      const initialDays = ((initialWeek && initialWeek.days) || []).map(day => ({
         ...day,
-        dateLabel: weekInfo.dayDates[day.dayName] || day.dateLabel
+        dateLabel: (weekInfo.dayDates && weekInfo.dayDates[day.dayName]) || day.dateLabel || day.dateInfo
       }));
 
       return {
@@ -406,7 +429,7 @@ export const menuStore = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        empresa: 'Royal Canin',
+        empresa: 'Casa Nostra',
         weekKey: activeMenu.weekKey,
         weekNumber: activeMenu.weekNumber,
         daysPerWeek: activeMenu.daysPerWeek,
@@ -440,8 +463,28 @@ export const menuStore = {
       if (stored) return JSON.parse(stored);
       const storedByNum = localStorage.getItem(`${ORDERS_STORAGE_PREFIX}w${weekInfo.weekNumber}`);
       if (storedByNum) return JSON.parse(storedByNum);
+      
+      // Fallback a claves alternativas o previas
+      const altKeys = [
+        `casa_nostra_orders_v2_${weekInfo.weekKey}`,
+        `casa_nostra_resident_orders_v2_${weekInfo.weekKey}`,
+        `royal_canin_orders_v2_${weekInfo.weekKey}`,
+        `royal_orders_v2_${weekInfo.weekKey}`
+      ];
+      for (const k of altKeys) {
+        const altStored = localStorage.getItem(k);
+        if (altStored) {
+          try {
+            const parsed = JSON.parse(altStored);
+            // Migrar automáticamente
+            localStorage.setItem(`${ORDERS_STORAGE_PREFIX}${weekInfo.weekKey}`, altStored);
+            return parsed;
+          } catch (_) {}
+        }
+      }
+
       if (weekInfo.weekNumber === 1) {
-        const legacy = localStorage.getItem(LEGACY_ORDERS_KEY);
+        const legacy = localStorage.getItem(LEGACY_ORDERS_KEY) || localStorage.getItem('royal_canin_employee_orders_v2');
         if (legacy) return JSON.parse(legacy);
       }
     } catch (e) {
@@ -479,7 +522,7 @@ export const menuStore = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        empresa: 'Royal Canin',
+        empresa: 'Casa Nostra',
         usuarioId: employeeId,
         empleadoNombre: orderData.employeeName || orderData.nombre || undefined,
         empleadoEmail: orderData.employeeEmail || orderData.email || undefined,
@@ -594,7 +637,7 @@ export const menuStore = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        empresa: 'Royal Canin',
+        empresa: 'Casa Nostra',
         weekKey: activeMenu.weekKey,
         weekNumber: activeMenu.weekNumber,
         daysPerWeek: activeMenu.daysPerWeek,
