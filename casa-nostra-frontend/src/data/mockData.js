@@ -42,10 +42,10 @@ export const chefInfo = {
   station: "Cocina Casa Nostra"
 };
 
-export const cyclicMenus = {
-  1: {
-    weekName: "Semana 1 - Menú Tradicional",
-    focus: "Alto en Proteína y Fácil Masticación",
+const weekOneMenu = {
+  weekNumber: 1,
+  weekName: "Semana 1 - Menú Tradicional",
+  focus: "Alto en Proteína y Fácil Masticación",
     days: [
       {
         dayName: "Lunes",
@@ -272,8 +272,10 @@ export const cyclicMenus = {
         }
       }
     ]
-  }
-};
+  };
+
+export const cyclicMenus = [weekOneMenu];
+cyclicMenus[1] = weekOneMenu;
 
 export const sampleParticipants = [
   {

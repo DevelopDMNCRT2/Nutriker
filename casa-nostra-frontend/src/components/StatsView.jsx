@@ -4,11 +4,14 @@ import {
   BarChart2, TrendingUp, ShoppingCart, Calendar, Info, Scale, 
   Activity, CheckCircle2, AlertTriangle, Check, Plus, Minus, 
   FileSpreadsheet, RefreshCw, Printer, Search, Sparkles, Filter, 
-  ChevronRight, Utensils, Award, ShieldAlert, HeartPulse, PieChart, Download
+  ChevronRight, Utensils, Award, ShieldAlert, HeartPulse, PieChart, Download,
+  Users, DollarSign
 } from 'lucide-react';
 import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
 import { scaleIngredients, extractMacroNumber } from '../utils/recipeScaler';
-import { programInfo, cyclicMenus } from '../data/mockData';
+import { programInfo } from '../data/mockData';
+import WeekCalendarPicker from './WeekCalendarPicker';
+import AdministracionView from './AdministracionView';
 import { 
   UNIT_TYPES, 
   getUnitMetadata, 
@@ -21,16 +24,48 @@ import {
 
 const EMPTY_DAYS = [];
 
-export default function StatsView({ selectedWeek }) {
-  const [activeMenu, setActiveMenu] = useState(null);
+export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
+  const [statsWeekInfo, setStatsWeekInfo] = useState(() => {
+    if (selectedWeek && typeof selectedWeek === 'number') {
+      return getWeekInfoFromDate(selectedWeek);
+    }
+    return getWeekInfoFromDate(new Date());
+  });
+  const [activeMenu, setActiveMenu] = useState(() => menuStore.getActiveMenu(statsWeekInfo));
   const [census, setCensus] = useState(() => {
-    const saved = localStorage.getItem('casanostra_active_census');
+    const saved = localStorage.getItem('casa_nostra_active_census') || localStorage.getItem('casanostra_active_census');
     const parsed = parseInt(saved, 10);
     return (!isNaN(parsed) && parsed > 0) ? parsed : (programInfo.activeParticipantsCount || 25);
   });
+
+  useEffect(() => {
+    const handleCensusUpdate = (e) => {
+      if (e?.detail?.census) {
+        setCensus(e.detail.census);
+      } else {
+        const saved = localStorage.getItem('casa_nostra_active_census') || localStorage.getItem('casanostra_active_census');
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed > 0) setCensus(parsed);
+      }
+    };
+    window.addEventListener('casa_nostra_census_updated', handleCensusUpdate);
+    return () => window.removeEventListener('casa_nostra_census_updated', handleCensusUpdate);
+  }, []);
+
+  useEffect(() => {
+    if (selectedWeek && typeof selectedWeek === 'number' && selectedWeek !== statsWeekInfo.weekNumber) {
+      setStatsWeekInfo(getWeekInfoFromDate(selectedWeek));
+    }
+  }, [selectedWeek]);
   
-  // Tab activa: 'servings' | 'supplies' | 'nutrition'
-  const [activeTab, setActiveTab] = useState('servings');
+  // Tab activa: 'residentes' | 'servings' | 'supplies' | 'gastos' | 'nutrition'
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   
   // Registro de raciones servidas por el chef por día
   const [servingsByDay, setServingsByDay] = useState({});
@@ -95,33 +130,24 @@ export default function StatsView({ selectedWeek }) {
     return initial;
   };
 
-  // Cargar Menú y Persistencia al cambiar selectedWeek
+  // Cargar Menú y Persistencia al cambiar statsWeekInfo
   useEffect(() => {
-    const targetInfo = getWeekInfoFromDate(new Date(2026, 0, 1 + (selectedWeek - 1) * 7));
-    let menu = menuStore.getActiveMenu(targetInfo);
+    let menu = menuStore.getActiveMenu(statsWeekInfo);
     
-    // Si la semana no tiene menú configurado en backend ni store, usar plantilla de ciclo con marca
     if (!menu || !menu.days || menu.days.length === 0) {
-      const fallback = cyclicMenus[selectedWeek] || cyclicMenus[1];
-      if (fallback) {
-        menu = {
-          ...fallback,
-          isTemplate: true,
-          weekKey: targetInfo.weekKey,
-          weekNumber: targetInfo.weekNumber,
-          dateRange: targetInfo.dateRange,
-          title: targetInfo.title,
-          days: fallback.days.map(d => ({
-            ...d,
-            dateLabel: targetInfo.dayDates[d.dayName] || d.dateLabel || d.dateInfo
-          }))
-        };
-      }
+      menu = {
+        isPublished: false,
+        weekKey: statsWeekInfo.weekKey,
+        weekNumber: statsWeekInfo.weekNumber,
+        dateRange: statsWeekInfo.dateRange,
+        title: statsWeekInfo.title,
+        days: []
+      };
     }
     setActiveMenu(menu);
 
     // Cargar Raciones Servidas desde LocalStorage
-    const savedServings = localStorage.getItem(`casanostra_servings_w${selectedWeek}`);
+    const savedServings = localStorage.getItem(`casanostra_servings_${statsWeekInfo.weekKey}`) || localStorage.getItem(`casanostra_servings_w${statsWeekInfo.weekNumber}`);
     if (savedServings) {
       try {
         setServingsByDay(JSON.parse(savedServings));
@@ -133,7 +159,7 @@ export default function StatsView({ selectedWeek }) {
     }
 
     // Cargar Insumos Comprados desde LocalStorage
-    const savedPurchases = localStorage.getItem(`casanostra_purchases_w${selectedWeek}`);
+    const savedPurchases = localStorage.getItem(`casanostra_purchases_${statsWeekInfo.weekKey}`) || localStorage.getItem(`casanostra_purchases_w${statsWeekInfo.weekNumber}`);
     if (savedPurchases) {
       try {
         setPurchasedSupplies(JSON.parse(savedPurchases));
@@ -143,7 +169,18 @@ export default function StatsView({ selectedWeek }) {
     } else {
       setPurchasedSupplies({});
     }
-  }, [selectedWeek]);
+  }, [statsWeekInfo]);
+
+  // Escuchar publicaciones de menú en vivo desde Nutrióloga
+  useEffect(() => {
+    const handleMenuUpdate = (e) => {
+      if (!e.detail || e.detail.weekKey === statsWeekInfo.weekKey || e.detail.weekNumber === statsWeekInfo.weekNumber) {
+        setActiveMenu(menuStore.getActiveMenu(statsWeekInfo));
+      }
+    };
+    window.addEventListener('royal_canin_menu_updated', handleMenuUpdate);
+    return () => window.removeEventListener('royal_canin_menu_updated', handleMenuUpdate);
+  }, [statsWeekInfo]);
 
   const days = useMemo(() => activeMenu?.days || EMPTY_DAYS, [activeMenu]);
 
@@ -161,7 +198,8 @@ export default function StatsView({ selectedWeek }) {
           updatedAt: new Date().toISOString()
         }
       };
-      localStorage.setItem(`casanostra_servings_w${selectedWeek}`, JSON.stringify(updated));
+      localStorage.setItem(`casanostra_servings_${statsWeekInfo.weekKey}`, JSON.stringify(updated));
+      localStorage.setItem(`casanostra_servings_w${statsWeekInfo.weekNumber}`, JSON.stringify(updated));
       return updated;
     });
   };
@@ -181,7 +219,8 @@ export default function StatsView({ selectedWeek }) {
           updatedAt: new Date().toISOString()
         }
       };
-      localStorage.setItem(`casanostra_servings_w${selectedWeek}`, JSON.stringify(updated));
+      localStorage.setItem(`casanostra_servings_${statsWeekInfo.weekKey}`, JSON.stringify(updated));
+      localStorage.setItem(`casanostra_servings_w${statsWeekInfo.weekNumber}`, JSON.stringify(updated));
       return updated;
     });
   };
@@ -212,7 +251,8 @@ export default function StatsView({ selectedWeek }) {
         updated[dayName] = { optionA: a, optionB: b, updatedAt: new Date().toISOString() };
         showToast(`Distribución de ${dayName} actualizada a ${ratioType}.`);
       }
-      localStorage.setItem(`casanostra_servings_w${selectedWeek}`, JSON.stringify(updated));
+      localStorage.setItem(`casanostra_servings_${statsWeekInfo.weekKey}`, JSON.stringify(updated));
+      localStorage.setItem(`casanostra_servings_w${statsWeekInfo.weekNumber}`, JSON.stringify(updated));
       return updated;
     });
   };
@@ -536,7 +576,8 @@ export default function StatsView({ selectedWeek }) {
           updatedAt: new Date().toISOString()
         }
       };
-      localStorage.setItem(`casanostra_purchases_w${selectedWeek}`, JSON.stringify(updated));
+      localStorage.setItem(`casanostra_purchases_${statsWeekInfo.weekKey}`, JSON.stringify(updated));
+      localStorage.setItem(`casanostra_purchases_w${statsWeekInfo.weekNumber}`, JSON.stringify(updated));
       return updated;
     });
   };
@@ -553,13 +594,15 @@ export default function StatsView({ selectedWeek }) {
       };
     });
     setPurchasedSupplies(auto);
-    localStorage.setItem(`casanostra_purchases_w${selectedWeek}`, JSON.stringify(auto));
+    localStorage.setItem(`casanostra_purchases_${statsWeekInfo.weekKey}`, JSON.stringify(auto));
+    localStorage.setItem(`casanostra_purchases_w${statsWeekInfo.weekNumber}`, JSON.stringify(auto));
     showToast('Insumos autocompletados con margen de compra estándar (+10% merma proyectada).');
   };
 
   const handleClearPurchases = () => {
     setPurchasedSupplies({});
-    localStorage.removeItem(`casanostra_purchases_w${selectedWeek}`);
+    localStorage.removeItem(`casanostra_purchases_${statsWeekInfo.weekKey}`);
+    localStorage.removeItem(`casanostra_purchases_w${statsWeekInfo.weekNumber}`);
     showToast('Se limpiaron los registros de compras capturadas.');
   };
 
@@ -698,6 +741,16 @@ export default function StatsView({ selectedWeek }) {
         </div>
       )}
 
+      {/* Selector de Calendario Semanal Sincronizado */}
+      <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <WeekCalendarPicker
+          selectedWeekInfo={statsWeekInfo}
+          onChangeWeek={setStatsWeekInfo}
+          onSelectWeek={setStatsWeekInfo}
+          label="Semana del Servicio para Reportes e Insumos:"
+        />
+      </div>
+
       {/* Header Principal con Controles de Censo y Acciones Rápidas */}
       <div className="no-print" style={{
         background: '#FFFFFF',
@@ -714,7 +767,7 @@ export default function StatsView({ selectedWeek }) {
                 CASA NOSTRA • GERIATRÍA
               </span>
               <span style={{ fontSize: '0.85rem', color: '#64748B' }}>
-                Semana {activeMenu?.weekNumber || selectedWeek} ({activeMenu?.dateRange || 'Ciclo Operativo'})
+                Semana {statsWeekInfo.weekNumber} ({statsWeekInfo.dateRange})
               </span>
             </div>
             <h2 style={{ margin: '0.4rem 0 0.2rem 0', fontSize: '1.55rem', fontWeight: '800', color: '#1E293B', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -765,42 +818,78 @@ export default function StatsView({ selectedWeek }) {
           </div>
         </div>
 
-        {/* Sub-Navegación por Pestañas */}
-        {/* Sub-Navegación por Pestañas Compacta (3 Columnas, Sin Scroll Horizontal) */}
+        {/* Sub-Navegación por Pestañas Compacta (5 Pestañas Integradas) */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '0.5rem',
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '0.4rem',
           marginTop: '1.25rem',
           paddingTop: '1rem',
           borderTop: '1px solid #F1F5F9'
         }}>
+          {/* Tab 1: Censo de Residentes */}
           <button
-            onClick={() => setActiveTab('servings')}
+            onClick={() => setActiveTab('residentes')}
             style={{
+              flex: '1 1 auto',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '0.45rem',
-              padding: '0.55rem 0.75rem',
-              borderRadius: '10px',
-              border: activeTab === 'servings' ? '2px solid #B45309' : '1px solid #E2E8F0',
-              background: activeTab === 'servings' ? '#FEF3C7' : '#FFFFFF',
-              color: activeTab === 'servings' ? '#92400E' : '#64748B',
+              gap: '0.35rem',
+              padding: '0.42rem 0.65rem',
+              borderRadius: '8px',
+              border: activeTab === 'residentes' ? '2px solid #7C3AED' : '1px solid #E2E8F0',
+              background: activeTab === 'residentes' ? '#F5F3FF' : '#FFFFFF',
+              color: activeTab === 'residentes' ? '#6D28D9' : '#64748B',
               fontWeight: '700',
-              fontSize: '0.82rem',
+              fontSize: '0.78rem',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               whiteSpace: 'nowrap'
             }}
           >
-            <Utensils size={15} color={activeTab === 'servings' ? '#B45309' : '#64748B'} />
-            <span>1. Raciones del Chef</span>
+            <Users size={14} color={activeTab === 'residentes' ? '#7C3AED' : '#64748B'} />
+            <span>1. Residentes</span>
+            <span style={{
+              background: activeTab === 'residentes' ? '#7C3AED' : '#F1F5F9',
+              color: activeTab === 'residentes' ? '#FFFFFF' : '#64748B',
+              fontSize: '0.68rem',
+              padding: '0.05rem 0.35rem',
+              borderRadius: '999px',
+              fontWeight: '800'
+            }}>
+              {census}
+            </span>
+          </button>
+
+          {/* Tab 2: Raciones del Chef */}
+          <button
+            onClick={() => setActiveTab('servings')}
+            style={{
+              flex: '1 1 auto',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.35rem',
+              padding: '0.42rem 0.65rem',
+              borderRadius: '8px',
+              border: activeTab === 'servings' ? '2px solid #B45309' : '1px solid #E2E8F0',
+              background: activeTab === 'servings' ? '#FEF3C7' : '#FFFFFF',
+              color: activeTab === 'servings' ? '#92400E' : '#64748B',
+              fontWeight: '700',
+              fontSize: '0.78rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <Utensils size={14} color={activeTab === 'servings' ? '#B45309' : '#64748B'} />
+            <span>2. Raciones Chef</span>
             <span style={{
               background: activeTab === 'servings' ? '#B45309' : '#F1F5F9',
               color: activeTab === 'servings' ? '#FFFFFF' : '#64748B',
-              fontSize: '0.72rem',
-              padding: '0.1rem 0.45rem',
+              fontSize: '0.68rem',
+              padding: '0.05rem 0.35rem',
               borderRadius: '999px',
               fontWeight: '800'
             }}>
@@ -808,33 +897,35 @@ export default function StatsView({ selectedWeek }) {
             </span>
           </button>
 
+          {/* Tab 3: Insumos de Cocina */}
           <button
             onClick={() => setActiveTab('supplies')}
             style={{
+              flex: '1 1 auto',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '0.45rem',
-              padding: '0.55rem 0.75rem',
-              borderRadius: '10px',
+              gap: '0.35rem',
+              padding: '0.42rem 0.65rem',
+              borderRadius: '8px',
               border: activeTab === 'supplies' ? '2px solid #10B981' : '1px solid #E2E8F0',
               background: activeTab === 'supplies' ? '#ECFDF5' : '#FFFFFF',
               color: activeTab === 'supplies' ? '#065F46' : '#64748B',
               fontWeight: '700',
-              fontSize: '0.82rem',
+              fontSize: '0.78rem',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               whiteSpace: 'nowrap'
             }}
           >
-            <Scale size={15} color={activeTab === 'supplies' ? '#10B981' : '#64748B'} />
-            <span>2. Insumos y Rendimiento</span>
+            <Scale size={14} color={activeTab === 'supplies' ? '#10B981' : '#64748B'} />
+            <span>3. Insumos Cocina</span>
             {computedData.avgYield !== null && (
               <span style={{
                 background: computedData.avgYield >= 85 ? '#10B981' : '#F59E0B',
                 color: '#FFFFFF',
-                fontSize: '0.72rem',
-                padding: '0.1rem 0.45rem',
+                fontSize: '0.68rem',
+                padding: '0.05rem 0.35rem',
                 borderRadius: '999px',
                 fontWeight: '800'
               }}>
@@ -843,32 +934,59 @@ export default function StatsView({ selectedWeek }) {
             )}
           </button>
 
+          {/* Tab 4: Gastos y Presupuesto */}
           <button
-            onClick={() => setActiveTab('nutrition')}
+            onClick={() => setActiveTab('gastos')}
             style={{
+              flex: '1 1 auto',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '0.45rem',
-              padding: '0.55rem 0.75rem',
-              borderRadius: '10px',
-              border: activeTab === 'nutrition' ? '2px solid #3B82F6' : '1px solid #E2E8F0',
-              background: activeTab === 'nutrition' ? '#EFF6FF' : '#FFFFFF',
-              color: activeTab === 'nutrition' ? '#1E40AF' : '#64748B',
+              gap: '0.35rem',
+              padding: '0.42rem 0.65rem',
+              borderRadius: '8px',
+              border: activeTab === 'gastos' ? '2px solid #EA580C' : '1px solid #E2E8F0',
+              background: activeTab === 'gastos' ? '#FFF7ED' : '#FFFFFF',
+              color: activeTab === 'gastos' ? '#C2410C' : '#64748B',
               fontWeight: '700',
-              fontSize: '0.82rem',
+              fontSize: '0.78rem',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               whiteSpace: 'nowrap'
             }}
           >
-            <HeartPulse size={15} color={activeTab === 'nutrition' ? '#3B82F6' : '#64748B'} />
-            <span>3. Tablas Nutricionales</span>
+            <DollarSign size={14} color={activeTab === 'gastos' ? '#EA580C' : '#64748B'} />
+            <span>4. Gastos y Presupuesto</span>
+          </button>
+
+          {/* Tab 5: Reportes Nutricionales */}
+          <button
+            onClick={() => setActiveTab('nutrition')}
+            style={{
+              flex: '1 1 auto',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.35rem',
+              padding: '0.42rem 0.65rem',
+              borderRadius: '8px',
+              border: activeTab === 'nutrition' ? '2px solid #3B82F6' : '1px solid #E2E8F0',
+              background: activeTab === 'nutrition' ? '#EFF6FF' : '#FFFFFF',
+              color: activeTab === 'nutrition' ? '#1E40AF' : '#64748B',
+              fontWeight: '700',
+              fontSize: '0.78rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <HeartPulse size={14} color={activeTab === 'nutrition' ? '#3B82F6' : '#64748B'} />
+            <span>5. Nutrición</span>
             <span style={{
               background: activeTab === 'nutrition' ? '#3B82F6' : '#F1F5F9',
               color: activeTab === 'nutrition' ? '#FFFFFF' : '#64748B',
-              fontSize: '0.72rem',
-              padding: '0.1rem 0.45rem',
+              fontSize: '0.68rem',
+              padding: '0.05rem 0.35rem',
               borderRadius: '999px',
               fontWeight: '800'
             }}>
@@ -878,10 +996,60 @@ export default function StatsView({ selectedWeek }) {
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* SECCIÓN 1: CONTROL DE RACIONES SERVIDAS POR EL CHEF                       */}
-      {/* ========================================================================= */}
-      {activeTab === 'servings' && (
+      {/* 1. SECCIÓN: CENSO DE RESIDENTES (INDEPENDIENTE DEL MENÚ) */}
+      {activeTab === 'residentes' && (
+        <div style={{ marginTop: '0.5rem' }}>
+          <AdministracionView hideHeader={true} forcedTab="residentes" />
+        </div>
+      )}
+
+      {/* 4. SECCIÓN: GASTOS Y PRESUPUESTO OPERATIVO (INDEPENDIENTE DEL MENÚ) */}
+      {activeTab === 'gastos' && (
+        <div style={{ marginTop: '0.5rem' }}>
+          <AdministracionView hideHeader={true} forcedTab="compras" />
+        </div>
+      )}
+
+      {/* 2, 3, 5: SECCIONES OPERATIVAS QUE DEPENDEN DEL MENÚ DE LA NUTRIÓLOGA */}
+      {(activeTab === 'servings' || activeTab === 'supplies' || activeTab === 'nutrition') && (
+        days.length === 0 ? (
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: '20px',
+            padding: '3.5rem 2rem',
+            textAlign: 'center',
+            border: '1px solid #E2E8F0',
+            boxShadow: '0 4px 15px -3px rgba(0,0,0,0.05)',
+            maxWidth: '650px',
+            margin: '2rem auto'
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '20px',
+              background: '#FEF3C7',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#B45309',
+              margin: '0 auto 1.25rem'
+            }}>
+              <Utensils size={32} />
+            </div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#1E293B', marginBottom: '0.5rem' }}>
+              Sin Menú Publicado para Esta Semana
+            </h3>
+            <p style={{ fontSize: '0.9rem', color: '#64748B', lineHeight: '1.5', margin: 0 }}>
+              La Nutrióloga aún no ha programado ni certificado platillos para la semana del <strong>{statsWeekInfo.dateRange}</strong>.
+              Una vez que la Nutrióloga publique el menú en el sistema, aquí se calcularán automáticamente las raciones del chef, la lista de insumos de compras y el balance nutricional.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* ========================================================================= */}
+            {/* SECCIÓN 2: CONTROL DE RACIONES SERVIDAS POR EL CHEF                       */}
+            {/* ========================================================================= */}
+            {activeTab === 'servings' && (
         <section style={{ marginBottom: '2.5rem' }}>
           
           {/* Tarjeta de Resumen y Métricas de Raciones */}
@@ -1805,6 +1973,9 @@ export default function StatsView({ selectedWeek }) {
 
           </div>
         </section>
+      )}
+          </>
+        )
       )}
 
       {/* ========================================================================= */}

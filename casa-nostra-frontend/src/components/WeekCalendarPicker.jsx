@@ -5,8 +5,10 @@ import { MONTH_NAMES, getWeekInfoFromDate } from '../services/menuStore';
 export default function WeekCalendarPicker({
   selectedWeekInfo,
   onChangeWeek,
+  onSelectWeek,
   label = "Semana del Servicio:"
 }) {
+  const triggerChange = onChangeWeek || onSelectWeek || (() => {});
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -41,12 +43,12 @@ export default function WeekCalendarPicker({
   // Navigate week by week
   const handlePrevWeek = () => {
     const prevMon = new Date(currentMonday.getTime() - 7 * 86400000);
-    onChangeWeek(getWeekInfoFromDate(prevMon));
+    triggerChange(getWeekInfoFromDate(prevMon));
   };
 
   const handleNextWeek = () => {
     const nextMon = new Date(currentMonday.getTime() + 7 * 86400000);
-    onChangeWeek(getWeekInfoFromDate(nextMon));
+    triggerChange(getWeekInfoFromDate(nextMon));
   };
 
   // Month navigation inside popover
@@ -83,7 +85,7 @@ export default function WeekCalendarPicker({
   const handleDaySelect = (dayDate) => {
     if (!dayDate) return;
     const newWeek = getWeekInfoFromDate(dayDate);
-    onChangeWeek(newWeek);
+    triggerChange(newWeek);
     setIsOpen(false);
   };
 

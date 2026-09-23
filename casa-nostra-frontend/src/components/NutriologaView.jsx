@@ -7,9 +7,14 @@ import WeekCalendarPicker from './WeekCalendarPicker';
 import IngredientEditorModal from './IngredientEditorModal';
 
 const GET_ACTIVE_DAYS = (numDays) => {
-  const n = parseInt(numDays, 10) || 7;
-  const all = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-  return all.slice(0, n);
+  const n = parseInt(numDays, 10) || 5;
+  if (n === 1) return ['Lunes'];
+  if (n === 2) return ['Lunes', 'Miércoles'];
+  if (n === 3) return ['Lunes', 'Miércoles', 'Viernes'];
+  if (n === 4) return ['Lunes', 'Martes', 'Miércoles', 'Jueves'];
+  if (n === 5) return ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+  if (n === 6) return ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  return ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 };
 
 const INITIAL_DISH_SELECTION = {
@@ -177,7 +182,8 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
       daysPerWeek: String(daysPerWeek),
       dietOptionA,
       dietOptionB,
-      dishSelection
+      dishSelection,
+      daysList: activeDays
     });
 
     setWizardSuccess(true);

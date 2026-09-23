@@ -235,6 +235,23 @@ const resetTablesSQL = `
     updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at        TIMESTAMPTZ DEFAULT NULL
   );
+
+  -- 15. Residentes (Casa Nostra / Senior Care)
+  CREATE TABLE IF NOT EXISTS residentes (
+    id                VARCHAR(64) PRIMARY KEY,
+    centro_residencia VARCHAR(100) NOT NULL DEFAULT 'Casa Nostra',
+    nombre            VARCHAR(150) NOT NULL,
+    edad              INTEGER,
+    habitacion        VARCHAR(50) NOT NULL,
+    restricciones     TEXT[] DEFAULT '{}',
+    asistencia        VARCHAR(100) DEFAULT 'Comedor Autónomo',
+    observaciones     TEXT,
+    activo            BOOLEAN DEFAULT TRUE,
+    created_at        TIMESTAMPTZ DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ DEFAULT NOW()
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_residentes_centro_hab ON residentes(centro_residencia, habitacion);
 `
 
 async function migrateAll() {

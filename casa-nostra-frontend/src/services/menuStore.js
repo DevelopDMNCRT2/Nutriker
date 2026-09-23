@@ -1,10 +1,10 @@
 // menuStore.js - Servicio sincronizado para Menús B2B Royal Canin con Selector por Calendario
 import { cyclicMenus } from '../data/mockData';
 
-const MENU_STORAGE_PREFIX = 'casanostra_menu_v2_';
-const ORDERS_STORAGE_PREFIX = 'casanostra_orders_v2_';
+const MENU_STORAGE_PREFIX = 'casa_nostra_menu_v2_';
+const ORDERS_STORAGE_PREFIX = 'casa_nostra_orders_v2_';
 const LEGACY_MENU_KEY = 'casa_nostra_active_menu_v2';
-const LEGACY_ORDERS_KEY = 'casa_nostra_employee_orders_v2';
+const LEGACY_ORDERS_KEY = 'casa_nostra_resident_orders_v2';
 
 const isLocalhost = typeof window !== 'undefined' && 
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
@@ -75,7 +75,9 @@ export function getWeekInfoFromDate(inputDate) {
     Martes: `${new Date(monday.getTime() + 1 * 86400000).getDate()} de ${MONTH_NAMES[new Date(monday.getTime() + 1 * 86400000).getMonth()]}, ${new Date(monday.getTime() + 1 * 86400000).getFullYear()}`,
     Miércoles: `${new Date(monday.getTime() + 2 * 86400000).getDate()} de ${MONTH_NAMES[new Date(monday.getTime() + 2 * 86400000).getMonth()]}, ${new Date(monday.getTime() + 2 * 86400000).getFullYear()}`,
     Jueves: `${new Date(monday.getTime() + 3 * 86400000).getDate()} de ${MONTH_NAMES[new Date(monday.getTime() + 3 * 86400000).getMonth()]}, ${new Date(monday.getTime() + 3 * 86400000).getFullYear()}`,
-    Viernes: `${friDay} de ${friMonth}, ${friday.getFullYear()}`
+    Viernes: `${friDay} de ${friMonth}, ${friday.getFullYear()}`,
+    Sábado: `${new Date(monday.getTime() + 5 * 86400000).getDate()} de ${MONTH_NAMES[new Date(monday.getTime() + 5 * 86400000).getMonth()]}, ${new Date(monday.getTime() + 5 * 86400000).getFullYear()}`,
+    Domingo: `${new Date(monday.getTime() + 6 * 86400000).getDate()} de ${MONTH_NAMES[new Date(monday.getTime() + 6 * 86400000).getMonth()]}, ${new Date(monday.getTime() + 6 * 86400000).getFullYear()}`
   };
 
   return {
@@ -91,34 +93,46 @@ export function getWeekInfoFromDate(inputDate) {
 
 const DEFAULT_RECIPES = {
   Lunes: {
-    methodA: "1. Macerar pechuga con romero y limón.\n2. Cocinar a la plancha a 180°C por 6 mins por lado.\n3. Servir con quinoa tricolor y calabacitas asadas.",
-    methodB: "1. Rostizar garbanzos con paprika a 200°C por 15 mins.\n2. Saltear vegetales mixtos al dente.\n3. Servir con cama de arroz y aderezo artesanal.",
+    methodA: "1. Preparar caldo de pollo natural (sin consomé en polvo).\n2. Mezclar puré de papa con atún drenado y huevo.\n3. Formar tortitas y dorar ligeramente en sartén antiadherente.\n4. Servir con verduras cocidas extra suaves.",
+    methodB: "1. Cocer lentejas hasta deshacer.\n2. Licuar pechuga de pollo cocida con caldo de pollo hasta textura tersa.\n3. Añadir suplemento proteico sin sabor.\n4. Servir tibio.",
+    imageA: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+    imageB: "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=600&q=80"
+  },
+  Martes: {
+    methodA: "1. Remojar bien las tortillas en salsa de tomate no picante.\n2. Deshebrar muslo de pollo muy finamente.\n3. Servir con queso panela rallado y frijoles refritos muy suaves.",
+    methodB: "1. Licuar fresas con leche Carnation.\n2. Añadir suplemento proteico o lácteo.\n3. Servir tibio o templado para deglución fácil.",
     imageA: "https://images.unsplash.com/photo-1532550907401-a500c9a57435?auto=format&fit=crop&w=600&q=80",
     imageB: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=600&q=80"
   },
-  Martes: {
-    methodA: "1. Sellar filete de salmón en sartén caliente con miel de mostaza.\n2. Hornear camote en cubos y espárragos al vapor.",
-    methodB: "1. Cocer lentejas con curry y especias.\n2. Incorporar leche de coco y espinacas frescas.\n3. Servir con cuscús perlado.",
-    imageA: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=600&q=80",
-    imageB: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80"
-  },
   Miércoles: {
-    methodA: "1. Sellar medallón a término deseado con sal en grano.\n2. Preparar puré rústico de coliflor con mantequilla clarificada y brócoli.",
-    methodB: "1. Prensar y marinar tofu en cubos con salsa soya baja en sodio.\n2. Saltear con fideos de arroz, pimientos y aceite de ajonjolí.",
+    methodA: "1. Formar albóndigas de res muy suaves con arroz cocido fino.\n2. Cocinar a fuego lento en caldillo de jitomate con calabacitas picadas.",
+    methodB: "1. Preparar gelatina de agua adicionada con proteína neutra.\n2. Servir con compota de pera suave sin grumos.",
     imageA: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=600&q=80",
     imageB: "https://images.unsplash.com/photo-1511690656952-34342bb7c2f2?auto=format&fit=crop&w=600&q=80"
   },
   Jueves: {
-    methodA: "1. Saltear fajitas de pollo con trilogía de pimientos y cebolla morada.\n2. Servir con tortillas de maíz recién hechas.",
-    methodB: "1. Estofar frijol negro con quinoa y especias mexicanas.\n2. Acompañar con guacamole fresco y jitomate picado.",
-    imageA: "https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?auto=format&fit=crop&w=600&q=80",
+    methodA: "1. Cocinar filete de salmón al vapor con finas hierbas.\n2. Acompañar con puré de camote amarillo suave y zanahorias baby.",
+    methodB: "1. Caldo de verduras casero con pechuga de pollo deshebrada extra fina.\n2. Servir con fideos de arroz bien cocidos.",
+    imageA: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=600&q=80",
     imageB: "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=600&q=80"
   },
   Viernes: {
-    methodA: "1. Envolver filete de pescado en papel pergamino con julianas de vegetales y aceite de oliva.\n2. Hornear a 190°C por 14 minutos.",
-    methodB: "1. Formar medallón artesanal de portobello y lentejas.\n2. Sellar a la plancha y montar con pan de centeno, arúgula y tahini.",
+    methodA: "1. Filete de pescado blanco horneado con aceite de oliva y gotas de limón.\n2. Servir con puré de papa suave y calabacita al vapor.",
+    methodB: "1. Crema de champiñones suave con leche descremada.\n2. Incorporar proteína neutra y servir con crutones remojados.",
     imageA: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=600&q=80",
     imageB: "https://images.unsplash.com/photo-1520072959219-c595dc870360?auto=format&fit=crop&w=600&q=80"
+  },
+  Sábado: {
+    methodA: "1. Pechuga de pollo en crema ligera de calabacita.\n2. Servir con arroz blanco muy suave.",
+    methodB: "1. Arroz con leche descremada, canela y proteína.\n2. Servir en porción controlada y textura tersa.",
+    imageA: "https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?auto=format&fit=crop&w=600&q=80",
+    imageB: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80"
+  },
+  Domingo: {
+    methodA: "1. Consomé de pollo casero abundante.\n2. Huevo revuelto tierno con queso Oaxaca y aguacate suave.",
+    methodB: "1. Preparar atole de vainilla con galletas Marías suaves remojadas.\n2. Adicionar suplemento proteico neutro.",
+    imageA: "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=600&q=80",
+    imageB: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=600&q=80"
   }
 };
 
@@ -273,37 +287,6 @@ export const menuStore = {
       console.error(`Error reading active menu for week ${weekInfo.weekKey}:`, e);
     }
 
-    // Únicamente la Semana 1 inicial cuenta con menú pre-cargado para la operación activa.
-    if (weekInfo.weekNumber === 1 || weekInfo.weekKey === '2026-08-10') {
-      const initialWeek = Array.isArray(cyclicMenus)
-        ? (cyclicMenus[0] || cyclicMenus[1])
-        : (cyclicMenus[1] || Object.values(cyclicMenus)[0] || {});
-      const initialDays = ((initialWeek && initialWeek.days) || []).map(day => ({
-        ...day,
-        dateLabel: (weekInfo.dayDates && weekInfo.dayDates[day.dayName]) || day.dateLabel || day.dateInfo
-      }));
-
-      return {
-        weekKey: weekInfo.weekKey,
-        weekNumber: weekInfo.weekNumber,
-        dateRange: weekInfo.dateRange,
-        title: weekInfo.title,
-        daysPerWeek: '3',
-        dietOptionA: 'Balance Proteico',
-        dietOptionB: 'Plant-Based & Digestión Ligera',
-        publishedAt: '2026-08-10T08:00:00.000Z',
-        isPublished: true,
-        humanVerification: {
-          isVerified: true,
-          verifiedBy: 'Nutrióloga Karla',
-          role: 'Nutrióloga Clínica & Responsable del Programa',
-          verifiedAt: '2026-08-10T08:00:00.000Z',
-          certificationStatement: 'Menú y fichas técnicas auditadas y certificadas manualmente por especialista humano',
-          notes: 'Revisión clínica completa: aporte calórico < 520 kcal y rotación de alérgenos validada.'
-        },
-        days: initialDays
-      };
-    }
 
     // Para cualquier otra semana del calendario que aún no ha sido programada por la doctora:
     return {
@@ -322,23 +305,28 @@ export const menuStore = {
   },
 
   // Publicar menú desde la Nutrióloga para cualquier semana seleccionada
-  publishMenu({ weekInput = 1, week = 1, daysPerWeek, dietOptionA, dietOptionB, dishSelection, humanVerification }) {
+  publishMenu({ weekInput = 1, week = 1, daysPerWeek, dietOptionA, dietOptionB, dishSelection, humanVerification, daysList }) {
     const weekInfo = this.normalizeWeek(weekInput || week);
-    const ALL_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+    const ALL_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
     const numDays = parseInt(daysPerWeek, 10) || 3;
     let dayNames = [];
 
-    if (numDays === 5) {
-      dayNames = ALL_DAYS;
+    if (Array.isArray(daysList) && daysList.length > 0) {
+      dayNames = daysList;
     } else if (numDays === 3) {
       dayNames = ['Lunes', 'Miércoles', 'Viernes'];
     } else if (numDays === 2) {
-      dayNames = ['Lunes', 'Miércoles']; // Lunes y Miércoles explícito
+      dayNames = ['Lunes', 'Miércoles'];
     } else if (numDays === 1) {
       dayNames = ['Lunes'];
-    } else if (numDays === 4) {
-      dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves'];
-    } else {
+    } else if (dishSelection && typeof dishSelection === 'object') {
+      const selectedKeys = Object.keys(dishSelection);
+      // Mantener los días seleccionados en el orden natural del calendario
+      const filtered = ALL_DAYS.filter(d => selectedKeys.includes(d));
+      dayNames = filtered.slice(0, numDays);
+    }
+
+    if (dayNames.length === 0) {
       dayNames = ALL_DAYS.slice(0, numDays);
     }
 
