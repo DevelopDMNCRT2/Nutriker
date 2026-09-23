@@ -168,6 +168,7 @@ export const menuStore = {
             daysPerWeek: data.daysPerWeek || String(data.days.length),
             dietOptionA: data.dietOptionA,
             dietOptionB: data.dietOptionB,
+            dietOptionC: data.dietOptionC || 'Especial & Hiposódico',
             publishedAt: data.publishedAt || new Date().toISOString(),
             isPublished: true,
             days: data.days
@@ -305,46 +306,57 @@ export const menuStore = {
   },
 
   // Publicar menú desde la Nutrióloga para cualquier semana seleccionada
-  publishMenu({ weekInput = 1, week = 1, daysPerWeek, dietOptionA, dietOptionB, dishSelection, humanVerification, daysList }) {
+  publishMenu({ weekInput = 1, week = 1, daysPerWeek, dietOptionA, dietOptionB, dietOptionC, dishSelection, humanVerification, daysList }) {
     const weekInfo = this.normalizeWeek(weekInput || week);
     const ALL_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-    const numDays = parseInt(daysPerWeek, 10) || 3;
+    const numDays = Array.isArray(daysList) && daysList.length > 0 ? daysList.length : (parseInt(daysPerWeek, 10) || 5);
     let dayNames = [];
 
     if (Array.isArray(daysList) && daysList.length > 0) {
       dayNames = daysList;
-    } else if (numDays === 3) {
-      dayNames = ['Lunes', 'Miércoles', 'Viernes'];
-    } else if (numDays === 2) {
-      dayNames = ['Lunes', 'Miércoles'];
-    } else if (numDays === 1) {
-      dayNames = ['Lunes'];
     } else if (dishSelection && typeof dishSelection === 'object') {
       const selectedKeys = Object.keys(dishSelection);
       // Mantener los días seleccionados en el orden natural del calendario
       const filtered = ALL_DAYS.filter(d => selectedKeys.includes(d));
-      dayNames = filtered.slice(0, numDays);
-    }
-
-    if (dayNames.length === 0) {
+      dayNames = filtered.length > 0 ? filtered : ALL_DAYS.slice(0, numDays);
+    } else {
       dayNames = ALL_DAYS.slice(0, numDays);
     }
 
     const days = dayNames.map((dayName) => {
       const dayDishes = dishSelection[dayName] || {};
+      const soup = dayDishes.soup || {};
       const optA = dayDishes.optionA || {};
       const optB = dayDishes.optionB || {};
+      const optC = dayDishes.optionC || {};
       const defaultInfo = DEFAULT_RECIPES[dayName] || DEFAULT_RECIPES.Lunes;
 
+      const methodSoup = (soup.method && soup.method.trim()) || "1. Hervir fondo natural a fuego lento.\n2. Incorporar verduras y proteína suave.\n3. Servir caliente.";
       const methodA = (optA.method && optA.method.trim()) || defaultInfo.methodA;
       const methodB = (optB.method && optB.method.trim()) || defaultInfo.methodB;
+      const methodC = (optC.method && optC.method.trim()) || "1. Cocinar ingredientes al vapor o plancha suave.\n2. Servir con guarnición balanceada.";
 
       return {
         dayName,
         dateLabel: weekInfo.dayDates[dayName] || `${dayName}, ${weekInfo.dateRange}`,
+        soup: {
+          id: `${weekInfo.weekKey}-${dayName.toLowerCase()}-soup`,
+          name: soup.name || 'Sopa Nutritiva del Día',
+          category: 'Sopa',
+          calories: 220,
+          protein: '12g',
+          carbs: '24g',
+          fats: '6g',
+          allergens: [],
+          tags: ['Sopa', 'Fácil Deglución', 'Hidratación'],
+          recipe: {
+            ingredients: (soup.ingredients && soup.ingredients.trim()) || '',
+            method: methodSoup
+          }
+        },
         optionA: {
           id: `${weekInfo.weekKey}-${dayName.toLowerCase()}-a`,
-          name: optA.name || 'Platillo Proteico',
+          name: optA.name || 'Platillo Opción A',
           category: dietOptionA || 'Balance Proteico',
           calories: 480,
           protein: '35g',
@@ -354,13 +366,13 @@ export const menuStore = {
           tags: ['Alto en Proteína', 'Control Glucémico'],
           image: defaultInfo.imageA,
           recipe: {
-            ingredients: (optA.ingredients && optA.ingredients.trim()) || '150g Proteína base, 80g Vegetales, 50g Carbohidrato',
+            ingredients: (optA.ingredients && optA.ingredients.trim()) || '',
             method: methodA
           }
         },
         optionB: {
           id: `${weekInfo.weekKey}-${dayName.toLowerCase()}-b`,
-          name: optB.name || 'Platillo Plant-Based',
+          name: optB.name || 'Platillo Opción B',
           category: dietOptionB || 'Plant-Based & Digestión Ligera',
           calories: 430,
           protein: '18g',
@@ -370,8 +382,23 @@ export const menuStore = {
           tags: ['Plant-Based', 'Fibra Activa'],
           image: defaultInfo.imageB,
           recipe: {
-            ingredients: (optB.ingredients && optB.ingredients.trim()) || '140g Base vegetal, 100g Vegetales, 60g Grano',
+            ingredients: (optB.ingredients && optB.ingredients.trim()) || '',
             method: methodB
+          }
+        },
+        optionC: {
+          id: `${weekInfo.weekKey}-${dayName.toLowerCase()}-c`,
+          name: optC.name || 'Platillo Opción C',
+          category: dietOptionC || 'Especial & Hiposódico',
+          calories: 390,
+          protein: '28g',
+          carbs: '38g',
+          fats: '12g',
+          allergens: [],
+          tags: ['Especial Nutricional', 'Bajo en Sodio'],
+          recipe: {
+            ingredients: (optC.ingredients && optC.ingredients.trim()) || '',
+            method: methodC
           }
         }
       };
@@ -382,9 +409,10 @@ export const menuStore = {
       weekNumber: weekInfo.weekNumber,
       dateRange: weekInfo.dateRange,
       title: weekInfo.title,
-      daysPerWeek: String(numDays),
+      daysPerWeek: String(dayNames.length),
       dietOptionA,
       dietOptionB,
+      dietOptionC: dietOptionC || 'Especial & Hiposódico',
       publishedAt: new Date().toISOString(),
       isPublished: true,
       humanVerification: humanVerification || {
@@ -423,6 +451,7 @@ export const menuStore = {
         daysPerWeek: activeMenu.daysPerWeek,
         dietOptionA: activeMenu.dietOptionA,
         dietOptionB: activeMenu.dietOptionB,
+        dietOptionC: activeMenu.dietOptionC,
         humanVerification: activeMenu.humanVerification,
         days: activeMenu.days
       })
@@ -580,7 +609,11 @@ export const menuStore = {
     }
 
     const dayObj = activeMenu.days[targetDayIndex];
-    const optProp = optionKey === 'B' || optionKey === 'optionB' ? 'optionB' : 'optionA';
+    let optProp = 'optionA';
+    if (optionKey === 'soup' || optionKey === 'S') optProp = 'soup';
+    else if (optionKey === 'B' || optionKey === 'optionB') optProp = 'optionB';
+    else if (optionKey === 'C' || optionKey === 'optionC') optProp = 'optionC';
+    else if (optionKey === 'A' || optionKey === 'optionA') optProp = 'optionA';
     const dish = dayObj[optProp];
 
     if (!dish) return null;
@@ -656,7 +689,11 @@ export const menuStore = {
     if (targetDayIndex < 0 || targetDayIndex >= activeMenu.days.length) return null;
 
     const dayObj = activeMenu.days[targetDayIndex];
-    const optProp = optionKey === 'B' || optionKey === 'optionB' ? 'optionB' : 'optionA';
+    let optProp = 'optionA';
+    if (optionKey === 'soup' || optionKey === 'S') optProp = 'soup';
+    else if (optionKey === 'B' || optionKey === 'optionB') optProp = 'optionB';
+    else if (optionKey === 'C' || optionKey === 'optionC') optProp = 'optionC';
+    else if (optionKey === 'A' || optionKey === 'optionA') optProp = 'optionA';
     const dish = dayObj[optProp];
 
     if (!dish || !dish.originalIngredients) return null;

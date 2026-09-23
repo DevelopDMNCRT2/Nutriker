@@ -52,8 +52,10 @@ export async function obtenerMenuSemana(req, res) {
         diasMap[row.dia_semana] = {
           dayName: row.dia_semana,
           dateLabel: new Date(row.fecha).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }),
+          soup: null,
           optionA: null,
-          optionB: null
+          optionB: null,
+          optionC: null
         }
       }
 
@@ -72,10 +74,14 @@ export async function obtenerMenuSemana(req, res) {
         }
       }
 
-      if (row.tipo_opcion === 'A') {
+      if (row.tipo_opcion === 'S') {
+        diasMap[row.dia_semana].soup = optData
+      } else if (row.tipo_opcion === 'A') {
         diasMap[row.dia_semana].optionA = optData
-      } else {
+      } else if (row.tipo_opcion === 'B') {
         diasMap[row.dia_semana].optionB = optData
+      } else if (row.tipo_opcion === 'C') {
+        diasMap[row.dia_semana].optionC = optData
       }
     })
 
@@ -89,6 +95,7 @@ export async function obtenerMenuSemana(req, res) {
       daysPerWeek: String(menu.dias_servicio),
       dietOptionA: menu.titulo_opcion_a,
       dietOptionB: menu.titulo_opcion_b,
+      dietOptionC: menu.titulo_opcion_c || 'Especial & Hiposódico',
       publishedAt: menu.publicado_en,
       isPublished: menu.publicado,
       days
@@ -111,6 +118,7 @@ export async function guardarMenuSemana(req, res) {
     daysPerWeek = 5,
     dietOptionA = 'Balance Proteico',
     dietOptionB = 'Plant-Based & Digestión Ligera',
+    dietOptionC = 'Especial & Hiposódico',
     days = [],
     nutriologaId = null
   } = req.body
@@ -137,10 +145,10 @@ export async function guardarMenuSemana(req, res) {
       menuId = existingMenu.rows[0].id
       await client.query(
         `UPDATE menus_b2b 
-         SET dias_servicio = $1, titulo_opcion_a = $2, titulo_opcion_b = $3, 
+         SET dias_servicio = $1, titulo_opcion_a = $2, titulo_opcion_b = $3, titulo_opcion_c = $4,
              publicado = TRUE, publicado_en = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $4`,
-        [parseInt(daysPerWeek, 10) || 5, dietOptionA, dietOptionB, menuId]
+         WHERE id = $5`,
+        [parseInt(daysPerWeek, 10) || 5, dietOptionA, dietOptionB, dietOptionC, menuId]
       )
 
       // Eliminar registros anteriores para recreación limpia atómica
@@ -150,8 +158,8 @@ export async function guardarMenuSemana(req, res) {
       await client.query(
         `INSERT INTO menus_b2b (
           id, empresa, semana_key, semana_numero, fecha_inicio, fecha_fin, 
-          dias_servicio, titulo_opcion_a, titulo_opcion_b, publicado, nutriologa_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, $10)`,
+          dias_servicio, titulo_opcion_a, titulo_opcion_b, titulo_opcion_c, publicado, nutriologa_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, $11)`,
         [
           menuId,
           empresa,
@@ -162,6 +170,7 @@ export async function guardarMenuSemana(req, res) {
           parseInt(daysPerWeek, 10) || 5,
           dietOptionA,
           dietOptionB,
+          dietOptionC,
           nutriologaId
         ]
       )
@@ -183,7 +192,38 @@ export async function guardarMenuSemana(req, res) {
       const offset = dayOffsets[dayName] ?? 0
       const diaFecha = new Date(fechaInicio.getTime() + offset * 86400000)
 
-      // Opción A
+      // Sopa (Enfoque 1: 'S')
+      if (d.soup) {
+        const diaIdS = await generarIdUnico('menu_b2b_dias')
+        const proteinNum = parseFloat(String(d.soup.protein || '0').replace('g', '')) || 0
+        const carbsNum = parseFloat(String(d.soup.carbs || '0').replace('g', '')) || 0
+        const fatsNum = parseFloat(String(d.soup.fats || '0').replace('g', '')) || 0
+
+        await client.query(
+          `INSERT INTO menu_b2b_dias (
+            id, menu_id, dia_semana, fecha, tipo_opcion, nombre_platillo, 
+            categoria, calorias, proteinas_g, carbohidratos_g, grasas_g, 
+            ingredientes, metodo_preparacion, imagen_url
+          ) VALUES ($1, $2, $3, $4, 'S', $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+          [
+            diaIdS,
+            menuId,
+            dayName,
+            diaFecha,
+            d.soup.name || 'Sopa Nutritiva',
+            'Sopa',
+            parseInt(d.soup.calories, 10) || 220,
+            proteinNum,
+            carbsNum,
+            fatsNum,
+            d.soup.recipe?.ingredients || '',
+            d.soup.recipe?.method || '',
+            d.soup.image || null
+          ]
+        )
+      }
+
+      // Opción A ('A')
       if (d.optionA) {
         const diaIdA = await generarIdUnico('menu_b2b_dias')
         const proteinNum = parseFloat(String(d.optionA.protein || '0').replace('g', '')) || 0
@@ -203,7 +243,7 @@ export async function guardarMenuSemana(req, res) {
             diaFecha,
             d.optionA.name || 'Opción A',
             d.optionA.category || dietOptionA,
-            parseInt(d.optionA.calories, 10) || 450,
+            parseInt(d.optionA.calories, 10) || 480,
             proteinNum,
             carbsNum,
             fatsNum,
@@ -214,7 +254,7 @@ export async function guardarMenuSemana(req, res) {
         )
       }
 
-      // Opción B
+      // Opción B ('B')
       if (d.optionB) {
         const diaIdB = await generarIdUnico('menu_b2b_dias')
         const proteinNum = parseFloat(String(d.optionB.protein || '0').replace('g', '')) || 0
@@ -234,13 +274,44 @@ export async function guardarMenuSemana(req, res) {
             diaFecha,
             d.optionB.name || 'Opción B',
             d.optionB.category || dietOptionB,
-            parseInt(d.optionB.calories, 10) || 400,
+            parseInt(d.optionB.calories, 10) || 430,
             proteinNum,
             carbsNum,
             fatsNum,
             d.optionB.recipe?.ingredients || '',
             d.optionB.recipe?.method || '',
             d.optionB.image || null
+          ]
+        )
+      }
+
+      // Opción C ('C')
+      if (d.optionC) {
+        const diaIdC = await generarIdUnico('menu_b2b_dias')
+        const proteinNum = parseFloat(String(d.optionC.protein || '0').replace('g', '')) || 0
+        const carbsNum = parseFloat(String(d.optionC.carbs || '0').replace('g', '')) || 0
+        const fatsNum = parseFloat(String(d.optionC.fats || '0').replace('g', '')) || 0
+
+        await client.query(
+          `INSERT INTO menu_b2b_dias (
+            id, menu_id, dia_semana, fecha, tipo_opcion, nombre_platillo, 
+            categoria, calorias, proteinas_g, carbohidratos_g, grasas_g, 
+            ingredientes, metodo_preparacion, imagen_url
+          ) VALUES ($1, $2, $3, $4, 'C', $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+          [
+            diaIdC,
+            menuId,
+            dayName,
+            diaFecha,
+            d.optionC.name || 'Opción C',
+            d.optionC.category || dietOptionC,
+            parseInt(d.optionC.calories, 10) || 390,
+            proteinNum,
+            carbsNum,
+            fatsNum,
+            d.optionC.recipe?.ingredients || '',
+            d.optionC.recipe?.method || '',
+            d.optionC.image || null
           ]
         )
       }
