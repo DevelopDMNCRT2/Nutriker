@@ -1,176 +1,2095 @@
-import React, { useState, useEffect } from 'react';
-import { BarChart2, TrendingUp, ShoppingCart, Calendar, Info, Scale, ArrowDown, Activity } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { 
+  BarChart2, TrendingUp, ShoppingCart, Calendar, Info, Scale, 
+  Activity, CheckCircle2, AlertTriangle, Check, Plus, Minus, 
+  FileSpreadsheet, RefreshCw, Printer, Search, Sparkles, Filter, 
+  ChevronRight, Utensils, Award, ShieldAlert, HeartPulse, PieChart, Download
+} from 'lucide-react';
 import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
-import { scaleIngredients, scaleNutrition } from '../utils/recipeScaler';
-import { programInfo } from '../data/mockData';
+import { scaleIngredients, extractMacroNumber } from '../utils/recipeScaler';
+import { programInfo, cyclicMenus } from '../data/mockData';
+import { 
+  UNIT_TYPES, 
+  getUnitMetadata, 
+  toBaseAmount, 
+  roundNumber, 
+  formatSupplyDisplay, 
+  calculateSupplyYield, 
+  extractDishNutritionSafe 
+} from '../utils/suppliesBalance';
+
+const EMPTY_DAYS = [];
 
 export default function StatsView({ selectedWeek }) {
-  const [activeMenu, setActiveMenu] = useState(() => menuStore.getActiveMenu(selectedWeek || 1));
-  const [census, setCensus] = useState(programInfo.activeParticipantsCount || 25);
+  const [activeMenu, setActiveMenu] = useState(null);
+  const [census, setCensus] = useState(() => {
+    const saved = localStorage.getItem('casanostra_active_census');
+    const parsed = parseInt(saved, 10);
+    return (!isNaN(parsed) && parsed > 0) ? parsed : (programInfo.activeParticipantsCount || 25);
+  });
+  
+  // Tab activa: 'servings' | 'supplies' | 'nutrition'
+  const [activeTab, setActiveTab] = useState('servings');
+  
+  // Registro de raciones servidas por el chef por día
+  const [servingsByDay, setServingsByDay] = useState({});
+  
+  // Insumos comprados/recibidos capturados por el usuario
+  const [purchasedSupplies, setPurchasedSupplies] = useState({});
+  
+  // Modal de captura de insumos
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [supplySearchTerm, setSupplySearchTerm] = useState('');
+  const [modalSearchTerm, setModalSearchTerm] = useState('');
+  const [supplyFilterStatus, setSupplyFilterStatus] = useState('all'); // 'all' | 'optimal' | 'warning' | 'alert'
+  
+  // Notificación temporal con cleanup seguro
+  const [toastMessage, setToastMessage] = useState(null);
+  const toastTimeoutRef = useRef(null);
 
-  useEffect(() => {
-    // Sincronizar menú activo según la semana seleccionada o fallback a semana 1
-    const menu = menuStore.getActiveMenu(selectedWeek || 1);
-    setActiveMenu(menu);
-  }, [selectedWeek]);
-
-  // Si la semana activa no tiene menú publicado, fallback al ciclo base de residencia
-  const days = (activeMenu?.days && activeMenu.days.length > 0)
-    ? activeMenu.days
-    : (menuStore.getActiveMenu(1)?.days || []);
-
-  // Consolidación de compras e insumos para cotejo de facturas
-  const computePurchases = () => {
-    const totals = {};
-    let totalCalories = 0;
-    let totalProtein = 0;
-    
-    days.forEach(day => {
-      if (!day) return;
-      ['optionA', 'optionB'].forEach(opt => {
-        const dish = day[opt];
-        if (dish) {
-          // Extraer ingredientes desde recipe o directamente del objeto dish
-          const rawIngredients = dish.recipe?.ingredients || dish.ingredients || dish.ingredientes;
-          if (rawIngredients) {
-            const scaled = scaleIngredients(rawIngredients, census);
-            scaled.forEach(ing => {
-              if (!ing) return;
-              const name = ing.name || ing.item || ing.raw || 'Insumo';
-              const unit = ing.unitScaled || ing.unitBase || ing.unit || 'g';
-              const parsedAmt = Number(ing.amountScaled ?? ing.amountBase ?? ing.amount ?? 0);
-              const amount = parsedAmt > 0 ? parsedAmt : (census * 100);
-              const key = `${name} (${unit})`;
-              if (!totals[key]) {
-                totals[key] = { amount: 0, unit, item: name };
-              }
-              totals[key].amount += amount;
-            });
-          }
-          
-          // Extraer nutrición desde recipe o directamente del objeto dish
-          const nutData = dish.recipe?.nutrition || dish.nutrition;
-          if (nutData) {
-            const nut = scaleNutrition(nutData, census);
-            totalCalories += nut.totalProduction?.calories ?? nut.unit?.calories ?? (nut.calories || 0);
-            totalProtein += nut.totalProduction?.protein ?? nut.unit?.protein ?? (nut.protein || 0);
-          } else if (dish.calorias || dish.proteinas_g || dish.calories || dish.protein) {
-            const c = Number(dish.calorias || dish.calories) || 380;
-            const p = Number(dish.proteinas_g || String(dish.protein).replace('g','')) || 30;
-            totalCalories += c * census;
-            totalProtein += p * census;
-          }
-        }
-      });
-    });
-
-    return {
-      ingredients: Object.values(totals).sort((a, b) => b.amount - a.amount),
-      totalCalories,
-      totalProtein
-    };
+  const showToast = (msg) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToastMessage(msg);
+    toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const { ingredients, totalCalories, totalProtein } = computePurchases();
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
+  }, []);
+
+  // Bloquear scroll de la página de fondo mientras el modal de insumos está abierto
+  useEffect(() => {
+    if (isPurchaseModalOpen) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [isPurchaseModalOpen]);
+
+  // Guardar censo
+  const handleCensusChange = (val) => {
+    const num = Math.max(1, parseInt(val, 10) || 1);
+    setCensus(num);
+    localStorage.setItem('casanostra_active_census', String(num));
+  };
+
+  // Inicializar raciones por defecto (80% Opción A y 20% Opción B sumando el censo)
+  const initDefaultServings = (daysList, censusCount) => {
+    const initial = {};
+    const c = Math.max(1, parseInt(censusCount, 10) || 25);
+    const optA = Math.round(c * 0.8);
+    const optB = Math.max(0, c - optA);
+
+    daysList.forEach(day => {
+      initial[day.dayName] = {
+        optionA: optA,
+        optionB: optB,
+        savedAt: new Date().toISOString()
+      };
+    });
+    return initial;
+  };
+
+  // Cargar Menú y Persistencia al cambiar selectedWeek
+  useEffect(() => {
+    const targetInfo = getWeekInfoFromDate(new Date(2026, 0, 1 + (selectedWeek - 1) * 7));
+    let menu = menuStore.getActiveMenu(targetInfo);
+    
+    // Si la semana no tiene menú configurado en backend ni store, usar plantilla de ciclo con marca
+    if (!menu || !menu.days || menu.days.length === 0) {
+      const fallback = cyclicMenus[selectedWeek] || cyclicMenus[1];
+      if (fallback) {
+        menu = {
+          ...fallback,
+          isTemplate: true,
+          weekKey: targetInfo.weekKey,
+          weekNumber: targetInfo.weekNumber,
+          dateRange: targetInfo.dateRange,
+          title: targetInfo.title,
+          days: fallback.days.map(d => ({
+            ...d,
+            dateLabel: targetInfo.dayDates[d.dayName] || d.dateLabel || d.dateInfo
+          }))
+        };
+      }
+    }
+    setActiveMenu(menu);
+
+    // Cargar Raciones Servidas desde LocalStorage
+    const savedServings = localStorage.getItem(`casanostra_servings_w${selectedWeek}`);
+    if (savedServings) {
+      try {
+        setServingsByDay(JSON.parse(savedServings));
+      } catch (e) {
+        setServingsByDay(initDefaultServings(menu?.days || [], census));
+      }
+    } else {
+      setServingsByDay(initDefaultServings(menu?.days || [], census));
+    }
+
+    // Cargar Insumos Comprados desde LocalStorage
+    const savedPurchases = localStorage.getItem(`casanostra_purchases_w${selectedWeek}`);
+    if (savedPurchases) {
+      try {
+        setPurchasedSupplies(JSON.parse(savedPurchases));
+      } catch (e) {
+        setPurchasedSupplies({});
+      }
+    } else {
+      setPurchasedSupplies({});
+    }
+  }, [selectedWeek]);
+
+  const days = useMemo(() => activeMenu?.days || EMPTY_DAYS, [activeMenu]);
+
+  // Actualizar raciones de un día y opción
+  const handleServingChange = (dayName, optionKey, delta) => {
+    setServingsByDay(prev => {
+      const current = prev[dayName] || { optionA: Math.round(census * 0.8), optionB: Math.round(census * 0.2) };
+      const currentVal = current[optionKey] || 0;
+      const newVal = Math.max(0, currentVal + delta);
+      const updated = {
+        ...prev,
+        [dayName]: {
+          ...current,
+          [optionKey]: newVal,
+          updatedAt: new Date().toISOString()
+        }
+      };
+      localStorage.setItem(`casanostra_servings_w${selectedWeek}`, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const handleServingDirectInput = (dayName, optionKey, value) => {
+    const num = Math.max(0, parseInt(value, 10) || 0);
+    setServingsByDay(prev => {
+      const c = Math.max(1, census || 25);
+      const defaultA = Math.round(c * 0.8);
+      const defaultB = Math.max(0, c - defaultA);
+      const current = prev[dayName] || { optionA: defaultA, optionB: defaultB };
+      const updated = {
+        ...prev,
+        [dayName]: {
+          ...current,
+          [optionKey]: num,
+          updatedAt: new Date().toISOString()
+        }
+      };
+      localStorage.setItem(`casanostra_servings_w${selectedWeek}`, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // Acciones rápidas para distribuir raciones
+  const applyQuickRatio = (dayName, ratioType) => {
+    setServingsByDay(prev => {
+      let a = 0;
+      let b = 0;
+      if (ratioType === '80-20') {
+        a = Math.round(census * 0.8);
+        b = Math.max(0, census - a);
+      } else if (ratioType === '100-A') {
+        a = census;
+        b = 0;
+      } else if (ratioType === '50-50') {
+        a = Math.ceil(census / 2);
+        b = Math.floor(census / 2);
+      }
+
+      let updated = { ...prev };
+      if (dayName === 'ALL') {
+        days.forEach(d => {
+          updated[d.dayName] = { optionA: a, optionB: b, updatedAt: new Date().toISOString() };
+        });
+        showToast(`Se aplicó distribución ${ratioType} a todos los días de la semana.`);
+      } else {
+        updated[dayName] = { optionA: a, optionB: b, updatedAt: new Date().toISOString() };
+        showToast(`Distribución de ${dayName} actualizada a ${ratioType}.`);
+      }
+      localStorage.setItem(`casanostra_servings_w${selectedWeek}`, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // Helper de nutrición segura por platillo (sin inventar datos con ??)
+  const getDishNutrition = (dish) => {
+    return extractDishNutritionSafe(dish);
+  };
+
+  // Helper para extraer lista limpia de ingredientes de un platillo para 1 porción
+  const getDishIngredientsBase = (dish) => {
+    if (!dish || !dish.recipe || !dish.recipe.ingredients) return [];
+    const scaled = scaleIngredients(dish.recipe.ingredients, 1);
+    return scaled.map(item => {
+      const meta = getUnitMetadata(item.unitBase || item.unitScaled);
+      const name = (item.name || item.raw || 'Insumo').trim();
+      const amount = item.amountBase ?? (item.amountScaled || 0);
+      return {
+        name,
+        amountBase: amount,
+        unitBase: item.unitBase || item.unitScaled || meta.standardUnit,
+        unitMeta: meta
+      };
+    });
+  };
+
+  // =========================================================================
+  // CÁLCULOS DINÁMICOS: Raciones, Demanda de Insumos y Balance de Aprovechamiento
+  // =========================================================================
+
+  const computedData = useMemo(() => {
+    let totalServingsWeek = 0;
+    let totalServingsA = 0;
+    let totalServingsB = 0;
+
+    // Acumuladores de nutrientes ponderados consumidos (solo de días con datos reales)
+    let sumCaloriesConsumed = 0;
+    let countCalServings = 0;
+    let sumProteinConsumed = 0;
+    let countProtServings = 0;
+    let sumCarbsConsumed = 0;
+    let countCarbServings = 0;
+    let sumFatsConsumed = 0;
+    let countFatServings = 0;
+    let sumSodiumConsumed = 0;
+    let countSodiumServings = 0;
+
+    // Desglose nutricional por día
+    const dailyNutritionSummary = [];
+
+    // Demanda de ingredientes por insumo
+    // key: nombre|tipoUnidad -> { key, name, unitType, baseUnit, standardUnit, requiredBase, dishSources }
+    const suppliesMap = {};
+
+    days.forEach(day => {
+      const c = Math.max(1, census || 25);
+      const defaultA = Math.round(c * 0.8);
+      const defaultB = Math.max(0, c - defaultA);
+      const dayServing = servingsByDay[day.dayName] || { 
+        optionA: defaultA, 
+        optionB: defaultB 
+      };
+      const servA = Number(dayServing.optionA) || 0;
+      const servB = Number(dayServing.optionB) || 0;
+      const totalDayServings = servA + servB;
+
+      totalServingsWeek += totalDayServings;
+      totalServingsA += servA;
+      totalServingsB += servB;
+
+      // Nutrición de platillos segura (sin inventar datos con ??)
+      const nutA = getDishNutrition(day.optionA);
+      const nutB = getDishNutrition(day.optionB);
+
+      const hasCal = nutA.calories !== null || nutB.calories !== null;
+      const dayCal = hasCal ? (((nutA.calories || 0) * servA) + ((nutB.calories || 0) * servB)) : null;
+
+      const hasProt = nutA.protein !== null || nutB.protein !== null;
+      const dayProt = hasProt ? (((nutA.protein || 0) * servA) + ((nutB.protein || 0) * servB)) : null;
+
+      const hasCarbs = nutA.carbs !== null || nutB.carbs !== null;
+      const dayCarbs = hasCarbs ? (((nutA.carbs || 0) * servA) + ((nutB.carbs || 0) * servB)) : null;
+
+      const hasFats = nutA.fats !== null || nutB.fats !== null;
+      const dayFats = hasFats ? (((nutA.fats || 0) * servA) + ((nutB.fats || 0) * servB)) : null;
+
+      // El sodio solo se evalúa si los platillos servidos cuentan con el dato (no inventar 420mg)
+      const hasSodium = (nutA.sodium !== null || servA === 0) && (nutB.sodium !== null || servB === 0) && (nutA.sodium !== null || nutB.sodium !== null);
+      const daySod = hasSodium ? (((nutA.sodium || 0) * servA) + ((nutB.sodium || 0) * servB)) : null;
+
+      const avgFactor = totalDayServings > 0 ? totalDayServings : 1;
+
+      const avgCaloriesPerResident = dayCal !== null ? Math.round(dayCal / avgFactor) : null;
+      const avgProteinPerResident = dayProt !== null ? roundNumber(dayProt / avgFactor, 1) : null;
+      const avgCarbsPerResident = dayCarbs !== null ? roundNumber(dayCarbs / avgFactor, 1) : null;
+      const avgFatsPerResident = dayFats !== null ? roundNumber(dayFats / avgFactor, 1) : null;
+      const avgSodiumPerResident = daySod !== null ? Math.round(daySod / avgFactor) : null;
+
+      if (avgCaloriesPerResident !== null) {
+        sumCaloriesConsumed += dayCal;
+        countCalServings += totalDayServings;
+      }
+      if (avgProteinPerResident !== null) {
+        sumProteinConsumed += dayProt;
+        countProtServings += totalDayServings;
+      }
+      if (avgCarbsPerResident !== null) {
+        sumCarbsConsumed += dayCarbs;
+        countCarbServings += totalDayServings;
+      }
+      if (avgFatsPerResident !== null) {
+        sumFatsConsumed += dayFats;
+        countFatServings += totalDayServings;
+      }
+      if (avgSodiumPerResident !== null) {
+        sumSodiumConsumed += daySod;
+        countSodiumServings += totalDayServings;
+      }
+
+      // Evaluación geriátrica rigurosa
+      const isSarcopeniaSafe = avgProteinPerResident !== null ? (avgProteinPerResident >= 28) : null;
+      const isHyposodicSafe = avgSodiumPerResident !== null ? (avgSodiumPerResident <= 500) : null;
+
+      let complianceStatus = 'nodata'; // 'safe' | 'fail' | 'nodata'
+      let complianceLabel = 'Sin dato';
+
+      if (isSarcopeniaSafe === false || isHyposodicSafe === false) {
+        complianceStatus = 'fail';
+        complianceLabel = 'No cumple';
+      } else if (isSarcopeniaSafe === true && isHyposodicSafe === true) {
+        complianceStatus = 'safe';
+        complianceLabel = '✓ Protegido';
+      } else if (isSarcopeniaSafe === true && isHyposodicSafe === null) {
+        complianceStatus = 'partial_safe';
+        complianceLabel = 'Proteína OK (Sodio N/D)';
+      } else {
+        complianceStatus = 'nodata';
+        complianceLabel = 'Sin dato';
+      }
+
+      dailyNutritionSummary.push({
+        dayName: day.dayName,
+        dateLabel: day.dateLabel || day.dateInfo,
+        dishA: day.optionA?.name || 'Opción A',
+        servingsA: servA,
+        dishB: day.optionB?.name || 'Opción B',
+        servingsB: servB,
+        totalDayServings,
+        avgCaloriesPerResident,
+        avgProteinPerResident,
+        avgCarbsPerResident,
+        avgFatsPerResident,
+        avgSodiumPerResident,
+        isSarcopeniaSafe,
+        isHyposodicSafe,
+        complianceStatus,
+        complianceLabel
+      });
+
+      // Cálculo de Insumos según raciones reales servidas con normalización de unidades
+      if (servA > 0) {
+        const ingsA = getDishIngredientsBase(day.optionA);
+        ingsA.forEach(ing => {
+          const typeKey = ing.unitMeta.type === UNIT_TYPES.OTHER ? ing.unitMeta.standardUnit : ing.unitMeta.type;
+          const key = `${ing.name.toLowerCase()}|${typeKey}`;
+          const amountInBase = toBaseAmount(ing.amountBase, ing.unitBase) * servA;
+
+          if (!suppliesMap[key]) {
+            suppliesMap[key] = {
+              key,
+              name: ing.name,
+              unitType: ing.unitMeta.type,
+              baseUnit: ing.unitMeta.baseUnit,
+              standardUnit: ing.unitMeta.standardUnit,
+              requiredBase: 0,
+              dishSources: []
+            };
+          }
+          suppliesMap[key].requiredBase += amountInBase;
+          if (!suppliesMap[key].dishSources.includes(day.optionA?.name)) {
+            suppliesMap[key].dishSources.push(day.optionA?.name);
+          }
+        });
+      }
+
+      if (servB > 0) {
+        const ingsB = getDishIngredientsBase(day.optionB);
+        ingsB.forEach(ing => {
+          const typeKey = ing.unitMeta.type === UNIT_TYPES.OTHER ? ing.unitMeta.standardUnit : ing.unitMeta.type;
+          const key = `${ing.name.toLowerCase()}|${typeKey}`;
+          const amountInBase = toBaseAmount(ing.amountBase, ing.unitBase) * servB;
+
+          if (!suppliesMap[key]) {
+            suppliesMap[key] = {
+              key,
+              name: ing.name,
+              unitType: ing.unitMeta.type,
+              baseUnit: ing.unitMeta.baseUnit,
+              standardUnit: ing.unitMeta.standardUnit,
+              requiredBase: 0,
+              dishSources: []
+            };
+          }
+          suppliesMap[key].requiredBase += amountInBase;
+          if (!suppliesMap[key].dishSources.includes(day.optionB?.name)) {
+            suppliesMap[key].dishSources.push(day.optionB?.name);
+          }
+        });
+      }
+    });
+
+    // Formatear Lista de Insumos y Balance de Aprovechamiento con helper unificado
+    const suppliesList = Object.values(suppliesMap).map(item => {
+      // Formato homogéneo para la cantidad requerida
+      const reqDisplay = formatSupplyDisplay(item.requiredBase, item.unitType, item.standardUnit);
+
+      // Compras capturadas (clave exacta o fallback de nombre)
+      const purchasedRecord = purchasedSupplies[item.key] || purchasedSupplies[item.name.toLowerCase()];
+      const purchasedAmountRaw = purchasedRecord?.amount !== undefined && purchasedRecord?.amount !== null && purchasedRecord?.amount !== ''
+        ? Number(purchasedRecord.amount)
+        : null;
+      
+      const purchasedBase = purchasedAmountRaw !== null
+        ? toBaseAmount(purchasedAmountRaw, reqDisplay.unit)
+        : null;
+
+      const purDisplay = formatSupplyDisplay(purchasedBase, item.unitType, reqDisplay.unit);
+      const yieldCalc = calculateSupplyYield(item.requiredBase, purchasedBase);
+      const wasteDisplay = formatSupplyDisplay(yieldCalc.wasteBase, item.unitType, reqDisplay.unit);
+
+      return {
+        ...item,
+        purchasedAmountRaw,
+        purchasedBase,
+        displayRequired: reqDisplay.amount,
+        displayPurchased: purDisplay.amount,
+        displayWaste: wasteDisplay.amount,
+        displayUnit: reqDisplay.unit,
+        formattedRequired: reqDisplay.formattedText,
+        formattedPurchased: purDisplay.formattedText,
+        formattedWaste: wasteDisplay.formattedText,
+        yieldPercent: yieldCalc.yieldPercent,
+        wasteAmount: yieldCalc.wasteBase !== null ? roundNumber(yieldCalc.wasteBase, 1) : null,
+        status: yieldCalc.status,
+        statusLabel: yieldCalc.statusLabel
+      };
+    }).sort((a, b) => b.requiredBase - a.requiredBase);
+
+    // Métricas Globales de Aprovechamiento
+    const capturedSupplies = suppliesList.filter(s => s.yieldPercent !== null);
+    const avgYield = capturedSupplies.length > 0 
+      ? Math.round(capturedSupplies.reduce((acc, curr) => acc + curr.yieldPercent, 0) / capturedSupplies.length)
+      : null;
+
+    const optimalCount = suppliesList.filter(s => s.status === 'optimal').length;
+    const warningCount = suppliesList.filter(s => s.status === 'warning').length;
+    const alertCount = suppliesList.filter(s => s.status === 'alert').length;
+
+    // Promedios semanales globales por residente (solo de días con información válida)
+    const weeklyAvgPerResident = {
+      calories: countCalServings > 0 ? Math.round(sumCaloriesConsumed / countCalServings) : null,
+      protein: countProtServings > 0 ? roundNumber(sumProteinConsumed / countProtServings, 1) : null,
+      carbs: countCarbServings > 0 ? roundNumber(sumCarbsConsumed / countCarbServings, 1) : null,
+      fats: countFatServings > 0 ? roundNumber(sumFatsConsumed / countFatServings, 1) : null,
+      sodium: countSodiumServings > 0 ? Math.round(sumSodiumConsumed / countSodiumServings) : null,
+    };
+
+    // Certificación general semanal
+    let weeklyComplianceStatus = 'nodata';
+    let weeklyComplianceLabel = 'Sin datos';
+
+    const evaluatedDays = dailyNutritionSummary.filter(d => d.complianceStatus !== 'nodata');
+    if (evaluatedDays.length > 0) {
+      const anyFailed = evaluatedDays.some(d => d.complianceStatus === 'fail');
+      const allPassed = evaluatedDays.every(d => d.complianceStatus === 'safe');
+      if (anyFailed) {
+        weeklyComplianceStatus = 'fail';
+        weeklyComplianceLabel = 'No cumple';
+      } else if (allPassed && evaluatedDays.length === days.length) {
+        weeklyComplianceStatus = 'safe';
+        weeklyComplianceLabel = 'Protocolo Cumplido';
+      } else {
+        weeklyComplianceStatus = 'partial';
+        weeklyComplianceLabel = 'Parcial (Faltan datos)';
+      }
+    }
+
+    return {
+      totalServingsWeek,
+      totalServingsA,
+      totalServingsB,
+      expectedWeekServings: days.length * census,
+      percentA: totalServingsWeek > 0 ? Math.round((totalServingsA / totalServingsWeek) * 100) : 0,
+      percentB: totalServingsWeek > 0 ? Math.round((totalServingsB / totalServingsWeek) * 100) : 0,
+      dailyNutritionSummary,
+      suppliesList,
+      capturedCount: capturedSupplies.length,
+      avgYield,
+      optimalCount,
+      warningCount,
+      alertCount,
+      weeklyAvgPerResident,
+      weeklyComplianceStatus,
+      weeklyComplianceLabel,
+      sumCaloriesConsumed: sumCaloriesConsumed > 0 ? Math.round(sumCaloriesConsumed) : null,
+      sumProteinConsumed: sumProteinConsumed > 0 ? roundNumber(sumProteinConsumed, 1) : null,
+      sumCarbsConsumed: sumCarbsConsumed > 0 ? roundNumber(sumCarbsConsumed, 1) : null,
+      sumFatsConsumed: sumFatsConsumed > 0 ? roundNumber(sumFatsConsumed, 1) : null,
+      sumSodiumConsumed: sumSodiumConsumed > 0 ? Math.round(sumSodiumConsumed) : null
+    };
+  }, [days, servingsByDay, census, purchasedSupplies]);
+
+  // Manejador para guardar compras capturadas en el modal con clave estable
+  const handleSavePurchaseItem = (itemKey, amountVal) => {
+    const num = amountVal === '' ? null : Math.max(0, parseFloat(amountVal) || 0);
+    setPurchasedSupplies(prev => {
+      const updated = {
+        ...prev,
+        [itemKey]: {
+          amount: num,
+          updatedAt: new Date().toISOString()
+        }
+      };
+      localStorage.setItem(`casanostra_purchases_w${selectedWeek}`, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // Autocompletar compras con 10% de merma estándar usando la unidad visual del usuario
+  const handleAutocompletePurchases = () => {
+    const auto = {};
+    computedData.suppliesList.forEach(item => {
+      const factor = 1.10;
+      const estimatedPurchase = roundNumber((item.displayRequired || 0) * factor, 2);
+      auto[item.key] = {
+        amount: estimatedPurchase,
+        updatedAt: new Date().toISOString()
+      };
+    });
+    setPurchasedSupplies(auto);
+    localStorage.setItem(`casanostra_purchases_w${selectedWeek}`, JSON.stringify(auto));
+    showToast('Insumos autocompletados con margen de compra estándar (+10% merma proyectada).');
+  };
+
+  const handleClearPurchases = () => {
+    setPurchasedSupplies({});
+    localStorage.removeItem(`casanostra_purchases_w${selectedWeek}`);
+    showToast('Se limpiaron los registros de compras capturadas.');
+  };
+
+  // Filtrado de insumos
+  const filteredSupplies = computedData.suppliesList.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(supplySearchTerm.toLowerCase());
+    if (supplyFilterStatus === 'all') return matchesSearch;
+    return matchesSearch && item.status === supplyFilterStatus;
+  });
+
+  // Filtrado de insumos dentro del modal de captura
+  const modalFilteredSupplies = computedData.suppliesList.filter(item =>
+    item.name.toLowerCase().includes(modalSearchTerm.toLowerCase())
+  );
+
+  // Manejo de impresión acotada únicamente a esta vista para no afectar al resto de la aplicación
+  const handlePrint = () => {
+    document.body.classList.add('printing-casanostra-report');
+    const cleanup = () => {
+      document.body.classList.remove('printing-casanostra-report');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    window.print();
+    setTimeout(cleanup, 2500);
+  };
+
+  // Exportar Reporte Estructurado y Compacto en Formato CSV (.csv) con soporte UTF-8 BOM
+  const exportToCSV = () => {
+    try {
+      const csvLines = [];
+
+      // Encabezados limpios y compactos idénticos a la tabla del sistema
+      const nutritionHeaders = [
+        "Día", "Fecha", "Platillo Principal (A)", "Platillo Ligero (B)", "Raciones", 
+        "Calorías (kcal)", "Proteína (g)", "Carbohidratos (g)", "Lípidos (g)", 
+        "Sodio (mg)", "Evaluación Geriátrica"
+      ];
+      csvLines.push(nutritionHeaders.map(h => `"${h}"`).join(','));
+
+      // 7 días del ciclo de menú
+      computedData.dailyNutritionSummary.forEach(item => {
+        const dishAText = item.dishA ? `${item.dishA} (${item.servingsA})` : `Opción A (${item.servingsA})`;
+        const dishBText = item.dishB ? `${item.dishB} (${item.servingsB})` : `Opción B (${item.servingsB})`;
+        const row = [
+          `"${item.dayName}"`,
+          `"${item.dateLabel}"`,
+          `"${dishAText.replace(/"/g, '""')}"`,
+          `"${dishBText.replace(/"/g, '""')}"`,
+          item.totalDayServings,
+          item.avgCaloriesPerResident !== null ? item.avgCaloriesPerResident : 'N/D',
+          item.avgProteinPerResident !== null ? item.avgProteinPerResident : 'N/D',
+          item.avgCarbsPerResident !== null ? item.avgCarbsPerResident : 'N/D',
+          item.avgFatsPerResident !== null ? item.avgFatsPerResident : 'N/D',
+          item.avgSodiumPerResident !== null ? item.avgSodiumPerResident : 'N/D',
+          `"${item.complianceLabel}"`
+        ];
+        csvLines.push(row.join(','));
+      });
+
+      // Fila de Promedio Diario por Residente
+      const avgRow = [
+        '"PROMEDIO DIARIO"',
+        '""',
+        `"A: ${Math.round(computedData.totalServingsA / (computedData.dailyNutritionSummary.length || 7))} rac"`,
+        `"B: ${Math.round(computedData.totalServingsB / (computedData.dailyNutritionSummary.length || 7))} rac"`,
+        census,
+        computedData.weeklyAvgPerResident.calories !== null ? computedData.weeklyAvgPerResident.calories : 'N/D',
+        computedData.weeklyAvgPerResident.protein !== null ? computedData.weeklyAvgPerResident.protein : 'N/D',
+        computedData.weeklyAvgPerResident.carbs !== null ? computedData.weeklyAvgPerResident.carbs : 'N/D',
+        computedData.weeklyAvgPerResident.fats !== null ? computedData.weeklyAvgPerResident.fats : 'N/D',
+        computedData.weeklyAvgPerResident.sodium !== null ? computedData.weeklyAvgPerResident.sodium : 'N/D',
+        `"${computedData.weeklyComplianceLabel}"`
+      ];
+      csvLines.push(avgRow.join(','));
+
+      // Fila de Totales Acumulados de Cocina
+      const totalRow = [
+        '"TOTAL SEMANAL"',
+        '""',
+        `"${computedData.totalServingsA} raciones"`,
+        `"${computedData.totalServingsB} raciones"`,
+        computedData.totalServingsWeek,
+        computedData.sumCaloriesConsumed !== null ? computedData.sumCaloriesConsumed : 'N/D',
+        computedData.sumProteinConsumed !== null ? computedData.sumProteinConsumed : 'N/D',
+        computedData.sumCarbsConsumed !== null ? computedData.sumCarbsConsumed : 'N/D',
+        computedData.sumFatsConsumed !== null ? computedData.sumFatsConsumed : 'N/D',
+        computedData.sumSodiumConsumed !== null ? computedData.sumSodiumConsumed : 'N/D',
+        '"Servicio Completo"'
+      ];
+      csvLines.push(totalRow.join(','));
+
+      // Byte Order Mark (BOM) UTF-8 para garantizar apertura nativa sin errores de caracteres en Microsoft Excel y Numbers
+      const csvContent = "\uFEFF" + csvLines.join("\r\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Casa_Nostra_Resumen_Nutricional_Semana_${activeMenu?.weekNumber || selectedWeek}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showToast('Reporte CSV (.csv) descargado exitosamente.');
+    } catch (err) {
+      console.error('Error generando CSV:', err);
+      showToast('Error al exportar archivo CSV.');
+    }
+  };
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '1000px', margin: '0 auto', paddingBottom: '4rem' }}>
+    <div className="animate-fade-in" style={{ maxWidth: '1050px', margin: '0 auto', paddingBottom: '5rem', color: '#1E293B' }}>
       
-      <div style={{ background: '#FFFFFF', borderRadius: '20px', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', marginBottom: '1.5rem', border: '1px solid #E2E8F0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          background: '#1E293B',
+          color: '#FFFFFF',
+          padding: '0.85rem 1.4rem',
+          borderRadius: '12px',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+          zIndex: 100000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          fontSize: '0.9rem',
+          fontWeight: '600',
+          border: '1px solid #334155',
+          animation: 'slideIn 0.3s ease'
+        }}>
+          <CheckCircle2 size={18} color="#10B981" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Header Principal con Controles de Censo y Acciones Rápidas */}
+      <div className="no-print" style={{
+        background: '#FFFFFF',
+        borderRadius: '20px',
+        padding: '1.75rem',
+        boxShadow: '0 4px 15px -3px rgba(0,0,0,0.05)',
+        marginBottom: '1.5rem',
+        border: '1px solid #E2E8F0'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.25rem' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.4rem', color: '#1E293B', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <BarChart2 size={24} color="#B45309" /> Panel de Estadísticas y Compras
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <span style={{ background: '#FEF3C7', color: '#B45309', padding: '0.3rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800', letterSpacing: '0.5px' }}>
+                CASA NOSTRA • GERIATRÍA
+              </span>
+              <span style={{ fontSize: '0.85rem', color: '#64748B' }}>
+                Semana {activeMenu?.weekNumber || selectedWeek} ({activeMenu?.dateRange || 'Ciclo Operativo'})
+              </span>
+            </div>
+            <h2 style={{ margin: '0.4rem 0 0.2rem 0', fontSize: '1.55rem', fontWeight: '800', color: '#1E293B', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <BarChart2 size={26} color="#B45309" /> Reportes, Raciones y Control de Insumos
             </h2>
-            <p style={{ margin: '0.2rem 0 0 0', color: '#64748B', fontSize: '0.9rem' }}>
-              Histórico nutricional y proyecciones de insumos para cotejo de facturas
+            <p style={{ margin: 0, color: '#64748B', fontSize: '0.92rem' }}>
+              Control operativo de raciones del chef, captura de compras de insumos con balance de aprovechamiento y resumen nutricional.
             </p>
           </div>
-          <div style={{ background: '#FEF3C7', padding: '0.75rem 1rem', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#B45309' }}>Censo Activo:</span>
-            <input 
-              type="number" 
-              value={census} 
-              onChange={e => setCensus(Number(e.target.value) || 1)}
-              style={{ width: '70px', padding: '0.4rem', borderRadius: '8px', border: '1px solid #FDE68A', textAlign: 'center', fontWeight: 'bold' }}
-              min="1"
-            />
-            <span style={{ fontSize: '0.85rem', color: '#B45309' }}>Raciones/Día</span>
+
+          {/* Selector de Censo Activo */}
+          <div style={{
+            background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
+            padding: '0.85rem 1.25rem',
+            borderRadius: '16px',
+            border: '1px solid #FDE68A',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+            boxShadow: '0 2px 4px rgba(180, 83, 9, 0.05)'
+          }}>
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: '800', color: '#B45309', textTransform: 'uppercase' }}>Censo Activo Residencia</div>
+              <div style={{ fontSize: '0.85rem', color: '#78350F', fontWeight: '500' }}>Residentes en Comedor</div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <input 
+                type="number" 
+                value={census} 
+                onChange={e => handleCensusChange(e.target.value)}
+                style={{
+                  width: '65px',
+                  padding: '0.45rem',
+                  borderRadius: '10px',
+                  border: '2px solid #F59E0B',
+                  textAlign: 'center',
+                  fontWeight: '800',
+                  fontSize: '1.1rem',
+                  color: '#78350F',
+                  background: '#FFFFFF',
+                  outline: 'none'
+                }}
+                min="1"
+                max="200"
+              />
+              <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#B45309' }}>camas</span>
+            </div>
           </div>
+        </div>
+
+        {/* Sub-Navegación por Pestañas */}
+        {/* Sub-Navegación por Pestañas Compacta (3 Columnas, Sin Scroll Horizontal) */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '0.5rem',
+          marginTop: '1.25rem',
+          paddingTop: '1rem',
+          borderTop: '1px solid #F1F5F9'
+        }}>
+          <button
+            onClick={() => setActiveTab('servings')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.45rem',
+              padding: '0.55rem 0.75rem',
+              borderRadius: '10px',
+              border: activeTab === 'servings' ? '2px solid #B45309' : '1px solid #E2E8F0',
+              background: activeTab === 'servings' ? '#FEF3C7' : '#FFFFFF',
+              color: activeTab === 'servings' ? '#92400E' : '#64748B',
+              fontWeight: '700',
+              fontSize: '0.82rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <Utensils size={15} color={activeTab === 'servings' ? '#B45309' : '#64748B'} />
+            <span>1. Raciones del Chef</span>
+            <span style={{
+              background: activeTab === 'servings' ? '#B45309' : '#F1F5F9',
+              color: activeTab === 'servings' ? '#FFFFFF' : '#64748B',
+              fontSize: '0.72rem',
+              padding: '0.1rem 0.45rem',
+              borderRadius: '999px',
+              fontWeight: '800'
+            }}>
+              {computedData.totalServingsWeek}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('supplies')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.45rem',
+              padding: '0.55rem 0.75rem',
+              borderRadius: '10px',
+              border: activeTab === 'supplies' ? '2px solid #10B981' : '1px solid #E2E8F0',
+              background: activeTab === 'supplies' ? '#ECFDF5' : '#FFFFFF',
+              color: activeTab === 'supplies' ? '#065F46' : '#64748B',
+              fontWeight: '700',
+              fontSize: '0.82rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <Scale size={15} color={activeTab === 'supplies' ? '#10B981' : '#64748B'} />
+            <span>2. Insumos y Rendimiento</span>
+            {computedData.avgYield !== null && (
+              <span style={{
+                background: computedData.avgYield >= 85 ? '#10B981' : '#F59E0B',
+                color: '#FFFFFF',
+                fontSize: '0.72rem',
+                padding: '0.1rem 0.45rem',
+                borderRadius: '999px',
+                fontWeight: '800'
+              }}>
+                {computedData.avgYield}%
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('nutrition')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.45rem',
+              padding: '0.55rem 0.75rem',
+              borderRadius: '10px',
+              border: activeTab === 'nutrition' ? '2px solid #3B82F6' : '1px solid #E2E8F0',
+              background: activeTab === 'nutrition' ? '#EFF6FF' : '#FFFFFF',
+              color: activeTab === 'nutrition' ? '#1E40AF' : '#64748B',
+              fontWeight: '700',
+              fontSize: '0.82rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <HeartPulse size={15} color={activeTab === 'nutrition' ? '#3B82F6' : '#64748B'} />
+            <span>3. Tablas Nutricionales</span>
+            <span style={{
+              background: activeTab === 'nutrition' ? '#3B82F6' : '#F1F5F9',
+              color: activeTab === 'nutrition' ? '#FFFFFF' : '#64748B',
+              fontSize: '0.72rem',
+              padding: '0.1rem 0.45rem',
+              borderRadius: '999px',
+              fontWeight: '800'
+            }}>
+              {computedData.weeklyAvgPerResident.calories} kcal
+            </span>
+          </button>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
-        
-        {/* Macros Totales Card */}
-        <div style={{ background: '#FFFFFF', borderRadius: '20px', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #E2E8F0' }}>
-          <h3 style={{ margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem', color: '#334155' }}>
-            <Activity size={20} color="#3B82F6" /> Macros del Periodo (Semanal)
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px solid #F1F5F9', paddingBottom: '0.5rem' }}>
-              <span style={{ color: '#64748B', fontSize: '0.9rem' }}>Proteína Total Estimada</span>
-              <span style={{ fontSize: '1.5rem', fontWeight: '800', color: '#B45309' }}>{Math.round(totalProtein || 0).toLocaleString()} <span style={{ fontSize: '0.9rem' }}>g</span></span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px solid #F1F5F9', paddingBottom: '0.5rem' }}>
-              <span style={{ color: '#64748B', fontSize: '0.9rem' }}>Calorías Servidas</span>
-              <span style={{ fontSize: '1.5rem', fontWeight: '800', color: '#334155' }}>{Math.round(totalCalories || 0).toLocaleString()} <span style={{ fontSize: '0.9rem' }}>kcal</span></span>
-            </div>
-            <p style={{ margin: 0, fontSize: '0.8rem', color: '#94A3B8' }}><Info size={12} /> Cálculo proyectado para {days.length} días de servicio x {census} raciones.</p>
-          </div>
-        </div>
-
-        {/* Facturación y Compras Card */}
-        <div style={{ background: '#FFFFFF', borderRadius: '20px', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #E2E8F0' }}>
-          <h3 style={{ margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem', color: '#334155' }}>
-            <ShoppingCart size={20} color="#10B981" /> Lista de Insumos (Cotejo Facturas)
-          </h3>
-          <div style={{ maxHeight: '200px', overflowY: 'auto', paddingRight: '0.5rem' }}>
-            {ingredients.length === 0 && <div style={{ color: '#94A3B8', fontSize: '0.9rem' }}>No hay menú activo para generar la lista.</div>}
-            {ingredients.map((ing, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid #F8FAFC' }}>
-                <span style={{ color: '#475569', fontSize: '0.85rem' }}>{ing.item}</span>
-                <span style={{ fontWeight: '600', color: '#1E293B', fontSize: '0.85rem' }}>{Math.ceil(ing.amount || 0).toLocaleString()} {ing.unit}</span>
+      {/* ========================================================================= */}
+      {/* SECCIÓN 1: CONTROL DE RACIONES SERVIDAS POR EL CHEF                       */}
+      {/* ========================================================================= */}
+      {activeTab === 'servings' && (
+        <section style={{ marginBottom: '2.5rem' }}>
+          
+          {/* Tarjeta de Resumen y Métricas de Raciones */}
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: '20px',
+            padding: '1.5rem',
+            border: '1px solid #E2E8F0',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+            marginBottom: '1.5rem'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', color: '#1E293B', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Utensils size={20} color="#B45309" /> Registro Diario de Raciones Servidas por el Chef
+                </h3>
+                <p style={{ margin: '0.2rem 0 0 0', color: '#64748B', fontSize: '0.85rem' }}>
+                  Ajuste en tiempo real de comensales que optaron por Menú Tradicional vs. Textura Suave/Colación.
+                </p>
               </div>
-            ))}
-          </div>
-        </div>
 
-      </div>
+              {/* Botones de acción masiva */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => applyQuickRatio('ALL', '80-20')}
+                  style={{
+                    background: '#F8FAFC',
+                    border: '1px solid #CBD5E1',
+                    color: '#334155',
+                    padding: '0.45rem 0.85rem',
+                    borderRadius: '10px',
+                    fontSize: '0.78rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
+                  }}
+                >
+                  <Sparkles size={14} color="#B45309" /> Aplicar 80/20 a Toda la Semana
+                </button>
+                <button
+                  onClick={() => applyQuickRatio('ALL', '100-A')}
+                  style={{
+                    background: '#F8FAFC',
+                    border: '1px solid #CBD5E1',
+                    color: '#334155',
+                    padding: '0.45rem 0.85rem',
+                    borderRadius: '10px',
+                    fontSize: '0.78rem',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  100% Opción A
+                </button>
+                <button
+                  onClick={() => showToast('¡Raciones del chef sincronizadas y guardadas con éxito!')}
+                  style={{
+                    background: '#B45309',
+                    border: 'none',
+                    color: '#FFFFFF',
+                    padding: '0.45rem 1rem',
+                    borderRadius: '10px',
+                    fontSize: '0.78rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    boxShadow: '0 2px 6px rgba(180, 83, 9, 0.25)'
+                  }}
+                >
+                  <Check size={15} /> Guardar Todo
+                </button>
+              </div>
+            </div>
 
-      {/* Histórico Día por Día */}
-      <div style={{ background: '#FFFFFF', borderRadius: '20px', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #E2E8F0' }}>
-        <h3 style={{ margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem', color: '#334155' }}>
-          <Calendar size={20} color="#B45309" /> Histórico Diario (Qué se preparó)
-        </h3>
-        {days.length === 0 ? (
-           <p style={{ color: '#94A3B8' }}>No hay registros de preparación para esta semana.</p>
-        ) : (
-          <div style={{ display: 'grid', gap: '1rem' }}>
-            {days.map((day, i) => (
-              <div key={i} style={{ padding: '1rem', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                <h4 style={{ margin: '0 0 0.5rem 0', color: '#1E293B' }}>{day.dayName}</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  {['optionA', 'optionB'].map((opt, oIdx) => {
-                    const d = day[opt];
-                    if(!d) return null;
-                    return (
-                      <div key={oIdx} style={{ background: '#FFF', padding: '0.75rem', borderRadius: '8px', border: '1px solid #F1F5F9' }}>
-                        <div style={{ fontSize: '0.7rem', fontWeight: '800', color: '#B45309', textTransform: 'uppercase', marginBottom: '0.2rem' }}>{d.category || (oIdx === 0 ? 'Fácil Masticación' : 'Papilla / Textura Suave')}</div>
-                        <div style={{ fontSize: '0.9rem', fontWeight: '600', color: '#334155', marginBottom: '0.5rem' }}>{d.name}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#64748B', display: 'flex', gap: '0.5rem' }}>
-                          <span><strong>Cal:</strong> {d.recipe?.nutrition?.calories || d.nutrition?.calories || d.calorias || (typeof d.calories === 'number' ? d.calories : 380)} kcal/ración</span>
-                          <span style={{ color: '#B45309' }}><strong>Prot:</strong> {d.recipe?.nutrition?.protein || d.nutrition?.protein || d.proteinas_g || (typeof d.protein === 'number' ? d.protein : (d.protein ? String(d.protein).replace('g','') : 30))} g/ración</span>
-                        </div>
-                      </div>
-                    );
-                  })}
+            {/* Grid de KPIs de Raciones */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+              <div style={{ background: '#F8FAFC', padding: '1rem', borderRadius: '14px', border: '1px solid #E2E8F0' }}>
+                <span style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: '700', textTransform: 'uppercase' }}>Total Raciones Servidas</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginTop: '0.2rem' }}>
+                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#B45309' }}>{computedData.totalServingsWeek}</span>
+                  <span style={{ fontSize: '0.85rem', color: '#64748B' }}>de {computedData.expectedWeekServings} planificadas</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: computedData.totalServingsWeek >= computedData.expectedWeekServings ? '#10B981' : '#F59E0B', fontWeight: '700', marginTop: '0.3rem' }}>
+                  {computedData.totalServingsWeek === computedData.expectedWeekServings ? '✓ 100% Cobertura exacta del censo' : `${Math.round((computedData.totalServingsWeek / (computedData.expectedWeekServings || 1)) * 100)}% de asistencia registrada`}
                 </div>
               </div>
-            ))}
+
+              <div style={{ background: '#F8FAFC', padding: '1rem', borderRadius: '14px', border: '1px solid #E2E8F0' }}>
+                <span style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: '700', textTransform: 'uppercase' }}>Opción A (Menú Principal)</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginTop: '0.2rem' }}>
+                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#1E293B' }}>{computedData.totalServingsA}</span>
+                  <span style={{ fontSize: '0.85rem', color: '#B45309', fontWeight: '800' }}>({computedData.percentA}%)</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '0.3rem' }}>Textura regular y fácil masticación</div>
+              </div>
+
+              <div style={{ background: '#F8FAFC', padding: '1rem', borderRadius: '14px', border: '1px solid #E2E8F0' }}>
+                <span style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: '700', textTransform: 'uppercase' }}>Opción B (Suave / Suplementada)</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginTop: '0.2rem' }}>
+                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#2563EB' }}>{computedData.totalServingsB}</span>
+                  <span style={{ fontSize: '0.85rem', color: '#2563EB', fontWeight: '800' }}>({computedData.percentB}%)</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '0.3rem' }}>Purés, papillas o colaciones proteicas</div>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Días con Controles de Raciones */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {days.map((day, idx) => {
+              const dayServing = servingsByDay[day.dayName] || { 
+                optionA: Math.round(census * 0.8), 
+                optionB: Math.round(census * 0.2) 
+              };
+              const servA = dayServing.optionA || 0;
+              const servB = dayServing.optionB || 0;
+              const totalDay = servA + servB;
+              const diffFromCensus = totalDay - census;
+
+              const nutA = getDishNutrition(day.optionA);
+              const nutB = getDishNutrition(day.optionB);
+
+              return (
+                <div 
+                  key={idx}
+                  style={{
+                    background: '#FFFFFF',
+                    borderRadius: '16px',
+                    border: '1px solid #E2E8F0',
+                    padding: '1.25rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {/* Encabezado del Día */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', borderBottom: '1px solid #F1F5F9', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <span style={{ background: '#B45309', color: '#FFFFFF', width: '28px', height: '28px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '0.8rem' }}>
+                        {idx + 1}
+                      </span>
+                      <div>
+                        <strong style={{ fontSize: '1.05rem', color: '#1E293B' }}>{day.dayName}</strong>
+                        <span style={{ fontSize: '0.82rem', color: '#64748B', marginLeft: '0.5rem' }}>
+                          {day.dateLabel || day.dateInfo || `Día ${idx + 1}`}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Resumen y estado del día */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{
+                        padding: '0.3rem 0.75rem',
+                        borderRadius: '999px',
+                        fontSize: '0.78rem',
+                        fontWeight: '800',
+                        background: diffFromCensus === 0 ? '#ECFDF5' : (diffFromCensus > 0 ? '#EFF6FF' : '#FEF3C7'),
+                        color: diffFromCensus === 0 ? '#065F46' : (diffFromCensus > 0 ? '#1E40AF' : '#92400E'),
+                        border: diffFromCensus === 0 ? '1px solid #A7F3D0' : (diffFromCensus > 0 ? '1px solid #BFDBFE' : '1px solid #FDE68A')
+                      }}>
+                        {diffFromCensus === 0 && `✓ Cubierto exacto: ${totalDay} raciones`}
+                        {diffFromCensus > 0 && `+${diffFromCensus} raciones extra (${totalDay} / ${census})`}
+                        {diffFromCensus < 0 && `${diffFromCensus} raciones (${totalDay} / ${census})`}
+                      </span>
+
+                      {/* Botón rápido para igualar al censo */}
+                      <button
+                        onClick={() => applyQuickRatio(day.dayName, '80-20')}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid #CBD5E1',
+                          color: '#475569',
+                          padding: '0.25rem 0.6rem',
+                          borderRadius: '8px',
+                          fontSize: '0.72rem',
+                          fontWeight: '700',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Reset 80/20
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Fila de Platillos A y B con Controles de Raciones del Chef */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
+                    
+                    {/* Tarjeta Opción A */}
+                    <div style={{
+                      background: '#FFFBEB',
+                      border: '1px solid #FDE68A',
+                      borderRadius: '14px',
+                      padding: '1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
+                          <span style={{ fontSize: '0.7rem', fontWeight: '800', color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            OPCIÓN A • {day.optionA?.category || 'Menú Tradicional'}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#92400E' }}>
+                            {totalDay > 0 ? Math.round((servA / totalDay) * 100) : 0}% preferencia
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.98rem', fontWeight: '700', color: '#1E293B', marginBottom: '0.4rem', lineHeight: '1.3' }}>
+                          {day.optionA?.name || 'Platillo A'}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#78350F', display: 'flex', gap: '0.6rem', marginBottom: '0.85rem' }}>
+                          <span><strong>{nutA.calories}</strong> kcal</span>
+                          <span>•</span>
+                          <span><strong>{nutA.protein}g</strong> prot</span>
+                          <span>•</span>
+                          <span><strong>{nutA.sodium}mg</strong> sodio</span>
+                        </div>
+                      </div>
+
+                      {/* Controles de Raciones Opción A */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFFFF', padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #FDE68A' }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#78350F' }}>Raciones Servidas:</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <button
+                            onClick={() => handleServingChange(day.dayName, 'optionA', -1)}
+                            style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #CBD5E1', background: '#F8FAFC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+                          >
+                            <Minus size={13} />
+                          </button>
+                          <input 
+                            type="number"
+                            value={servA}
+                            onChange={(e) => handleServingDirectInput(day.dayName, 'optionA', e.target.value)}
+                            style={{ width: '50px', padding: '0.25rem', borderRadius: '6px', border: '1px solid #CBD5E1', textAlign: 'center', fontWeight: '800', fontSize: '0.95rem', color: '#1E293B' }}
+                            min="0"
+                          />
+                          <button
+                            onClick={() => handleServingChange(day.dayName, 'optionA', 1)}
+                            style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #B45309', background: '#B45309', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+                          >
+                            <Plus size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tarjeta Opción B */}
+                    <div style={{
+                      background: '#EFF6FF',
+                      border: '1px solid #BFDBFE',
+                      borderRadius: '14px',
+                      padding: '1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
+                          <span style={{ fontSize: '0.7rem', fontWeight: '800', color: '#2563EB', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            OPCIÓN B • {day.optionB?.category || 'Suave / Papilla'}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#1E40AF' }}>
+                            {totalDay > 0 ? Math.round((servB / totalDay) * 100) : 0}% preferencia
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.98rem', fontWeight: '700', color: '#1E293B', marginBottom: '0.4rem', lineHeight: '1.3' }}>
+                          {day.optionB?.name || 'Platillo B'}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#1E40AF', display: 'flex', gap: '0.6rem', marginBottom: '0.85rem' }}>
+                          <span><strong>{nutB.calories}</strong> kcal</span>
+                          <span>•</span>
+                          <span><strong>{nutB.protein}g</strong> prot</span>
+                          <span>•</span>
+                          <span><strong>{nutB.sodium}mg</strong> sodio</span>
+                        </div>
+                      </div>
+
+                      {/* Controles de Raciones Opción B */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFFFF', padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #BFDBFE' }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#1E40AF' }}>Raciones Servidas:</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <button
+                            onClick={() => handleServingChange(day.dayName, 'optionB', -1)}
+                            style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #CBD5E1', background: '#F8FAFC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+                          >
+                            <Minus size={13} />
+                          </button>
+                          <input 
+                            type="number"
+                            value={servB}
+                            onChange={(e) => handleServingDirectInput(day.dayName, 'optionB', e.target.value)}
+                            style={{ width: '50px', padding: '0.25rem', borderRadius: '6px', border: '1px solid #CBD5E1', textAlign: 'center', fontWeight: '800', fontSize: '0.95rem', color: '#1E293B' }}
+                            min="0"
+                          />
+                          <button
+                            onClick={() => handleServingChange(day.dayName, 'optionB', 1)}
+                            style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #2563EB', background: '#2563EB', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+                          >
+                            <Plus size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SECCIÓN 2: CAPTURA Y BALANCE DE APROVECHAMIENTO DE INSUMOS                */}
+      {/* ========================================================================= */}
+      {activeTab === 'supplies' && (
+        <section style={{ marginBottom: '2.5rem' }}>
+          
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: '20px',
+            padding: '1.5rem',
+            border: '1px solid #E2E8F0',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+            marginBottom: '1.5rem'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', color: '#1E293B', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Scale size={20} color="#10B981" /> Balance de Aprovechamiento y Mermas de Insumos
+                </h3>
+                <p style={{ margin: '0.2rem 0 0 0', color: '#64748B', fontSize: '0.85rem' }}>
+                  Comparación entre el requerimiento teórico derivado de las raciones servidas vs. compras reales capturadas.
+                </p>
+              </div>
+
+              {/* Acciones de Insumos */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  onClick={handleAutocompletePurchases}
+                  style={{
+                    background: '#ECFDF5',
+                    border: '1px solid #A7F3D0',
+                    color: '#065F46',
+                    padding: '0.45rem 0.85rem',
+                    borderRadius: '10px',
+                    fontSize: '0.78rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
+                  }}
+                  title="Simula la compra con un 10% de margen de merma estándar de cocina"
+                >
+                  <Sparkles size={14} color="#10B981" /> Autocompletar Compras (+10% Merma)
+                </button>
+                <button
+                  onClick={() => setIsPurchaseModalOpen(true)}
+                  style={{
+                    background: '#10B981',
+                    border: 'none',
+                    color: '#FFFFFF',
+                    padding: '0.45rem 1rem',
+                    borderRadius: '10px',
+                    fontSize: '0.78rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)'
+                  }}
+                >
+                  <ShoppingCart size={15} /> Capturar Factura / Entradas
+                </button>
+                {computedData.capturedCount > 0 && (
+                  <button
+                    onClick={handleClearPurchases}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid #CBD5E1',
+                      color: '#64748B',
+                      padding: '0.45rem 0.75rem',
+                      borderRadius: '10px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Limpiar
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Tarjetas KPI de Aprovechamiento */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+              
+              <div style={{ background: '#ECFDF5', padding: '1.25rem', borderRadius: '16px', border: '1px solid #A7F3D0' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#065F46', textTransform: 'uppercase' }}>
+                  Índice Global de Aprovechamiento
+                </span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginTop: '0.3rem' }}>
+                  <span style={{ fontSize: '2rem', fontWeight: '900', color: '#065F46' }}>
+                    {computedData.avgYield !== null ? `${computedData.avgYield}%` : '---'}
+                  </span>
+                  <span style={{ fontSize: '0.85rem', color: '#047857', fontWeight: '600' }}>de rendimiento</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#065F46', marginTop: '0.3rem' }}>
+                  {computedData.avgYield !== null 
+                    ? (computedData.avgYield >= 85 ? '✓ Rendimiento culinario en rango óptimo' : '⚠️ Atención: margen de merma elevado')
+                    : 'Sin facturas capturadas aún'}
+                </div>
+              </div>
+
+              <div style={{ background: '#F8FAFC', padding: '1.25rem', borderRadius: '16px', border: '1px solid #E2E8F0' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748B', textTransform: 'uppercase' }}>
+                  Insumos Auditados
+                </span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginTop: '0.3rem' }}>
+                  <span style={{ fontSize: '2rem', fontWeight: '900', color: '#1E293B' }}>
+                    {computedData.capturedCount}
+                  </span>
+                  <span style={{ fontSize: '0.85rem', color: '#64748B' }}>de {computedData.suppliesList.length} insumos</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '0.3rem' }}>
+                  {computedData.optimalCount} óptimos • {computedData.warningCount} alerta • {computedData.alertCount} críticos
+                </div>
+              </div>
+
+              <div style={{ background: '#FFFBEB', padding: '1.25rem', borderRadius: '16px', border: '1px solid #FDE68A' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#B45309', textTransform: 'uppercase' }}>
+                  Merma Culinaria Promedio
+                </span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginTop: '0.3rem' }}>
+                  <span style={{ fontSize: '2rem', fontWeight: '900', color: '#B45309' }}>
+                    {computedData.avgYield !== null ? `${Math.max(0, 100 - computedData.avgYield)}%` : '---'}
+                  </span>
+                  <span style={{ fontSize: '0.85rem', color: '#78350F' }}>merma estimada</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#78350F', marginTop: '0.3rem' }}>
+                  Tolerancia máxima geriátrica: 15%
+                </div>
+              </div>
+
+            </div>
+
+            {/* Filtros y Buscador de Insumos */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#F8FAFC', padding: '0.35rem 0.75rem', borderRadius: '10px', border: '1px solid #CBD5E1', width: '280px' }}>
+                <Search size={16} color="#64748B" />
+                <input 
+                  type="text"
+                  placeholder="Buscar insumo (ej. pollo, arroz)..."
+                  value={supplySearchTerm}
+                  onChange={e => setSupplySearchTerm(e.target.value)}
+                  style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Filter size={15} color="#64748B" />
+                <button
+                  onClick={() => setSupplyFilterStatus('all')}
+                  style={{
+                    padding: '0.3rem 0.65rem',
+                    borderRadius: '8px',
+                    border: '1px solid #CBD5E1',
+                    background: supplyFilterStatus === 'all' ? '#1E293B' : '#FFFFFF',
+                    color: supplyFilterStatus === 'all' ? '#FFFFFF' : '#64748B',
+                    fontSize: '0.75rem',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Todos ({computedData.suppliesList.length})
+                </button>
+                <button
+                  onClick={() => setSupplyFilterStatus('optimal')}
+                  style={{
+                    padding: '0.3rem 0.65rem',
+                    borderRadius: '8px',
+                    border: '1px solid #A7F3D0',
+                    background: supplyFilterStatus === 'optimal' ? '#10B981' : '#FFFFFF',
+                    color: supplyFilterStatus === 'optimal' ? '#FFFFFF' : '#065F46',
+                    fontSize: '0.75rem',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Óptimos ({computedData.optimalCount})
+                </button>
+                <button
+                  onClick={() => setSupplyFilterStatus('warning')}
+                  style={{
+                    padding: '0.3rem 0.65rem',
+                    borderRadius: '8px',
+                    border: '1px solid #FDE68A',
+                    background: supplyFilterStatus === 'warning' ? '#F59E0B' : '#FFFFFF',
+                    color: supplyFilterStatus === 'warning' ? '#FFFFFF' : '#92400E',
+                    fontSize: '0.75rem',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Moderados ({computedData.warningCount})
+                </button>
+              </div>
+            </div>
+
+            {/* Tabla Detallada de Insumos y Rendimiento */}
+            <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '14px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569' }}>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: '800' }}>Insumo / Ingrediente</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: '800' }}>Requerido Teórico</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: '800' }}>Entrada / Comprado</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: '800' }}>% Aprovechamiento</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: '800' }}>Merma / Balance</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: '800' }}>Estado Operativo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredSupplies.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#94A3B8' }}>
+                        No se encontraron insumos con el filtro aplicado.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredSupplies.map((item) => (
+                      <tr key={item.key || item.name} style={{ borderBottom: '1px solid #F1F5F9', background: '#FFFFFF' }}>
+                        <td style={{ padding: '0.75rem 1rem' }}>
+                          <div style={{ fontWeight: '700', color: '#1E293B' }}>{item.name}</div>
+                          <div style={{ fontSize: '0.72rem', color: '#64748B' }}>
+                            {item.dishSources?.slice(0, 2).join(', ')}
+                            {item.dishSources?.length > 2 ? '...' : ''}
+                          </div>
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem', fontWeight: '700', color: '#1E293B' }}>
+                          {item.formattedRequired}
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem' }}>
+                          {item.purchasedBase !== null ? (
+                            <span style={{ fontWeight: '700', color: '#065F46' }}>
+                              {item.formattedPurchased}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>Sin capturar</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem' }}>
+                          {item.yieldPercent !== null ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <div style={{ width: '60px', background: '#E2E8F0', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{
+                                  width: `${Math.min(100, item.yieldPercent)}%`,
+                                  background: item.status === 'optimal' ? '#10B981' : (item.status === 'warning' ? '#F59E0B' : '#EF4444'),
+                                  height: '100%'
+                                }} />
+                              </div>
+                              <span style={{ fontWeight: '800', color: item.status === 'optimal' ? '#065F46' : (item.status === 'warning' ? '#92400E' : '#B91C1C') }}>
+                                {item.yieldPercent}%
+                              </span>
+                            </div>
+                          ) : (
+                            <span style={{ color: '#94A3B8' }}>---</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem' }}>
+                          {item.displayWaste !== null ? (
+                            <span style={{ fontSize: '0.8rem', color: item.displayWaste >= 0 ? '#64748B' : '#EF4444' }}>
+                              {item.displayWaste > 0 ? `+${item.formattedWaste} merma` : (item.displayWaste === 0 ? '0 merma' : `${item.formattedWaste} faltante`)}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#94A3B8' }}>---</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem' }}>
+                          <span style={{
+                            padding: '0.25rem 0.6rem',
+                            borderRadius: '999px',
+                            fontSize: '0.72rem',
+                            fontWeight: '800',
+                            background: item.status === 'optimal' ? '#ECFDF5' : (item.status === 'warning' ? '#FEF3C7' : (item.status === 'alert' ? '#FEF2F2' : '#F1F5F9')),
+                            color: item.status === 'optimal' ? '#065F46' : (item.status === 'warning' ? '#92400E' : (item.status === 'alert' ? '#991B1B' : '#64748B'))
+                          }}>
+                            {item.statusLabel}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        </section>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SECCIÓN 3: RESUMEN DE TABLAS NUTRICIONALES CONSUMIDAS                     */}
+      {/* ========================================================================= */}
+      {activeTab === 'nutrition' && (
+        <section style={{ marginBottom: '2.5rem' }}>
+          
+          {/* Contenedor Exclusivo de Ficha Clínica Casa Nostra */}
+          <div id="casanostra-printable-summary" style={{
+            background: '#FFFFFF',
+            borderRadius: '20px',
+            padding: '1.75rem',
+            border: '1px solid #E2E8F0',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+            marginBottom: '1.5rem'
+          }}>
+            
+            {/* ENCABEZADO FORMAL PARA IMPRESIÓN / PDF (CASA NOSTRA) */}
+            <div className="print-only" style={{ marginBottom: '1.75rem', borderBottom: '2.5px solid #B45309', paddingBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: '1.7rem', fontWeight: '900', color: '#B45309', letterSpacing: '-0.5px' }}>
+                    CASA NOSTRA
+                  </div>
+                  <div style={{ fontSize: '1rem', fontWeight: '800', color: '#1E293B', marginTop: '0.15rem' }}>
+                    Residencia de Mayores • Nutrición Geriátrica y Dietética Clínica
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: '#64748B', marginTop: '0.2rem' }}>
+                    Ficha Técnica de Control Nutricional y Prevención de Sarcopenia
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right', fontSize: '0.82rem', color: '#475569', background: '#FEF3C7', padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #FDE68A' }}>
+                  <div style={{ fontWeight: '800', color: '#92400E', fontSize: '0.88rem' }}>RESUMEN CLÍNICO SEMANAL</div>
+                  <div><strong>Semana:</strong> {activeMenu?.weekNumber || selectedWeek} ({activeMenu?.dateRange || 'Ciclo Operativo'})</div>
+                  <div><strong>Censo Comedor:</strong> {census} Residentes Activos</div>
+                  <div><strong>Emisión:</strong> {new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* ENCABEZADO WEB (visible en pantalla, oculto al imprimir) */}
+            <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                  <span style={{ background: '#FEF3C7', color: '#B45309', fontSize: '0.72rem', fontWeight: '800', padding: '0.2rem 0.55rem', borderRadius: '6px' }}>
+                    CASA NOSTRA
+                  </span>
+                  <span style={{ fontSize: '0.8rem', color: '#64748B' }}>Ficha Nutricional Semanal</span>
+                </div>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#1E293B', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <HeartPulse size={20} color="#3B82F6" /> Resumen de Tablas Nutricionales Consumidas
+                </h3>
+                <p style={{ margin: '0.2rem 0 0 0', color: '#64748B', fontSize: '0.85rem' }}>
+                  Consolidado ponderado según las raciones efectivamente servidas por el chef en Casa Nostra.
+                </p>
+              </div>
+
+              {/* Botones de Acción */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <button
+                  type="button"
+                  onClick={exportToCSV}
+                  style={{
+                    background: '#FFFFFF',
+                    border: '1.5px solid #107C41',
+                    color: '#107C41',
+                    padding: '0.55rem 0.95rem',
+                    borderRadius: '10px',
+                    fontSize: '0.82rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    boxShadow: '0 1px 3px rgba(16, 124, 65, 0.1)'
+                  }}
+                  title="Descargar reporte estructurado en formato CSV (.csv)"
+                >
+                  <Download size={15} /> Descargar Reporte (.csv)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  style={{
+                    background: '#B45309',
+                    border: 'none',
+                    color: '#FFFFFF',
+                    padding: '0.55rem 1.15rem',
+                    borderRadius: '10px',
+                    fontSize: '0.82rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    boxShadow: '0 2px 6px rgba(180, 83, 9, 0.25)'
+                  }}
+                  title="Exportar resumen clínico a PDF"
+                >
+                  <Printer size={16} /> Exportar a PDF
+                </button>
+              </div>
+            </div>
+
+            {/* Aviso si se muestra plantilla de referencia sin menú oficial */}
+            {activeMenu?.isTemplate && (
+              <div style={{
+                background: '#FFFBEB',
+                border: '1px solid #FDE68A',
+                borderRadius: '12px',
+                padding: '0.75rem 1rem',
+                marginBottom: '1.25rem',
+                fontSize: '0.82rem',
+                color: '#92400E',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <Info size={16} color="#B45309" />
+                <span>
+                  <strong>Plantilla de referencia:</strong> La Semana {selectedWeek} aún no tiene un menú oficial programado en el sistema. Los platillos y cálculos corresponden al ciclo base referencial.
+                </span>
+              </div>
+            )}
+
+            {/* Tarjetas de Metas Geriátricas (Visibles en pantalla, ocultas al imprimir para que el PDF sea 100% tabular) */}
+            <div className="printable-cards-grid no-print" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+              
+              {/* Meta Proteica */}
+              <div style={{ background: '#FFFBEB', padding: '1.25rem', borderRadius: '16px', border: '1px solid #FDE68A' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#B45309', textTransform: 'uppercase' }}>
+                    Prevención de Sarcopenia (Proteína)
+                  </span>
+                  <Award size={16} color="#B45309" />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
+                  <span style={{ fontSize: '1.85rem', fontWeight: '900', color: '#78350F' }}>
+                    {computedData.weeklyAvgPerResident.protein !== null ? `${computedData.weeklyAvgPerResident.protein}g` : 'N/D'}
+                  </span>
+                  <span style={{ fontSize: '0.85rem', color: '#B45309' }}>por residente / comida</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: computedData.weeklyAvgPerResident.protein >= 28 ? '#065F46' : '#92400E', fontWeight: '700', marginTop: '0.4rem' }}>
+                  {computedData.weeklyAvgPerResident.protein === null
+                    ? 'Sin datos de proteína suficientes para evaluar la semana.'
+                    : computedData.weeklyAvgPerResident.protein >= 28
+                      ? '✓ Meta cumplida (≥ 28g). Aporte suficiente para síntesis muscular geriátrica.'
+                      : '⚠️ Por debajo de la meta geriátrica (< 28g). Requiere ajuste proteico.'}
+                </div>
+              </div>
+
+              {/* Meta Hiposódica */}
+              <div style={{ background: '#ECFDF5', padding: '1.25rem', borderRadius: '16px', border: '1px solid #A7F3D0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#065F46', textTransform: 'uppercase' }}>
+                    Protocolo Hiposódico (Sodio)
+                  </span>
+                  <CheckCircle2 size={16} color="#10B981" />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
+                  <span style={{ fontSize: '1.85rem', fontWeight: '900', color: '#065F46' }}>
+                    {computedData.weeklyAvgPerResident.sodium !== null ? `${computedData.weeklyAvgPerResident.sodium}mg` : 'N/D'}
+                  </span>
+                  <span style={{ fontSize: '0.85rem', color: '#047857' }}>por ración servida</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: (computedData.weeklyAvgPerResident.sodium !== null && computedData.weeklyAvgPerResident.sodium <= 500) ? '#065F46' : '#92400E', fontWeight: '700', marginTop: '0.4rem' }}>
+                  {computedData.weeklyAvgPerResident.sodium === null
+                    ? 'Sin datos de sodio registrados en los platillos de este ciclo.'
+                    : computedData.weeklyAvgPerResident.sodium <= 500
+                      ? '✓ Nivel controlado (≤ 500mg). Seguro para pacientes con hipertensión.'
+                      : '⚠️ Excede límite hiposódico (> 500mg). Supervisar condimentos.'}
+                </div>
+              </div>
+
+              {/* Aporte Energético */}
+              <div style={{ background: '#EFF6FF', padding: '1.25rem', borderRadius: '16px', border: '1px solid #BFDBFE' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#1E40AF', textTransform: 'uppercase' }}>
+                    Densidad Calórica Promedio
+                  </span>
+                  <Activity size={16} color="#3B82F6" />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
+                  <span style={{ fontSize: '1.85rem', fontWeight: '900', color: '#1E40AF' }}>
+                    {computedData.weeklyAvgPerResident.calories !== null ? computedData.weeklyAvgPerResident.calories : 'N/D'}
+                  </span>
+                  <span style={{ fontSize: '0.85rem', color: '#1D4ED8' }}>kcal / comida principal</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#1E40AF', fontWeight: '700', marginTop: '0.4rem' }}>
+                  {computedData.weeklyAvgPerResident.calories !== null
+                    ? '✓ Cubre aproximadamente el 35% del VET diario en adultos mayores (1,800-2,000 kcal).'
+                    : 'Sin datos calóricos registrados en el menú activo.'}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Tabla Clínica de Consumo Diario y Semanal */}
+            <div className="printable-table-wrapper" style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '14px', width: '100%' }}>
+              <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'left' }}>
+                <colgroup>
+                  <col style={{ width: '11%' }} /> {/* Día y Fecha */}
+                  <col style={{ width: '31%' }} /> {/* Platillos Servidos */}
+                  <col style={{ width: '7%' }} />  {/* Raciones */}
+                  <col style={{ width: '9%' }} />  {/* Calorías */}
+                  <col style={{ width: '9%' }} />  {/* Proteína */}
+                  <col style={{ width: '9%' }} />  {/* Carbos */}
+                  <col style={{ width: '8%' }} />  {/* Grasas */}
+                  <col style={{ width: '8%' }} />  {/* Sodio */}
+                  <col style={{ width: '8%' }} />  {/* Validación */}
+                </colgroup>
+                <thead>
+                  <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569' }}>
+                    <th style={{ padding: '0.65rem 0.5rem', fontWeight: '800' }}>Día y Fecha</th>
+                    <th style={{ padding: '0.65rem 0.5rem', fontWeight: '800' }}>Platillos Servidos</th>
+                    <th style={{ padding: '0.65rem 0.4rem', fontWeight: '800', textAlign: 'center' }}>Raciones</th>
+                    <th style={{ padding: '0.65rem 0.4rem', fontWeight: '800' }}>Calorías</th>
+                    <th style={{ padding: '0.65rem 0.4rem', fontWeight: '800' }}>Proteína</th>
+                    <th style={{ padding: '0.65rem 0.4rem', fontWeight: '800' }}>Carbos</th>
+                    <th style={{ padding: '0.65rem 0.4rem', fontWeight: '800' }}>Grasas</th>
+                    <th style={{ padding: '0.65rem 0.4rem', fontWeight: '800' }}>Sodio</th>
+                    <th style={{ padding: '0.65rem 0.4rem', fontWeight: '800', textAlign: 'center' }}>Validación</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {computedData.dailyNutritionSummary.map((item, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9', background: idx % 2 === 0 ? '#FFFFFF' : '#FAFAFA' }}>
+                      <td style={{ padding: '0.65rem 0.5rem', fontWeight: '700', color: '#1E293B' }}>
+                        <div>{item.dayName}</div>
+                        <div style={{ fontSize: '0.72rem', color: '#64748B' }}>{item.dateLabel}</div>
+                      </td>
+                      <td style={{ padding: '0.65rem 0.5rem' }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#1E293B', wordBreak: 'break-word' }}>
+                          A: {item.dishA} ({item.servingsA})
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#2563EB', marginTop: '0.15rem', wordBreak: 'break-word' }}>
+                          B: {item.dishB} ({item.servingsB})
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.65rem 0.4rem', fontWeight: '800', color: '#1E293B', textAlign: 'center' }}>
+                        {item.totalDayServings}
+                      </td>
+                      <td style={{ padding: '0.65rem 0.4rem', fontWeight: '700', color: '#1E293B' }}>
+                        {item.avgCaloriesPerResident !== null ? `${item.avgCaloriesPerResident} kcal` : 'N/D'}
+                      </td>
+                      <td style={{ padding: '0.65rem 0.4rem', fontWeight: '800', color: '#B45309' }}>
+                        {item.avgProteinPerResident !== null ? `${item.avgProteinPerResident}g` : 'N/D'}
+                      </td>
+                      <td style={{ padding: '0.65rem 0.4rem', color: '#475569' }}>
+                        {item.avgCarbsPerResident !== null ? `${item.avgCarbsPerResident}g` : 'N/D'}
+                      </td>
+                      <td style={{ padding: '0.65rem 0.4rem', color: '#475569' }}>
+                        {item.avgFatsPerResident !== null ? `${item.avgFatsPerResident}g` : 'N/D'}
+                      </td>
+                      <td style={{ padding: '0.65rem 0.4rem', color: '#475569' }}>
+                        {item.avgSodiumPerResident !== null ? `${item.avgSodiumPerResident}mg` : 'N/D'}
+                      </td>
+                      <td style={{ padding: '0.65rem 0.4rem', textAlign: 'center' }}>
+                        <span style={{
+                          padding: '0.2rem 0.45rem',
+                          borderRadius: '999px',
+                          fontSize: '0.7rem',
+                          fontWeight: '800',
+                          display: 'inline-block',
+                          background: item.complianceStatus === 'safe' ? '#ECFDF5' : (item.complianceStatus === 'fail' ? '#FEF2F2' : (item.complianceStatus === 'partial_safe' ? '#EFF6FF' : '#F1F5F9')),
+                          color: item.complianceStatus === 'safe' ? '#065F46' : (item.complianceStatus === 'fail' ? '#991B1B' : (item.complianceStatus === 'partial_safe' ? '#1E40AF' : '#64748B')),
+                          border: item.complianceStatus === 'fail' ? '1px solid #FECACA' : 'none'
+                        }}>
+                          {item.complianceLabel}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{ background: '#F1F5F9', fontWeight: '800', color: '#1E293B', borderTop: '2px solid #CBD5E1' }}>
+                    <td colSpan="3" style={{ padding: '0.75rem 0.5rem', fontSize: '0.82rem' }}>
+                      PROMEDIO DIARIO POR RESIDENTE
+                    </td>
+                    <td style={{ padding: '0.75rem 0.4rem', color: '#1E293B', fontSize: '0.85rem' }}>
+                      {computedData.weeklyAvgPerResident.calories !== null ? `${computedData.weeklyAvgPerResident.calories} kcal` : 'N/D'}
+                    </td>
+                    <td style={{ padding: '0.75rem 0.4rem', color: '#B45309', fontSize: '0.85rem' }}>
+                      {computedData.weeklyAvgPerResident.protein !== null ? `${computedData.weeklyAvgPerResident.protein}g` : 'N/D'}
+                    </td>
+                    <td style={{ padding: '0.75rem 0.4rem', color: '#475569', fontSize: '0.85rem' }}>
+                      {computedData.weeklyAvgPerResident.carbs !== null ? `${computedData.weeklyAvgPerResident.carbs}g` : 'N/D'}
+                    </td>
+                    <td style={{ padding: '0.75rem 0.4rem', color: '#475569', fontSize: '0.85rem' }}>
+                      {computedData.weeklyAvgPerResident.fats !== null ? `${computedData.weeklyAvgPerResident.fats}g` : 'N/D'}
+                    </td>
+                    <td style={{ padding: '0.75rem 0.4rem', color: '#475569', fontSize: '0.85rem' }}>
+                      {computedData.weeklyAvgPerResident.sodium !== null ? `${computedData.weeklyAvgPerResident.sodium}mg` : 'N/D'}
+                    </td>
+                    <td style={{ padding: '0.75rem 0.4rem', textAlign: 'center' }}>
+                      <span style={{
+                        background: computedData.weeklyComplianceStatus === 'safe' ? '#10B981' : (computedData.weeklyComplianceStatus === 'fail' ? '#EF4444' : '#64748B'),
+                        color: 'white',
+                        padding: '0.2rem 0.45rem',
+                        borderRadius: '6px',
+                        fontSize: '0.7rem'
+                      }}>
+                        {computedData.weeklyComplianceLabel}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr style={{ background: '#FFFFFF', color: '#64748B', fontSize: '0.78rem' }}>
+                    <td colSpan="9" style={{ padding: '0.65rem 0.5rem' }}>
+                      <strong>Acumulado Total de Cocina:</strong> {computedData.sumCaloriesConsumed !== null ? `${computedData.sumCaloriesConsumed.toLocaleString()} kcal` : 'N/D'} y {computedData.sumProteinConsumed !== null ? `${computedData.sumProteinConsumed.toLocaleString()}g de proteína` : 'N/D'} producidos en el servicio semanal.
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+          </div>
+        </section>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL DE CAPTURA DE FACTURA / ENTRADA DE INSUMOS (PORTAL DIRECTO A BODY)   */}
+      {/* ========================================================================= */}
+      {isPurchaseModalOpen && typeof document !== 'undefined' && createPortal(
+        <div 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsPurchaseModalOpen(false);
+          }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999999, // Garantizado por encima de cualquier barra fija (99999)
+            padding: '1.25rem'
+          }}
+        >
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: '24px',
+            width: '100%',
+            maxWidth: '720px',
+            maxHeight: '85vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.35)',
+            border: '1px solid #E2E8F0',
+            overflow: 'hidden',
+            animation: 'scaleIn 0.2s ease-out'
+          }}>
+            
+            {/* Header del Modal */}
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FFFFFF' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', color: '#1E293B', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <ShoppingCart size={22} color="#10B981" /> Captura de Facturas y Entradas de Insumos
+                </h3>
+                <p style={{ margin: '0.15rem 0 0 0', color: '#64748B', fontSize: '0.82rem' }}>
+                  Ingresa las cantidades reales compradas o despachadas a cocina para cotejar contra recetas.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPurchaseModalOpen(false)}
+                style={{
+                  background: '#F1F5F9',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  color: '#64748B',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.95rem'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Contenido / Tabla del Modal con scroll interno cómodo */}
+            <div style={{ padding: '1.25rem 1.5rem', overflowY: 'auto', flex: 1, maxHeight: 'calc(85vh - 145px)' }}>
+              
+              {/* Barra de Búsqueda y Acción Rápida (idéntico al de la tabla principal) */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
+                marginBottom: '0.85rem'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: '#F8FAFC',
+                  padding: '0.45rem 0.85rem',
+                  borderRadius: '10px',
+                  border: '1px solid #CBD5E1',
+                  flex: '1',
+                  minWidth: '220px'
+                }}>
+                  <Search size={16} color="#64748B" />
+                  <input 
+                    type="text"
+                    placeholder="Buscar insumo (ej. caldo, papa, pollo, arroz)..."
+                    value={modalSearchTerm}
+                    onChange={e => setModalSearchTerm(e.target.value)}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      outline: 'none',
+                      width: '100%',
+                      fontSize: '0.85rem',
+                      color: '#1E293B'
+                    }}
+                    autoFocus
+                  />
+                  {modalSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setModalSearchTerm('')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#94A3B8',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                        padding: '0 4px',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAutocompletePurchases}
+                  style={{
+                    background: '#ECFDF5',
+                    border: '1px solid #A7F3D0',
+                    color: '#065F46',
+                    padding: '0.45rem 0.85rem',
+                    borderRadius: '8px',
+                    fontSize: '0.78rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <Sparkles size={13} /> Autollenar Teórico + 10%
+                </button>
+              </div>
+
+              {/* Indicador de conteo */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', padding: '0 0.2rem' }}>
+                <span style={{ fontSize: '0.82rem', color: '#64748B' }}>
+                  {modalSearchTerm ? (
+                    <>Mostrando <strong>{modalFilteredSupplies.length}</strong> de {computedData.suppliesList.length} insumos</>
+                  ) : (
+                    <>Total Insumos a Controlar: <strong>{computedData.suppliesList.length}</strong></>
+                  )}
+                </span>
+                {modalSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setModalSearchTerm('')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#2563EB',
+                      fontSize: '0.78rem',
+                      cursor: 'pointer',
+                      fontWeight: '600'
+                    }}
+                  >
+                    Ver todos los {computedData.suppliesList.length}
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                {modalFilteredSupplies.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#94A3B8', background: '#F8FAFC', borderRadius: '12px', border: '1px dashed #CBD5E1', fontSize: '0.85rem' }}>
+                    No se encontró ningún insumo con "{modalSearchTerm}".
+                  </div>
+                ) : (
+                  modalFilteredSupplies.map((item) => {
+                  const currentPurchased = purchasedSupplies[item.key]?.amount ?? (purchasedSupplies[item.name.toLowerCase()]?.amount ?? '');
+
+                  return (
+                    <div 
+                      key={item.key || item.name}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '0.7rem 1rem',
+                        background: '#FFFFFF',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: '12px',
+                        gap: '1rem'
+                      }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '700', color: '#1E293B', fontSize: '0.88rem' }}>{item.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                          Demanda Teórica: <strong>{item.formattedRequired}</strong>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <input 
+                          type="number"
+                          placeholder={String(roundNumber((item.displayRequired || 0) * 1.1, 2))}
+                          value={currentPurchased}
+                          onChange={(e) => handleSavePurchaseItem(item.key, e.target.value)}
+                          style={{
+                            width: '100px',
+                            padding: '0.45rem',
+                            borderRadius: '8px',
+                            border: '1px solid #CBD5E1',
+                            textAlign: 'right',
+                            fontWeight: '700',
+                            fontSize: '0.9rem',
+                            color: '#1E293B'
+                          }}
+                          min="0"
+                          step="any"
+                        />
+                        <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569', minWidth: '35px' }}>
+                          {item.displayUnit}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }))}
+              </div>
+
+            </div>
+
+            {/* Footer del Modal */}
+            <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #E2E8F0', background: '#F8FAFC', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => setIsPurchaseModalOpen(false)}
+                style={{
+                  background: '#FFFFFF',
+                  border: '1px solid #CBD5E1',
+                  color: '#475569',
+                  padding: '0.6rem 1.25rem',
+                  borderRadius: '10px',
+                  fontWeight: '700',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPurchaseModalOpen(false);
+                  showToast('¡Balance de insumos actualizado con éxito!');
+                }}
+                style={{
+                  background: '#10B981',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  padding: '0.6rem 1.4rem',
+                  borderRadius: '10px',
+                  fontWeight: '700',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)'
+                }}
+              >
+                Listo y Actualizar Balance
+              </button>
+            </div>
+
+          </div>
+        </div>,
+        document.body
+      )}
 
     </div>
   );

@@ -1,10 +1,10 @@
 // menuStore.js - Servicio sincronizado para Menús B2B Royal Canin con Selector por Calendario
 import { cyclicMenus } from '../data/mockData';
 
-const MENU_STORAGE_PREFIX = 'casanostra_menu_v2_';
-const ORDERS_STORAGE_PREFIX = 'casanostra_orders_v2_';
-const LEGACY_MENU_KEY = 'casanostra_active_menu_v2';
-const LEGACY_ORDERS_KEY = 'casanostra_resident_orders_v2';
+const MENU_STORAGE_PREFIX = 'casa_nostra_menu_v2_';
+const ORDERS_STORAGE_PREFIX = 'casa_nostra_orders_v2_';
+const LEGACY_MENU_KEY = 'casa_nostra_active_menu_v2';
+const LEGACY_ORDERS_KEY = 'casa_nostra_resident_orders_v2';
 
 const isLocalhost = typeof window !== 'undefined' && 
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
@@ -256,8 +256,29 @@ export const menuStore = {
       if (stored) return JSON.parse(stored);
       const storedByNum = localStorage.getItem(`${MENU_STORAGE_PREFIX}w${weekInfo.weekNumber}`);
       if (storedByNum) return JSON.parse(storedByNum);
+      
+      // Fallback a claves alternativas o previas de Casa Nostra y Royal Canin
+      const altKeys = [
+        `casa_nostra_menu_v2_${weekInfo.weekKey}`,
+        `casa_nostra_menu_v2_w${weekInfo.weekNumber}`,
+        `royal_canin_menu_v2_${weekInfo.weekKey}`,
+        `royal_canin_menu_v2_w${weekInfo.weekNumber}`,
+        `royal_menu_v2_${weekInfo.weekKey}`
+      ];
+      for (const k of altKeys) {
+        const altStored = localStorage.getItem(k);
+        if (altStored) {
+          try {
+            const parsed = JSON.parse(altStored);
+            // Migrar automáticamente a la clave estándar
+            localStorage.setItem(`${MENU_STORAGE_PREFIX}${weekInfo.weekKey}`, altStored);
+            return parsed;
+          } catch (_) {}
+        }
+      }
+
       if (weekInfo.weekNumber === 1) {
-        const legacy = localStorage.getItem(LEGACY_MENU_KEY);
+        const legacy = localStorage.getItem(LEGACY_MENU_KEY) || localStorage.getItem('royal_canin_active_menu_v2');
         if (legacy) return JSON.parse(legacy);
       }
     } catch (e) {
@@ -454,8 +475,28 @@ export const menuStore = {
       if (stored) return JSON.parse(stored);
       const storedByNum = localStorage.getItem(`${ORDERS_STORAGE_PREFIX}w${weekInfo.weekNumber}`);
       if (storedByNum) return JSON.parse(storedByNum);
+      
+      // Fallback a claves alternativas o previas
+      const altKeys = [
+        `casa_nostra_orders_v2_${weekInfo.weekKey}`,
+        `casa_nostra_resident_orders_v2_${weekInfo.weekKey}`,
+        `royal_canin_orders_v2_${weekInfo.weekKey}`,
+        `royal_orders_v2_${weekInfo.weekKey}`
+      ];
+      for (const k of altKeys) {
+        const altStored = localStorage.getItem(k);
+        if (altStored) {
+          try {
+            const parsed = JSON.parse(altStored);
+            // Migrar automáticamente
+            localStorage.setItem(`${ORDERS_STORAGE_PREFIX}${weekInfo.weekKey}`, altStored);
+            return parsed;
+          } catch (_) {}
+        }
+      }
+
       if (weekInfo.weekNumber === 1) {
-        const legacy = localStorage.getItem(LEGACY_ORDERS_KEY);
+        const legacy = localStorage.getItem(LEGACY_ORDERS_KEY) || localStorage.getItem('royal_canin_employee_orders_v2');
         if (legacy) return JSON.parse(legacy);
       }
     } catch (e) {

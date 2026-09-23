@@ -1,5 +1,5 @@
 import React from 'react';
-import { Salad, Calendar, UtensilsCrossed, ShieldCheck, Building2, User, KeyRound, ChefHat, HeartPulse, Sparkles, Users } from 'lucide-react';
+import { Salad, Calendar, UtensilsCrossed, ShieldCheck, Building2, User, KeyRound, ChefHat, HeartPulse, Sparkles, Users, BarChart2 } from 'lucide-react';
 import { getActiveServiceProfile } from '../data/mockData';
 
 export default function Header({
@@ -85,6 +85,23 @@ export default function Header({
           </div>
         </div>
 
+        {/* Service Model Switcher (Nutrióloga, Chef, Residentes, Reportes y Compras) */}
+        {isAdmin && (
+          <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', padding: '3px', borderRadius: '10px', border: '1px solid #CBD5E1', gap: '3px', marginRight: '0.5rem' }}>
+            <button type="button" onClick={() => setCurrentView('nutriologa')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', borderRadius: '8px', border: 'none', background: currentView === 'nutriologa' ? '#FFFFFF' : 'transparent', color: currentView === 'nutriologa' ? '#2563EB' : '#64748B', fontWeight: currentView === 'nutriologa' ? '800' : '600', fontSize: '0.78rem', cursor: 'pointer' }}>
+              <HeartPulse size={14} /> Nutrióloga
+            </button>
+            <button type="button" onClick={() => setCurrentView('chef')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', borderRadius: '8px', border: 'none', background: currentView === 'chef' ? '#FFFFFF' : 'transparent', color: currentView === 'chef' ? 'var(--green-dark)' : '#64748B', fontWeight: currentView === 'chef' ? '800' : '600', fontSize: '0.78rem', cursor: 'pointer' }}>
+              <ChefHat size={14} /> Chef
+            </button>
+            <button type="button" onClick={() => setCurrentView('administracion')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', borderRadius: '8px', border: 'none', background: currentView === 'administracion' ? '#FFFFFF' : 'transparent', color: currentView === 'administracion' ? '#B45309' : '#64748B', fontWeight: currentView === 'administracion' ? '800' : '600', fontSize: '0.78rem', cursor: 'pointer' }}>
+              <Users size={14} /> Residentes
+            </button>
+            <button type="button" onClick={() => setCurrentView('participant')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', borderRadius: '8px', border: 'none', background: currentView === 'participant' ? '#FFFFFF' : 'transparent', color: currentView === 'participant' ? '#059669' : '#64748B', fontWeight: currentView === 'participant' ? '800' : '600', fontSize: '0.78rem', cursor: 'pointer' }}>
+              <BarChart2 size={14} /> Reportes y Compras
+            </button>
+          </div>
+        )}
         {/* User Info & Role Lockdown Badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           
