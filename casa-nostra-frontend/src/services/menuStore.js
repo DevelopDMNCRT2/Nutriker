@@ -367,13 +367,22 @@ export const menuStore = {
           protein: typeof optA.protein === 'number' ? `${optA.protein}g` : (optA.protein || '35g'),
           carbs: typeof optA.carbs === 'number' ? `${optA.carbs}g` : (optA.carbs || '40g'),
           fats: typeof optA.fats === 'number' ? `${optA.fats}g` : (optA.fats || '14g'),
+          sodium: optA.sodium || optA.sodio_mg || 340,
+          sodio_mg: optA.sodium || optA.sodio_mg || 340,
           clinicalProfile: optA.clinicalProfile || 'Índice glucémico controlado, digestión ágil en oficina sin causar pesadez post-almuerzo.',
           allergens: Array.isArray(optA.allergens) ? optA.allergens : [],
           tags: optA.tags || ['Alto en Proteína', 'Control Glucémico'],
           image: optA.image || defaultInfo.imageA,
           recipe: {
             ingredients: (optA.ingredients && optA.ingredients.trim()) || '150g Proteína base, 80g Vegetales, 50g Carbohidrato',
-            method: methodA
+            method: methodA,
+            nutrition: {
+              calories: optA.calories || 480,
+              protein: typeof optA.protein === 'number' ? `${optA.protein}g` : (optA.protein || '35g'),
+              carbs: typeof optA.carbs === 'number' ? `${optA.carbs}g` : (optA.carbs || '40g'),
+              fats: typeof optA.fats === 'number' ? `${optA.fats}g` : (optA.fats || '14g'),
+              sodium: optA.sodium || optA.sodio_mg || 340
+            }
           }
         },
         optionB: {
@@ -384,13 +393,22 @@ export const menuStore = {
           protein: typeof optB.protein === 'number' ? `${optB.protein}g` : (optB.protein || '18g'),
           carbs: typeof optB.carbs === 'number' ? `${optB.carbs}g` : (optB.carbs || '50g'),
           fats: typeof optB.fats === 'number' ? `${optB.fats}g` : (optB.fats || '16g'),
+          sodium: optB.sodium || optB.sodio_mg || 320,
+          sodio_mg: optB.sodium || optB.sodio_mg || 320,
           clinicalProfile: optB.clinicalProfile || 'Alto contenido de fibra vegetal e ingredientes antioxidantes antiinflamatorios.',
           allergens: Array.isArray(optB.allergens) ? optB.allergens : [],
           tags: optB.tags || ['Plant-Based', 'Fibra Activa'],
           image: optB.image || defaultInfo.imageB,
           recipe: {
             ingredients: (optB.ingredients && optB.ingredients.trim()) || '140g Base vegetal, 100g Vegetales, 60g Grano',
-            method: methodB
+            method: methodB,
+            nutrition: {
+              calories: optB.calories || 430,
+              protein: typeof optB.protein === 'number' ? `${optB.protein}g` : (optB.protein || '18g'),
+              carbs: typeof optB.carbs === 'number' ? `${optB.carbs}g` : (optB.carbs || '50g'),
+              fats: typeof optB.fats === 'number' ? `${optB.fats}g` : (optB.fats || '16g'),
+              sodium: optB.sodium || optB.sodio_mg || 320
+            }
           }
         }
       };

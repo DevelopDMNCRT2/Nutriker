@@ -171,8 +171,19 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
             dish.protein = typeof res.proteina === 'number' ? `${res.proteina}g` : res.proteina;
             dish.carbs = typeof res.carbos === 'number' ? `${res.carbos}g` : res.carbos;
             dish.fats = typeof res.grasas === 'number' ? `${res.grasas}g` : res.grasas;
+            dish.sodium = res.sodio_mg || 340;
+            dish.sodio_mg = res.sodio_mg || 340;
             dish.clinicalProfile = res.perfilClinico;
             dish.allergens = res.alergenos || [];
+            if (dish.recipe) {
+              dish.recipe.nutrition = {
+                calories: res.calorias,
+                protein: dish.protein,
+                carbs: dish.carbs,
+                fats: dish.fats,
+                sodium: res.sodio_mg || 340
+              };
+            }
             
             // Persistir de inmediato en localStorage y emitir evento
             const updatedMenu = { ...activeMenu };
@@ -249,6 +260,8 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                   protein: res.proteina,
                   carbs: res.carbos,
                   fats: res.grasas,
+                  sodium: res.sodio_mg || 340,
+                  sodio_mg: res.sodio_mg || 340,
                   clinicalProfile: res.perfilClinico,
                   allergens: res.alergenos
                 }
@@ -275,6 +288,8 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                   protein: res.proteina,
                   carbs: res.carbos,
                   fats: res.grasas,
+                  sodium: res.sodio_mg || 340,
+                  sodio_mg: res.sodio_mg || 340,
                   clinicalProfile: res.perfilClinico,
                   allergens: res.alergenos
                 }
@@ -994,34 +1009,40 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                         </h4>
 
                         {/* Clinical Macro Breakdown Grid */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.35rem', background: '#F8FAFC', padding: '0.75rem 0.5rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
-                            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--primary)' }}>
+                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--primary)' }}>
                               {auditMode === 'production' ? `${nutritionA?.totalProduction.calories} kcal` : `${nutritionA?.unit.calories || currentDay.optionA?.calories || 480} kcal`}
                             </div>
                             {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionA?.unit.calories} kcal/p)</div>}
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
-                            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#2563EB' }}>
+                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#2563EB' }}>
                               {auditMode === 'production' ? `${nutritionA?.totalProduction.protein}g` : `${nutritionA?.unit.protein || 35}g`}
                             </div>
                             {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionA?.unit.protein}g/p)</div>}
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
-                            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>
+                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
                               {auditMode === 'production' ? `${nutritionA?.totalProduction.carbs}g` : `${nutritionA?.unit.carbs || 40}g`}
                             </div>
                             {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionA?.unit.carbs}g/p)</div>}
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
-                            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>
+                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
                               {auditMode === 'production' ? `${nutritionA?.totalProduction.fats}g` : `${nutritionA?.unit.fats || 14}g`}
                             </div>
                             {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionA?.unit.fats}g/p)</div>}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Sodio</div>
+                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.optionA?.sodium || currentDay.optionA?.sodio_mg || 340) <= 500 ? '#065F46' : '#991B1B' }}>
+                              {currentDay.optionA?.sodium || currentDay.optionA?.sodio_mg || 340}mg
+                            </div>
                           </div>
                         </div>
 
@@ -1099,34 +1120,40 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                         </h4>
 
                         {/* Clinical Macro Breakdown Grid */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.35rem', background: '#F8FAFC', padding: '0.75rem 0.5rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
-                            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--primary)' }}>
+                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--primary)' }}>
                               {auditMode === 'production' ? `${nutritionB?.totalProduction.calories} kcal` : `${nutritionB?.unit.calories || currentDay.optionB?.calories || 430} kcal`}
                             </div>
                             {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionB?.unit.calories} kcal/p)</div>}
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
-                            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#2563EB' }}>
+                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#2563EB' }}>
                               {auditMode === 'production' ? `${nutritionB?.totalProduction.protein}g` : `${nutritionB?.unit.protein || 18}g`}
                             </div>
                             {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionB?.unit.protein}g/p)</div>}
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
-                            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>
+                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
                               {auditMode === 'production' ? `${nutritionB?.totalProduction.carbs}g` : `${nutritionB?.unit.carbs || 50}g`}
                             </div>
                             {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionB?.unit.carbs}g/p)</div>}
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
-                            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>
+                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
                               {auditMode === 'production' ? `${nutritionB?.totalProduction.fats}g` : `${nutritionB?.unit.fats || 16}g`}
                             </div>
                             {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionB?.unit.fats}g/p)</div>}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Sodio</div>
+                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.optionB?.sodium || currentDay.optionB?.sodio_mg || 320) <= 500 ? '#065F46' : '#991B1B' }}>
+                              {currentDay.optionB?.sodium || currentDay.optionB?.sodio_mg || 320}mg
+                            </div>
                           </div>
                         </div>
 

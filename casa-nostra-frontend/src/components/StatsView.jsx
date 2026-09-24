@@ -1733,7 +1733,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                   }}
                   title="Descargar reporte estructurado en formato CSV (.csv)"
                 >
-                  <Download size={15} /> Descargar Reporte (.csv)
+                  <Download size={15} /> Exportar CSV
                 </button>
 
                 <button

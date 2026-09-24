@@ -182,6 +182,6 @@ export function extractDishNutritionSafe(dish) {
     protein: parseSafe(nut.protein ?? dish.protein ?? dish.proteinas_g ?? nut.proteina),
     carbs: parseSafe(nut.carbs ?? dish.carbs ?? dish.carbohidratos_g ?? nut.carbohidratos),
     fats: parseSafe(nut.fats ?? dish.fats ?? dish.grasas_g ?? nut.grasas),
-    sodium: parseSafe(nut.sodium ?? dish.sodium ?? nut.sodio ?? dish.sodio_mg)
+    sodium: parseSafe(nut.sodium ?? dish.sodium ?? nut.sodio ?? dish.sodio_mg ?? nut.sodio_mg)
   };
 }
