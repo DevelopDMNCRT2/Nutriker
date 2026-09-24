@@ -19,7 +19,8 @@ import {
   roundNumber, 
   formatSupplyDisplay, 
   calculateSupplyYield, 
-  extractDishNutritionSafe 
+  extractDishNutritionSafe,
+  getEstimatedSupplyUnitPrice
 } from '../utils/suppliesBalance';
 
 const EMPTY_DAYS = [];
@@ -565,46 +566,87 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
     };
   }, [days, servingsByDay, census, purchasedSupplies]);
 
-  // Manejador para guardar compras capturadas en el modal con clave estable
-  const handleSavePurchaseItem = (itemKey, amountVal) => {
-    const num = amountVal === '' ? null : Math.max(0, parseFloat(amountVal) || 0);
+  // Manejador para guardar compras capturadas en el modal con clave estable y soporte de costo
+  const handleSavePurchaseItem = (itemKey, amountVal, costVal, unitInfo = {}) => {
     setPurchasedSupplies(prev => {
+      const prevItem = prev[itemKey] || {};
+      const num = amountVal === undefined ? prevItem.amount : (amountVal === '' ? null : Math.max(0, parseFloat(amountVal) || 0));
+      const cost = costVal === undefined ? prevItem.cost : (costVal === '' ? null : Math.max(0, parseFloat(costVal) || 0));
+
       const updated = {
         ...prev,
         [itemKey]: {
+          ...prevItem,
           amount: num,
+          cost: cost,
+          unit: unitInfo.displayUnit || prevItem.unit || '',
+          name: unitInfo.name || prevItem.name || itemKey.split('|')[0],
           updatedAt: new Date().toISOString()
         }
       };
       localStorage.setItem(`casanostra_purchases_${statsWeekInfo.weekKey}`, JSON.stringify(updated));
       localStorage.setItem(`casanostra_purchases_w${statsWeekInfo.weekNumber}`, JSON.stringify(updated));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('casanostra_purchases_updated'));
+      }
       return updated;
     });
   };
 
-  // Autocompletar compras con 10% de merma estándar usando la unidad visual del usuario
+  // Autocompletar compras con 10% de merma estándar usando la unidad visual del usuario y costo de referencia
   const handleAutocompletePurchases = () => {
     const auto = {};
     computedData.suppliesList.forEach(item => {
       const factor = 1.10;
       const estimatedPurchase = roundNumber((item.displayRequired || 0) * factor, 2);
+      const estPrice = getEstimatedSupplyUnitPrice(item.name, item.unitType, item.displayUnit);
+      const estCost = roundNumber(estimatedPurchase * estPrice, 2);
       auto[item.key] = {
         amount: estimatedPurchase,
+        cost: estCost,
+        unit: item.displayUnit,
+        name: item.name,
         updatedAt: new Date().toISOString()
       };
     });
     setPurchasedSupplies(auto);
     localStorage.setItem(`casanostra_purchases_${statsWeekInfo.weekKey}`, JSON.stringify(auto));
     localStorage.setItem(`casanostra_purchases_w${statsWeekInfo.weekNumber}`, JSON.stringify(auto));
-    showToast('Insumos autocompletados con margen de compra estándar (+10% merma proyectada).');
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('casanostra_purchases_updated'));
+    }
+    showToast('Insumos autocompletados con margen de compra estándar (+10% merma y costo estimado).');
   };
 
   const handleClearPurchases = () => {
     setPurchasedSupplies({});
     localStorage.removeItem(`casanostra_purchases_${statsWeekInfo.weekKey}`);
     localStorage.removeItem(`casanostra_purchases_w${statsWeekInfo.weekNumber}`);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('casanostra_purchases_updated'));
+    }
     showToast('Se limpiaron los registros de compras capturadas.');
   };
+
+  // Cálculo del costo total de facturas para la semana activa considerando la unidad de medida
+  const currentWeekInvoiceTotal = useMemo(() => {
+    let sum = 0;
+    Object.entries(purchasedSupplies).forEach(([key, item]) => {
+      if (!item) return;
+      if (item.cost !== undefined && item.cost !== null && !isNaN(item.cost)) {
+        sum += parseFloat(item.cost);
+      } else if (item.amount && !isNaN(item.amount) && item.amount > 0) {
+        const matchingSupply = computedData?.suppliesList?.find(s => s.key === key || s.name.toLowerCase() === key.toLowerCase());
+        const displayUnit = item.unit || matchingSupply?.displayUnit || (key.includes('volume') ? 'L' : (key.includes('piece') ? 'pza' : (item.amount >= 100 ? 'g' : 'kg')));
+        const unitType = matchingSupply?.unitType || (displayUnit === 'g' || displayUnit === 'kg' ? 'mass' : (displayUnit === 'pza' ? 'piece' : 'volume'));
+        const itemName = item.name || matchingSupply?.name || key.split('|')[0];
+
+        const p = getEstimatedSupplyUnitPrice(itemName, unitType, displayUnit);
+        sum += item.amount * p;
+      }
+    });
+    return roundNumber(sum, 2) || 0;
+  }, [purchasedSupplies, computedData]);
 
   // Filtrado de insumos
   const filteredSupplies = computedData.suppliesList.filter(item => {
@@ -2130,8 +2172,8 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                 </button>
               </div>
 
-              {/* Indicador de conteo */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', padding: '0 0.2rem' }}>
+              {/* Indicador de conteo y Total de Factura */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', padding: '0 0.2rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <span style={{ fontSize: '0.82rem', color: '#64748B' }}>
                   {modalSearchTerm ? (
                     <>Mostrando <strong>{modalFilteredSupplies.length}</strong> de {computedData.suppliesList.length} insumos</>
@@ -2139,22 +2181,40 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                     <>Total Insumos a Controlar: <strong>{computedData.suppliesList.length}</strong></>
                   )}
                 </span>
-                {modalSearchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => setModalSearchTerm('')}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#2563EB',
-                      fontSize: '0.78rem',
-                      cursor: 'pointer',
-                      fontWeight: '600'
-                    }}
-                  >
-                    Ver todos los {computedData.suppliesList.length}
-                  </button>
-                )}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <div style={{
+                    background: '#ECFDF5',
+                    border: '1px solid #A7F3D0',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#065F46' }}>Total Factura:</span>
+                    <span style={{ fontSize: '0.88rem', fontWeight: '900', color: '#065F46' }}>
+                      ${currentWeekInvoiceTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+
+                  {modalSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setModalSearchTerm('')}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#2563EB',
+                        fontSize: '0.78rem',
+                        cursor: 'pointer',
+                        fontWeight: '600'
+                      }}
+                    >
+                      Ver todos
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
@@ -2164,55 +2224,91 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                   </div>
                 ) : (
                   modalFilteredSupplies.map((item) => {
-                  const currentPurchased = purchasedSupplies[item.key]?.amount ?? (purchasedSupplies[item.name.toLowerCase()]?.amount ?? '');
+                    const currentPurchased = purchasedSupplies[item.key]?.amount ?? (purchasedSupplies[item.name.toLowerCase()]?.amount ?? '');
+                    const currentCost = purchasedSupplies[item.key]?.cost ?? (purchasedSupplies[item.name.toLowerCase()]?.cost ?? '');
+                    const estimatedUnitPrice = getEstimatedSupplyUnitPrice(item.name, item.unitType, item.displayUnit);
+                    const suggestedCost = currentPurchased !== '' && currentPurchased > 0 
+                      ? String(roundNumber(currentPurchased * estimatedUnitPrice, 2))
+                      : '';
 
-                  return (
-                    <div 
-                      key={item.key || item.name}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '0.7rem 1rem',
-                        background: '#FFFFFF',
-                        border: '1px solid #E2E8F0',
-                        borderRadius: '12px',
-                        gap: '1rem'
-                      }}
-                    >
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: '700', color: '#1E293B', fontSize: '0.88rem' }}>{item.name}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#64748B' }}>
-                          Demanda Teórica: <strong>{item.formattedRequired}</strong>
+                    return (
+                      <div 
+                        key={item.key || item.name}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.7rem 1rem',
+                          background: '#FFFFFF',
+                          border: '1px solid #E2E8F0',
+                          borderRadius: '12px',
+                          gap: '1rem',
+                          flexWrap: 'wrap'
+                        }}
+                      >
+                        <div style={{ flex: 1, minWidth: '180px' }}>
+                          <div style={{ fontWeight: '700', color: '#1E293B', fontSize: '0.88rem' }}>{item.name}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                            Demanda Teórica: <strong>{item.formattedRequired}</strong>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          {/* Entrada de Cantidad */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <input 
+                              type="number"
+                              placeholder={String(roundNumber((item.displayRequired || 0) * 1.1, 2))}
+                              value={currentPurchased}
+                              onChange={(e) => handleSavePurchaseItem(item.key, e.target.value, undefined, { displayUnit: item.displayUnit, name: item.name })}
+                              title="Cantidad comprada"
+                              style={{
+                                width: '85px',
+                                padding: '0.45rem',
+                                borderRadius: '8px',
+                                border: '1px solid #CBD5E1',
+                                textAlign: 'right',
+                                fontWeight: '700',
+                                fontSize: '0.9rem',
+                                color: '#1E293B'
+                              }}
+                              min="0"
+                              step="any"
+                            />
+                            <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#475569', minWidth: '32px' }}>
+                              {item.displayUnit}
+                            </span>
+                          </div>
+
+                          {/* Entrada de Costo de Factura */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#64748B' }}>$</span>
+                            <input 
+                              type="number"
+                              placeholder={suggestedCost || '0.00'}
+                              value={currentCost}
+                              onChange={(e) => handleSavePurchaseItem(item.key, undefined, e.target.value, { displayUnit: item.displayUnit, name: item.name })}
+                              title="Costo en Factura (MXN)"
+                              style={{
+                                width: '90px',
+                                padding: '0.45rem',
+                                borderRadius: '8px',
+                                border: '1px solid #CBD5E1',
+                                textAlign: 'right',
+                                fontWeight: '700',
+                                fontSize: '0.88rem',
+                                color: '#065F46',
+                                background: currentCost ? '#ECFDF5' : '#FFFFFF'
+                              }}
+                              min="0"
+                              step="any"
+                            />
+                          </div>
                         </div>
                       </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <input 
-                          type="number"
-                          placeholder={String(roundNumber((item.displayRequired || 0) * 1.1, 2))}
-                          value={currentPurchased}
-                          onChange={(e) => handleSavePurchaseItem(item.key, e.target.value)}
-                          style={{
-                            width: '100px',
-                            padding: '0.45rem',
-                            borderRadius: '8px',
-                            border: '1px solid #CBD5E1',
-                            textAlign: 'right',
-                            fontWeight: '700',
-                            fontSize: '0.9rem',
-                            color: '#1E293B'
-                          }}
-                          min="0"
-                          step="any"
-                        />
-                        <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569', minWidth: '35px' }}>
-                          {item.displayUnit}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                }))}
+                    );
+                  })
+                )}
               </div>
 
             </div>
