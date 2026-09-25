@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { HeartPulse, ChefHat, ArrowLeft, Edit3, ArrowRight, Scale, Activity, Plus, Minus, RotateCcw, Utensils, ShieldCheck, Sunrise, Sun, Moon, Clock } from 'lucide-react';
+import { HeartPulse, ChefHat, ArrowLeft, Edit3, ArrowRight, Scale, Activity, Plus, Minus, RotateCcw, Utensils, ShieldCheck, Sunrise, Sun, Moon, Clock, FileDown } from 'lucide-react';
 import { programInfo } from '../data/mockData';
 import { menuStore, getWeekInfoFromDate, DAILY_SERVICES, INSTITUTIONAL_COURSES } from '../services/menuStore';
 import { scaleIngredients, scaleNutrition } from '../utils/recipeScaler';
+import { exportarDiaMenuPDF } from '../utils/exportMenuPDF';
+import { exportarDiaMenuCSV } from '../utils/exportMenuCSV';
 import WeekCalendarPicker from './WeekCalendarPicker';
 import IngredientEditorModal from './IngredientEditorModal';
 
@@ -503,28 +505,7 @@ function ChefViewContent({ selectedWeek, serviceProfileKey = 'casa_nostra' }) {
               {currentDay.dayName}{currentDay.dateLabel ? `, ${currentDay.dateLabel}` : ''}
             </h2>
 
-            {/* Segmented day selector */}
-            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-              {daysList.map((day, idx) => (
-                <button
-                  key={day.dayName}
-                  onClick={() => setCurrentDayIndex(idx)}
-                  style={{
-                    border: 'none',
-                    background: safeDayIndex === idx ? '#2563EB' : '#F1F5F9',
-                    color: safeDayIndex === idx ? '#FFFFFF' : '#64748B',
-                    padding: '0.35rem 0.85rem',
-                    borderRadius: '8px',
-                    fontWeight: '700',
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  {day.dayName}
-                </button>
-              ))}
-            </div>
+
 
             {/* Row 2: Navigation Arrows */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'center' }}>
@@ -559,7 +540,7 @@ function ChefViewContent({ selectedWeek, serviceProfileKey = 'casa_nostra' }) {
               </button>
             </div>
             
-            {/* Row 3: Real Production Status */}
+            {/* Row 3: Production Status */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center', marginTop: '0.25rem' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#2563EB', background: '#EFF6FF', padding: '0.3rem 0.75rem', borderRadius: '6px', border: '1px solid #BFDBFE' }}>
                 📋 {daysList.length} Días en Menú Oficial
@@ -571,6 +552,47 @@ function ChefViewContent({ selectedWeek, serviceProfileKey = 'casa_nostra' }) {
                 <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#15803D', background: '#F0FDF4', padding: '0.3rem 0.75rem', borderRadius: '6px', border: '1px solid #86EFAC', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <ShieldCheck size={14} color="#16A34A" /> Fichas Certificadas por {activeMenu?.humanVerification?.verifiedBy || 'Nutrióloga'}
                 </span>
+              )}
+
+              {/* Botones de Descarga del Menú: PDF y CSV */}
+              {currentDay?.dayName && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <button
+                    onClick={() => exportarDiaMenuPDF({ day: currentDay, weekRange: chefWeekInfo.dateRange, census: portionsCensus })}
+                    title={`Descargar menú de ${currentDay.dayName} en PDF`}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.35rem',
+                      padding: '0.35rem 0.85rem', borderRadius: '8px',
+                      border: '1.5px solid #7C3AED',
+                      background: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)',
+                      color: '#FFFFFF', fontSize: '0.75rem', fontWeight: '800',
+                      cursor: 'pointer', boxShadow: '0 2px 6px rgba(124,58,237,0.3)',
+                      transition: 'all 0.2s ease', fontFamily: 'inherit'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(124,58,237,0.4)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 2px 6px rgba(124,58,237,0.3)'; }}
+                  >
+                    <FileDown size={13} /> PDF
+                  </button>
+
+                  <button
+                    onClick={() => exportarDiaMenuCSV({ day: currentDay, weekRange: chefWeekInfo.dateRange, census: portionsCensus })}
+                    title={`Descargar tabla de ${currentDay.dayName} en CSV para Excel`}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.35rem',
+                      padding: '0.35rem 0.85rem', borderRadius: '8px',
+                      border: '1.5px solid #059669',
+                      background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                      color: '#FFFFFF', fontSize: '0.75rem', fontWeight: '800',
+                      cursor: 'pointer', boxShadow: '0 2px 6px rgba(5,150,105,0.3)',
+                      transition: 'all 0.2s ease', fontFamily: 'inherit'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(5,150,105,0.4)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 2px 6px rgba(5,150,105,0.3)'; }}
+                  >
+                    <FileDown size={13} /> CSV
+                  </button>
+                </div>
               )}
             </div>
           </div>
