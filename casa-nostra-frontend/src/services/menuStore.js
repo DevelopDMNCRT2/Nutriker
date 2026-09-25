@@ -648,21 +648,33 @@ export const menuStore = {
 
     let countA = 0;
     let countB = 0;
+    let countC = 0;
+    let countSoup = 0;
 
     orderList.forEach(order => {
       const dayChoice = order.selections?.[dayIndex];
       if (dayChoice) {
         if (dayChoice.platoFuerte === 'A') countA++;
         else if (dayChoice.platoFuerte === 'B') countB++;
+        else if (dayChoice.platoFuerte === 'C') countC++;
+
+        if (dayChoice.soup !== false && dayChoice.sopa !== false) {
+          countSoup++;
+        }
       }
     });
 
-    const confirmedCount = countA + countB;
+    const confirmedCount = countA + countB + countC;
+    if (countSoup === 0 && confirmedCount > 0) {
+      countSoup = confirmedCount;
+    }
 
     return {
       totalPortions: totalStaff,
       countA,
       countB,
+      countC,
+      countSoup,
       confirmedCount
     };
   },
