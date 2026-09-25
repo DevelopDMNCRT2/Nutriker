@@ -1,9 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Lock, Mail, Home, ShieldCheck, User, ChefHat, HeartPulse, ArrowRight } from 'lucide-react';
 import { sampleParticipants, chefInfo, nutriologaInfo } from '../data/mockData';
 import { API_BASE_URL } from '../services/menuStore';
 
 export default function LoginModal({ isOpen, onClose, onSelectRole }) {
+  useEffect(() => {
+    if (isOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const [loginState, setLoginState] = useState('idle'); // 'idle' | 'loading' | 'error' | 'success'
@@ -56,17 +67,35 @@ export default function LoginModal({ isOpen, onClose, onSelectRole }) {
     setLoginState('error');
   };
 
-  return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 9999, padding: '1rem',
-      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    }}>
+  return createPortal(
+    <div 
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        background: 'rgba(15, 23, 42, 0.75)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 999999,
+        padding: '1.25rem',
+        overflowY: 'auto',
+        fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      }}
+    >
       <div style={{
         background: '#FFFFFF', borderRadius: '24px', width: '100%', maxWidth: '420px',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden'
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)', overflow: 'hidden',
+        border: '1px solid #E2E8F0', animation: 'scaleIn 0.2s ease-out'
       }}>
         {/* Banner Casa Nostra */}
         <div style={{
@@ -232,6 +261,7 @@ export default function LoginModal({ isOpen, onClose, onSelectRole }) {
       <style>{`
         @keyframes spin { 100% { transform: rotate(360deg); } }
       `}</style>
-    </div>
+    </div>,
+    document.body
   );
 }

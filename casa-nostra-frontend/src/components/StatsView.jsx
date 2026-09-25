@@ -5,7 +5,7 @@ import {
   Activity, CheckCircle2, AlertTriangle, Check, Plus, Minus, 
   FileSpreadsheet, RefreshCw, Printer, Search, Sparkles, Filter, 
   ChevronRight, Utensils, Award, ShieldAlert, HeartPulse, PieChart, Download,
-  Users, DollarSign
+  Users, DollarSign, RotateCcw
 } from 'lucide-react';
 import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
 import { scaleIngredients, extractMacroNumber } from '../utils/recipeScaler';
@@ -19,7 +19,8 @@ import {
   roundNumber, 
   formatSupplyDisplay, 
   calculateSupplyYield, 
-  extractDishNutritionSafe 
+  extractDishNutritionSafe,
+  getEstimatedSupplyUnitPrice
 } from '../utils/suppliesBalance';
 
 const EMPTY_DAYS = [];
@@ -113,18 +114,14 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
     localStorage.setItem('casanostra_active_census', String(num));
   };
 
-  // Inicializar raciones por defecto (80% Opción A y 20% Opción B sumando el censo)
-  const initDefaultServings = (daysList, censusCount) => {
+  // Inicializar raciones en blanco para obligar a la administración a capturar cantidades exactas
+  const initDefaultServings = (daysList) => {
     const initial = {};
-    const c = Math.max(1, parseInt(censusCount, 10) || 25);
-    const optA = Math.round(c * 0.8);
-    const optB = Math.max(0, c - optA);
-
     daysList.forEach(day => {
       initial[day.dayName] = {
-        optionA: optA,
-        optionB: optB,
-        savedAt: new Date().toISOString()
+        optionA: '',
+        optionB: '',
+        savedAt: null
       };
     });
     return initial;
@@ -146,16 +143,16 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
     }
     setActiveMenu(menu);
 
-    // Cargar Raciones Servidas desde LocalStorage
-    const savedServings = localStorage.getItem(`casanostra_servings_${statsWeekInfo.weekKey}`) || localStorage.getItem(`casanostra_servings_w${statsWeekInfo.weekNumber}`);
+    // Cargar Raciones Servidas desde LocalStorage (v2 inicia en blanco)
+    const savedServings = localStorage.getItem(`casanostra_servings_v2_${statsWeekInfo.weekKey}`) || localStorage.getItem(`casanostra_servings_v2_w${statsWeekInfo.weekNumber}`);
     if (savedServings) {
       try {
         setServingsByDay(JSON.parse(savedServings));
       } catch (e) {
-        setServingsByDay(initDefaultServings(menu?.days || [], census));
+        setServingsByDay(initDefaultServings(menu?.days || []));
       }
     } else {
-      setServingsByDay(initDefaultServings(menu?.days || [], census));
+      setServingsByDay(initDefaultServings(menu?.days || []));
     }
 
     // Cargar Insumos Comprados desde LocalStorage
@@ -184,11 +181,23 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
 
   const days = useMemo(() => activeMenu?.days || EMPTY_DAYS, [activeMenu]);
 
+  // Reiniciar todas las raciones a blanco
+  const handleClearAllServings = () => {
+    const blank = initDefaultServings(days);
+    setServingsByDay(blank);
+    localStorage.setItem(`casanostra_servings_v2_${statsWeekInfo.weekKey}`, JSON.stringify(blank));
+    localStorage.setItem(`casanostra_servings_v2_w${statsWeekInfo.weekNumber}`, JSON.stringify(blank));
+    window.dispatchEvent(new CustomEvent('casanostra_servings_updated', {
+      detail: { weekKey: statsWeekInfo.weekKey, weekNumber: statsWeekInfo.weekNumber, servings: blank }
+    }));
+    showToast('Raciones reiniciadas en blanco para registro oficial.');
+  };
+
   // Actualizar raciones de un día y opción
   const handleServingChange = (dayName, optionKey, delta) => {
     setServingsByDay(prev => {
-      const current = prev[dayName] || { optionA: Math.round(census * 0.8), optionB: Math.round(census * 0.2) };
-      const currentVal = current[optionKey] || 0;
+      const current = prev[dayName] || { optionA: '', optionB: '' };
+      const currentVal = parseInt(current[optionKey], 10) || 0;
       const newVal = Math.max(0, currentVal + delta);
       const updated = {
         ...prev,
@@ -198,19 +207,19 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
           updatedAt: new Date().toISOString()
         }
       };
-      localStorage.setItem(`casanostra_servings_${statsWeekInfo.weekKey}`, JSON.stringify(updated));
-      localStorage.setItem(`casanostra_servings_w${statsWeekInfo.weekNumber}`, JSON.stringify(updated));
+      localStorage.setItem(`casanostra_servings_v2_${statsWeekInfo.weekKey}`, JSON.stringify(updated));
+      localStorage.setItem(`casanostra_servings_v2_w${statsWeekInfo.weekNumber}`, JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent('casanostra_servings_updated', {
+        detail: { weekKey: statsWeekInfo.weekKey, weekNumber: statsWeekInfo.weekNumber, servings: updated }
+      }));
       return updated;
     });
   };
 
   const handleServingDirectInput = (dayName, optionKey, value) => {
-    const num = Math.max(0, parseInt(value, 10) || 0);
+    const num = value === '' ? '' : Math.max(0, parseInt(value, 10) || 0);
     setServingsByDay(prev => {
-      const c = Math.max(1, census || 25);
-      const defaultA = Math.round(c * 0.8);
-      const defaultB = Math.max(0, c - defaultA);
-      const current = prev[dayName] || { optionA: defaultA, optionB: defaultB };
+      const current = prev[dayName] || { optionA: '', optionB: '' };
       const updated = {
         ...prev,
         [dayName]: {
@@ -219,40 +228,11 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
           updatedAt: new Date().toISOString()
         }
       };
-      localStorage.setItem(`casanostra_servings_${statsWeekInfo.weekKey}`, JSON.stringify(updated));
-      localStorage.setItem(`casanostra_servings_w${statsWeekInfo.weekNumber}`, JSON.stringify(updated));
-      return updated;
-    });
-  };
-
-  // Acciones rápidas para distribuir raciones
-  const applyQuickRatio = (dayName, ratioType) => {
-    setServingsByDay(prev => {
-      let a = 0;
-      let b = 0;
-      if (ratioType === '80-20') {
-        a = Math.round(census * 0.8);
-        b = Math.max(0, census - a);
-      } else if (ratioType === '100-A') {
-        a = census;
-        b = 0;
-      } else if (ratioType === '50-50') {
-        a = Math.ceil(census / 2);
-        b = Math.floor(census / 2);
-      }
-
-      let updated = { ...prev };
-      if (dayName === 'ALL') {
-        days.forEach(d => {
-          updated[d.dayName] = { optionA: a, optionB: b, updatedAt: new Date().toISOString() };
-        });
-        showToast(`Se aplicó distribución ${ratioType} a todos los días de la semana.`);
-      } else {
-        updated[dayName] = { optionA: a, optionB: b, updatedAt: new Date().toISOString() };
-        showToast(`Distribución de ${dayName} actualizada a ${ratioType}.`);
-      }
-      localStorage.setItem(`casanostra_servings_${statsWeekInfo.weekKey}`, JSON.stringify(updated));
-      localStorage.setItem(`casanostra_servings_w${statsWeekInfo.weekNumber}`, JSON.stringify(updated));
+      localStorage.setItem(`casanostra_servings_v2_${statsWeekInfo.weekKey}`, JSON.stringify(updated));
+      localStorage.setItem(`casanostra_servings_v2_w${statsWeekInfo.weekNumber}`, JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent('casanostra_servings_updated', {
+        detail: { weekKey: statsWeekInfo.weekKey, weekNumber: statsWeekInfo.weekNumber, servings: updated }
+      }));
       return updated;
     });
   };
@@ -308,15 +288,12 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
     const suppliesMap = {};
 
     days.forEach(day => {
-      const c = Math.max(1, census || 25);
-      const defaultA = Math.round(c * 0.8);
-      const defaultB = Math.max(0, c - defaultA);
       const dayServing = servingsByDay[day.dayName] || { 
-        optionA: defaultA, 
-        optionB: defaultB 
+        optionA: '', 
+        optionB: '' 
       };
-      const servA = Number(dayServing.optionA) || 0;
-      const servB = Number(dayServing.optionB) || 0;
+      const servA = dayServing.optionA !== '' && dayServing.optionA !== null && dayServing.optionA !== undefined ? Number(dayServing.optionA) : 0;
+      const servB = dayServing.optionB !== '' && dayServing.optionB !== null && dayServing.optionB !== undefined ? Number(dayServing.optionB) : 0;
       const totalDayServings = servA + servB;
 
       totalServingsWeek += totalDayServings;
@@ -475,6 +452,14 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
         ? Number(purchasedRecord.amount)
         : null;
       
+      const unitPrice = purchasedRecord?.unitPrice !== undefined && purchasedRecord?.unitPrice !== null && purchasedRecord?.unitPrice !== ''
+        ? Number(purchasedRecord.unitPrice)
+        : null;
+
+      const totalCost = purchasedRecord?.totalCost !== undefined && purchasedRecord?.totalCost !== null && purchasedRecord?.totalCost !== ''
+        ? Number(purchasedRecord.totalCost)
+        : (unitPrice !== null && purchasedAmountRaw !== null ? roundNumber(unitPrice * purchasedAmountRaw, 2) : null);
+      
       const purchasedBase = purchasedAmountRaw !== null
         ? toBaseAmount(purchasedAmountRaw, reqDisplay.unit)
         : null;
@@ -487,6 +472,8 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
         ...item,
         purchasedAmountRaw,
         purchasedBase,
+        unitPrice,
+        totalCost,
         displayRequired: reqDisplay.amount,
         displayPurchased: purDisplay.amount,
         displayWaste: wasteDisplay.amount,
@@ -510,6 +497,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
     const optimalCount = suppliesList.filter(s => s.status === 'optimal').length;
     const warningCount = suppliesList.filter(s => s.status === 'warning').length;
     const alertCount = suppliesList.filter(s => s.status === 'alert').length;
+    const subcompraCount = suppliesList.filter(s => s.purchasedBase === null || s.purchasedBase < s.requiredBase).length;
 
     // Promedios semanales globales por residente (solo de días con información válida)
     const weeklyAvgPerResident = {
@@ -554,6 +542,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
       optimalCount,
       warningCount,
       alertCount,
+      subcompraCount,
       weeklyAvgPerResident,
       weeklyComplianceStatus,
       weeklyComplianceLabel,
@@ -565,52 +554,100 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
     };
   }, [days, servingsByDay, census, purchasedSupplies]);
 
-  // Manejador para guardar compras capturadas en el modal con clave estable
-  const handleSavePurchaseItem = (itemKey, amountVal) => {
-    const num = amountVal === '' ? null : Math.max(0, parseFloat(amountVal) || 0);
+  // Manejador para guardar compras capturadas en el modal con clave estable y soporte de precio
+  const handleSavePurchaseItem = (itemKey, field, val, unitInfo = {}) => {
     setPurchasedSupplies(prev => {
+      const current = prev[itemKey] || { amount: null, unitPrice: null, totalCost: null };
+      let updatedItem = { ...current };
+
+      if (field === 'amount') {
+        const num = val === '' ? null : Math.max(0, parseFloat(val) || 0);
+        updatedItem.amount = num;
+        if (num !== null && updatedItem.unitPrice !== null) {
+          updatedItem.totalCost = roundNumber(num * updatedItem.unitPrice, 2);
+          updatedItem.cost = updatedItem.totalCost;
+        }
+      } else if (field === 'unitPrice') {
+        const price = val === '' ? null : Math.max(0, parseFloat(val) || 0);
+        updatedItem.unitPrice = price;
+        if (price !== null && updatedItem.amount !== null) {
+          updatedItem.totalCost = roundNumber(updatedItem.amount * price, 2);
+          updatedItem.cost = updatedItem.totalCost;
+        }
+      } else if (field === 'totalCost') {
+        const total = val === '' ? null : Math.max(0, parseFloat(val) || 0);
+        updatedItem.totalCost = total;
+        updatedItem.cost = total;
+        if (total !== null && updatedItem.amount && updatedItem.amount > 0) {
+          updatedItem.unitPrice = roundNumber(total / updatedItem.amount, 2);
+        }
+      }
+
+      if (unitInfo) {
+        if (unitInfo.displayUnit) updatedItem.unit = unitInfo.displayUnit;
+        if (unitInfo.name) updatedItem.name = unitInfo.name;
+      }
+      if (!updatedItem.unit && current.unit) updatedItem.unit = current.unit;
+      if (!updatedItem.name && current.name) updatedItem.name = current.name;
+
+      updatedItem.updatedAt = new Date().toISOString();
+
       const updated = {
         ...prev,
-        [itemKey]: {
-          amount: num,
-          updatedAt: new Date().toISOString()
-        }
+        [itemKey]: updatedItem
       };
       localStorage.setItem(`casanostra_purchases_${statsWeekInfo.weekKey}`, JSON.stringify(updated));
       localStorage.setItem(`casanostra_purchases_w${statsWeekInfo.weekNumber}`, JSON.stringify(updated));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('casanostra_purchases_updated'));
+      }
       return updated;
     });
-  };
-
-  // Autocompletar compras con 10% de merma estándar usando la unidad visual del usuario
-  const handleAutocompletePurchases = () => {
-    const auto = {};
-    computedData.suppliesList.forEach(item => {
-      const factor = 1.10;
-      const estimatedPurchase = roundNumber((item.displayRequired || 0) * factor, 2);
-      auto[item.key] = {
-        amount: estimatedPurchase,
-        updatedAt: new Date().toISOString()
-      };
-    });
-    setPurchasedSupplies(auto);
-    localStorage.setItem(`casanostra_purchases_${statsWeekInfo.weekKey}`, JSON.stringify(auto));
-    localStorage.setItem(`casanostra_purchases_w${statsWeekInfo.weekNumber}`, JSON.stringify(auto));
-    showToast('Insumos autocompletados con margen de compra estándar (+10% merma proyectada).');
   };
 
   const handleClearPurchases = () => {
     setPurchasedSupplies({});
     localStorage.removeItem(`casanostra_purchases_${statsWeekInfo.weekKey}`);
     localStorage.removeItem(`casanostra_purchases_w${statsWeekInfo.weekNumber}`);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('casanostra_purchases_updated'));
+    }
     showToast('Se limpiaron los registros de compras capturadas.');
   };
 
-  // Filtrado de insumos
+  // Cálculo del costo total de facturas para la semana activa considerando la unidad de medida
+  const currentWeekInvoiceTotal = useMemo(() => {
+    let sum = 0;
+    Object.entries(purchasedSupplies).forEach(([key, item]) => {
+      if (!item) return;
+      const totalCost = item.totalCost !== undefined && item.totalCost !== null ? item.totalCost : item.cost;
+      if (totalCost !== undefined && totalCost !== null && !isNaN(totalCost)) {
+        sum += parseFloat(totalCost);
+      } else if (item.amount && !isNaN(item.amount) && item.amount > 0) {
+        if (item.unitPrice !== undefined && item.unitPrice !== null && !isNaN(item.unitPrice)) {
+          sum += parseFloat(item.amount) * parseFloat(item.unitPrice);
+        } else {
+          const matchingSupply = computedData?.suppliesList?.find(s => s.key === key || s.name.toLowerCase() === key.toLowerCase());
+          const displayUnit = item.unit || matchingSupply?.displayUnit || (key.includes('volume') ? 'L' : (key.includes('piece') ? 'pza' : (item.amount >= 100 ? 'g' : 'kg')));
+          const unitType = matchingSupply?.unitType || (displayUnit === 'g' || displayUnit === 'kg' ? 'mass' : (displayUnit === 'pza' ? 'piece' : 'volume'));
+          const itemName = item.name || matchingSupply?.name || key.split('|')[0];
+          const p = getEstimatedSupplyUnitPrice(itemName, unitType, displayUnit);
+          sum += item.amount * p;
+        }
+      }
+    });
+    return roundNumber(sum, 2) || 0;
+  }, [purchasedSupplies, computedData]);
+
+  // Filtrado de insumos con soporte para subcompra / faltante
   const filteredSupplies = computedData.suppliesList.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(supplySearchTerm.toLowerCase());
-    if (supplyFilterStatus === 'all') return matchesSearch;
-    return matchesSearch && item.status === supplyFilterStatus;
+    if (!matchesSearch) return false;
+    if (supplyFilterStatus === 'all') return true;
+    if (supplyFilterStatus === 'subcompra') {
+      return item.purchasedBase === null || item.purchasedBase < item.requiredBase;
+    }
+    return item.status === supplyFilterStatus;
   });
 
   // Filtrado de insumos dentro del modal de captura
@@ -1071,59 +1108,30 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                 </p>
               </div>
 
-              {/* Botones de acción masiva */}
+              {/* Indicador de captura manual de raciones */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.78rem', color: '#B45309', background: '#FEF3C7', padding: '0.4rem 0.85rem', borderRadius: '8px', fontWeight: '700', border: '1px solid #FDE68A' }}>
+                  Captura Manual por Platillo
+                </span>
                 <button
-                  onClick={() => applyQuickRatio('ALL', '80-20')}
+                  onClick={handleClearAllServings}
                   style={{
-                    background: '#F8FAFC',
+                    background: '#FFFFFF',
                     border: '1px solid #CBD5E1',
-                    color: '#334155',
-                    padding: '0.45rem 0.85rem',
-                    borderRadius: '10px',
+                    borderRadius: '8px',
+                    padding: '0.35rem 0.75rem',
                     fontSize: '0.78rem',
                     fontWeight: '700',
+                    color: '#64748B',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.35rem'
                   }}
+                  title="Reiniciar todos los campos numéricos en blanco para obligar nuevo registro"
                 >
-                  <Sparkles size={14} color="#B45309" /> Aplicar 80/20 a Toda la Semana
-                </button>
-                <button
-                  onClick={() => applyQuickRatio('ALL', '100-A')}
-                  style={{
-                    background: '#F8FAFC',
-                    border: '1px solid #CBD5E1',
-                    color: '#334155',
-                    padding: '0.45rem 0.85rem',
-                    borderRadius: '10px',
-                    fontSize: '0.78rem',
-                    fontWeight: '700',
-                    cursor: 'pointer'
-                  }}
-                >
-                  100% Opción A
-                </button>
-                <button
-                  onClick={() => showToast('¡Raciones del chef sincronizadas y guardadas con éxito!')}
-                  style={{
-                    background: '#B45309',
-                    border: 'none',
-                    color: '#FFFFFF',
-                    padding: '0.45rem 1rem',
-                    borderRadius: '10px',
-                    fontSize: '0.78rem',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    boxShadow: '0 2px 6px rgba(180, 83, 9, 0.25)'
-                  }}
-                >
-                  <Check size={15} /> Guardar Todo
+                  <RotateCcw size={13} />
+                  Reiniciar a blanco
                 </button>
               </div>
             </div>
@@ -1165,12 +1173,15 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {days.map((day, idx) => {
               const dayServing = servingsByDay[day.dayName] || { 
-                optionA: Math.round(census * 0.8), 
-                optionB: Math.round(census * 0.2) 
+                optionA: '', 
+                optionB: '' 
               };
-              const servA = dayServing.optionA || 0;
-              const servB = dayServing.optionB || 0;
-              const totalDay = servA + servB;
+              const servA = dayServing.optionA !== undefined && dayServing.optionA !== null ? dayServing.optionA : '';
+              const servB = dayServing.optionB !== undefined && dayServing.optionB !== null ? dayServing.optionB : '';
+              const hasCapture = servA !== '' || servB !== '';
+              const numA = parseInt(servA, 10) || 0;
+              const numB = parseInt(servB, 10) || 0;
+              const totalDay = numA + numB;
               const diffFromCensus = totalDay - census;
 
               const nutA = getDishNutrition(day.optionA);
@@ -1209,31 +1220,15 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                         borderRadius: '999px',
                         fontSize: '0.78rem',
                         fontWeight: '800',
-                        background: diffFromCensus === 0 ? '#ECFDF5' : (diffFromCensus > 0 ? '#EFF6FF' : '#FEF3C7'),
-                        color: diffFromCensus === 0 ? '#065F46' : (diffFromCensus > 0 ? '#1E40AF' : '#92400E'),
-                        border: diffFromCensus === 0 ? '1px solid #A7F3D0' : (diffFromCensus > 0 ? '1px solid #BFDBFE' : '1px solid #FDE68A')
+                        background: !hasCapture ? '#F1F5F9' : (diffFromCensus === 0 ? '#ECFDF5' : (diffFromCensus > 0 ? '#EFF6FF' : '#FEF3C7')),
+                        color: !hasCapture ? '#64748B' : (diffFromCensus === 0 ? '#065F46' : (diffFromCensus > 0 ? '#1E40AF' : '#92400E')),
+                        border: !hasCapture ? '1px solid #CBD5E1' : (diffFromCensus === 0 ? '1px solid #A7F3D0' : (diffFromCensus > 0 ? '1px solid #BFDBFE' : '1px solid #FDE68A'))
                       }}>
-                        {diffFromCensus === 0 && `✓ Cubierto exacto: ${totalDay} raciones`}
-                        {diffFromCensus > 0 && `+${diffFromCensus} raciones extra (${totalDay} / ${census})`}
-                        {diffFromCensus < 0 && `${diffFromCensus} raciones (${totalDay} / ${census})`}
+                        {!hasCapture && 'Pendiente de capturar'}
+                        {hasCapture && diffFromCensus === 0 && `✓ Cubierto exacto: ${totalDay} raciones`}
+                        {hasCapture && diffFromCensus > 0 && `+${diffFromCensus} raciones extra (${totalDay} / ${census})`}
+                        {hasCapture && diffFromCensus < 0 && `${diffFromCensus} raciones (${totalDay} / ${census})`}
                       </span>
-
-                      {/* Botón rápido para igualar al censo */}
-                      <button
-                        onClick={() => applyQuickRatio(day.dayName, '80-20')}
-                        style={{
-                          background: 'transparent',
-                          border: '1px solid #CBD5E1',
-                          color: '#475569',
-                          padding: '0.25rem 0.6rem',
-                          borderRadius: '8px',
-                          fontSize: '0.72rem',
-                          fontWeight: '700',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Reset 80/20
-                      </button>
                     </div>
                   </div>
 
@@ -1256,7 +1251,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                             OPCIÓN A • {day.optionA?.category || 'Menú Tradicional'}
                           </span>
                           <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#92400E' }}>
-                            {totalDay > 0 ? Math.round((servA / totalDay) * 100) : 0}% preferencia
+                            {hasCapture && totalDay > 0 && servA !== '' ? `${Math.round((numA / totalDay) * 100)}% preferencia` : '---'}
                           </span>
                         </div>
                         <div style={{ fontSize: '0.98rem', fontWeight: '700', color: '#1E293B', marginBottom: '0.4rem', lineHeight: '1.3' }}>
@@ -1284,6 +1279,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                           <input 
                             type="number"
                             value={servA}
+                            placeholder="0"
                             onChange={(e) => handleServingDirectInput(day.dayName, 'optionA', e.target.value)}
                             style={{ width: '50px', padding: '0.25rem', borderRadius: '6px', border: '1px solid #CBD5E1', textAlign: 'center', fontWeight: '800', fontSize: '0.95rem', color: '#1E293B' }}
                             min="0"
@@ -1314,7 +1310,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                             OPCIÓN B • {day.optionB?.category || 'Suave / Papilla'}
                           </span>
                           <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#1E40AF' }}>
-                            {totalDay > 0 ? Math.round((servB / totalDay) * 100) : 0}% preferencia
+                            {hasCapture && totalDay > 0 && servB !== '' ? `${Math.round((numB / totalDay) * 100)}% preferencia` : '---'}
                           </span>
                         </div>
                         <div style={{ fontSize: '0.98rem', fontWeight: '700', color: '#1E293B', marginBottom: '0.4rem', lineHeight: '1.3' }}>
@@ -1342,6 +1338,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                           <input 
                             type="number"
                             value={servB}
+                            placeholder="0"
                             onChange={(e) => handleServingDirectInput(day.dayName, 'optionB', e.target.value)}
                             style={{ width: '50px', padding: '0.25rem', borderRadius: '6px', border: '1px solid #CBD5E1', textAlign: 'center', fontWeight: '800', fontSize: '0.95rem', color: '#1E293B' }}
                             min="0"
@@ -1390,25 +1387,6 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
 
               {/* Acciones de Insumos */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <button
-                  onClick={handleAutocompletePurchases}
-                  style={{
-                    background: '#ECFDF5',
-                    border: '1px solid #A7F3D0',
-                    color: '#065F46',
-                    padding: '0.45rem 0.85rem',
-                    borderRadius: '10px',
-                    fontSize: '0.78rem',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem'
-                  }}
-                  title="Simula la compra con un 10% de margen de merma estándar de cocina"
-                >
-                  <Sparkles size={14} color="#10B981" /> Autocompletar Compras (+10% Merma)
-                </button>
                 <button
                   onClick={() => setIsPurchaseModalOpen(true)}
                   style={{
@@ -1560,6 +1538,26 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                 >
                   Moderados ({computedData.warningCount})
                 </button>
+                <button
+                  onClick={() => setSupplyFilterStatus('subcompra')}
+                  style={{
+                    padding: '0.3rem 0.65rem',
+                    borderRadius: '8px',
+                    border: '1px solid #FECACA',
+                    background: supplyFilterStatus === 'subcompra' ? '#DC2626' : '#FFFFFF',
+                    color: supplyFilterStatus === 'subcompra' ? '#FFFFFF' : '#991B1B',
+                    fontSize: '0.75rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem'
+                  }}
+                  title="Insumos con faltante o subcompra respecto al requerimiento teórico"
+                >
+                  <AlertTriangle size={13} />
+                  Faltante ({computedData.subcompraCount})
+                </button>
               </div>
             </div>
 
@@ -1571,6 +1569,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                     <th style={{ padding: '0.75rem 1rem', fontWeight: '800' }}>Insumo / Ingrediente</th>
                     <th style={{ padding: '0.75rem 1rem', fontWeight: '800' }}>Requerido Teórico</th>
                     <th style={{ padding: '0.75rem 1rem', fontWeight: '800' }}>Entrada / Comprado</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: '800' }}>Precio / Costo</th>
                     <th style={{ padding: '0.75rem 1rem', fontWeight: '800' }}>% Aprovechamiento</th>
                     <th style={{ padding: '0.75rem 1rem', fontWeight: '800' }}>Merma / Balance</th>
                     <th style={{ padding: '0.75rem 1rem', fontWeight: '800' }}>Estado Operativo</th>
@@ -1579,7 +1578,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                 <tbody>
                   {filteredSupplies.length === 0 ? (
                     <tr>
-                      <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#94A3B8' }}>
+                      <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: '#94A3B8' }}>
                         No se encontraron insumos con el filtro aplicado.
                       </td>
                     </tr>
@@ -1603,6 +1602,22 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                             </span>
                           ) : (
                             <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>Sin capturar</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem' }}>
+                          {item.unitPrice !== null ? (
+                            <div>
+                              <div style={{ fontWeight: '700', color: '#1E293B', fontSize: '0.85rem' }}>
+                                ${Number(item.unitPrice).toFixed(2)} <span style={{ fontSize: '0.72rem', color: '#64748B' }}>/ {item.displayUnit}</span>
+                              </div>
+                              {item.totalCost !== null && (
+                                <div style={{ fontSize: '0.72rem', color: '#166534', fontWeight: '600' }}>
+                                  Total: ${Number(item.totalCost).toFixed(2)}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span style={{ color: '#94A3B8', fontSize: '0.78rem', fontStyle: 'italic' }}>Sin registrar</span>
                           )}
                         </td>
                         <td style={{ padding: '0.75rem 1rem' }}>
@@ -2108,30 +2123,10 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                   )}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleAutocompletePurchases}
-                  style={{
-                    background: '#ECFDF5',
-                    border: '1px solid #A7F3D0',
-                    color: '#065F46',
-                    padding: '0.45rem 0.85rem',
-                    borderRadius: '8px',
-                    fontSize: '0.78rem',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.3rem',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  <Sparkles size={13} /> Autollenar Teórico + 10%
-                </button>
               </div>
 
-              {/* Indicador de conteo */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', padding: '0 0.2rem' }}>
+              {/* Indicador de conteo y Total de Factura */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', padding: '0 0.2rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <span style={{ fontSize: '0.82rem', color: '#64748B' }}>
                   {modalSearchTerm ? (
                     <>Mostrando <strong>{modalFilteredSupplies.length}</strong> de {computedData.suppliesList.length} insumos</>
@@ -2139,22 +2134,40 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                     <>Total Insumos a Controlar: <strong>{computedData.suppliesList.length}</strong></>
                   )}
                 </span>
-                {modalSearchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => setModalSearchTerm('')}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#2563EB',
-                      fontSize: '0.78rem',
-                      cursor: 'pointer',
-                      fontWeight: '600'
-                    }}
-                  >
-                    Ver todos los {computedData.suppliesList.length}
-                  </button>
-                )}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <div style={{
+                    background: '#ECFDF5',
+                    border: '1px solid #A7F3D0',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#065F46' }}>Total Factura:</span>
+                    <span style={{ fontSize: '0.88rem', fontWeight: '900', color: '#065F46' }}>
+                      ${currentWeekInvoiceTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+
+                  {modalSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setModalSearchTerm('')}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#2563EB',
+                        fontSize: '0.78rem',
+                        cursor: 'pointer',
+                        fontWeight: '600'
+                      }}
+                    >
+                      Ver todos
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
@@ -2164,55 +2177,114 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                   </div>
                 ) : (
                   modalFilteredSupplies.map((item) => {
-                  const currentPurchased = purchasedSupplies[item.key]?.amount ?? (purchasedSupplies[item.name.toLowerCase()]?.amount ?? '');
+                    const rec = purchasedSupplies[item.key] || purchasedSupplies[item.name.toLowerCase()] || {};
+                    const currentPurchased = rec.amount !== undefined && rec.amount !== null ? rec.amount : '';
+                    const currentUnitPrice = rec.unitPrice !== undefined && rec.unitPrice !== null ? rec.unitPrice : '';
+                    const currentTotalCost = rec.totalCost !== undefined && rec.totalCost !== null ? rec.totalCost : (rec.cost !== undefined && rec.cost !== null ? rec.cost : '');
 
-                  return (
-                    <div 
-                      key={item.key || item.name}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '0.7rem 1rem',
-                        background: '#FFFFFF',
-                        border: '1px solid #E2E8F0',
-                        borderRadius: '12px',
-                        gap: '1rem'
-                      }}
-                    >
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: '700', color: '#1E293B', fontSize: '0.88rem' }}>{item.name}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#64748B' }}>
-                          Demanda Teórica: <strong>{item.formattedRequired}</strong>
+                    return (
+                      <div 
+                        key={item.key || item.name}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.75rem 1rem',
+                          background: '#FFFFFF',
+                          border: '1px solid #E2E8F0',
+                          borderRadius: '12px',
+                          gap: '1rem',
+                          flexWrap: 'wrap'
+                        }}
+                      >
+                        <div style={{ flex: '1 1 200px' }}>
+                          <div style={{ fontWeight: '700', color: '#1E293B', fontSize: '0.88rem' }}>{item.name}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                            Demanda Teórica: <strong>{item.formattedRequired}</strong>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                          {/* Cantidad Entrada */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                            <label style={{ fontSize: '0.68rem', fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>
+                              Cant. ({item.displayUnit})
+                            </label>
+                            <input 
+                              type="number"
+                              placeholder="0"
+                              value={currentPurchased}
+                              onChange={(e) => handleSavePurchaseItem(item.key, 'amount', e.target.value, { displayUnit: item.displayUnit, name: item.name })}
+                              style={{
+                                width: '85px',
+                                padding: '0.4rem 0.5rem',
+                                borderRadius: '8px',
+                                border: '1px solid #CBD5E1',
+                                textAlign: 'right',
+                                fontWeight: '700',
+                                fontSize: '0.88rem',
+                                color: '#1E293B'
+                              }}
+                              min="0"
+                              step="any"
+                            />
+                          </div>
+
+                          {/* Precio Unitario */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                            <label style={{ fontSize: '0.68rem', fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>
+                              Precio Unit. ($)
+                            </label>
+                            <input 
+                              type="number"
+                              placeholder="0.00"
+                              value={currentUnitPrice}
+                              onChange={(e) => handleSavePurchaseItem(item.key, 'unitPrice', e.target.value, { displayUnit: item.displayUnit, name: item.name })}
+                              style={{
+                                width: '85px',
+                                padding: '0.4rem 0.5rem',
+                                borderRadius: '8px',
+                                border: '1px solid #CBD5E1',
+                                textAlign: 'right',
+                                fontWeight: '700',
+                                fontSize: '0.88rem',
+                                color: '#1E293B'
+                              }}
+                              min="0"
+                              step="any"
+                            />
+                          </div>
+
+                          {/* Costo Total */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                            <label style={{ fontSize: '0.68rem', fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>
+                              Costo Total ($)
+                            </label>
+                            <input 
+                              type="number"
+                              placeholder="0.00"
+                              value={currentTotalCost}
+                              onChange={(e) => handleSavePurchaseItem(item.key, 'totalCost', e.target.value, { displayUnit: item.displayUnit, name: item.name })}
+                              style={{
+                                width: '95px',
+                                padding: '0.4rem 0.5rem',
+                                borderRadius: '8px',
+                                border: '1px solid #CBD5E1',
+                                textAlign: 'right',
+                                fontWeight: '700',
+                                fontSize: '0.88rem',
+                                color: '#166534',
+                                background: '#F0FDF4'
+                              }}
+                              min="0"
+                              step="any"
+                            />
+                          </div>
                         </div>
                       </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <input 
-                          type="number"
-                          placeholder={String(roundNumber((item.displayRequired || 0) * 1.1, 2))}
-                          value={currentPurchased}
-                          onChange={(e) => handleSavePurchaseItem(item.key, e.target.value)}
-                          style={{
-                            width: '100px',
-                            padding: '0.45rem',
-                            borderRadius: '8px',
-                            border: '1px solid #CBD5E1',
-                            textAlign: 'right',
-                            fontWeight: '700',
-                            fontSize: '0.9rem',
-                            color: '#1E293B'
-                          }}
-                          min="0"
-                          step="any"
-                        />
-                        <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569', minWidth: '35px' }}>
-                          {item.displayUnit}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                }))}
+                    );
+                  })
+                )}
               </div>
 
             </div>
