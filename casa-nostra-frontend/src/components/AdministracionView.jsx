@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Users, 
   Plus, 
@@ -24,6 +25,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import confetti from 'canvas-confetti';
+import { getCapturedFoodPurchasesSummary } from '../utils/suppliesBalance';
 
 const STORAGE_KEY = 'casanostra_residentes_v1';
 
@@ -128,36 +130,42 @@ export default function AdministracionView({
   const PRESUPUESTO_KEY = 'casanostra_presupuesto_v1';
 
   const CATEGORIAS_GASTO = [
-    'Insumos Alimentarios',
-    'Lácteos y Proteínas',
-    'Frutas y Verduras',
-    'Granos y Abarrotes',
-    'Higiene y Limpieza',
-    'Servicios (Gas, Agua, Luz)',
-    'Equipamiento y Utensilios',
-    'Medicamentos y Suplementos',
-    'Otros'
-  ];
-
-  const MOCK_GASTOS = [
-    { id: 'G-001', concepto: 'Compra semanal de pollo y res', proveedor: 'Carnicería El Rancho', categoria: 'Insumos Alimentarios', monto: 2850.00, fecha: '2026-09-16', notas: '5 kg pollo pechuga, 3 kg res molida' },
-    { id: 'G-002', concepto: 'Frutas y verduras de temporada', proveedor: 'Mercado Juárez', categoria: 'Frutas y Verduras', monto: 1240.50, fecha: '2026-09-16', notas: 'Manzana, papaya, zanahoria, calabaza, espinaca' },
-    { id: 'G-003', concepto: 'Gas LP cocina', proveedor: 'Gas Express Norte', categoria: 'Servicios (Gas, Agua, Luz)', monto: 980.00, fecha: '2026-09-15', notas: 'Recarga tanque estacionario 200 lt' },
-    { id: 'G-004', concepto: 'Lácteos: leche, yogur, queso cottage', proveedor: 'Lala Distribuidora', categoria: 'Lácteos y Proteínas', monto: 760.00, fecha: '2026-09-14', notas: 'Leche deslactosada, yogur natural sin azúcar' },
-    { id: 'G-005', concepto: 'Abarrotes y granos (arroz, lenteja, frijol)', proveedor: 'Bodega Aurrerá', categoria: 'Granos y Abarrotes', monto: 640.00, fecha: '2026-09-13', notas: 'Arroz 5kg, lenteja 2kg, frijol bayo 3kg' },
-    { id: 'G-006', concepto: 'Desinfectante y cloro cocina', proveedor: 'Distribuidora Limpieza Total', categoria: 'Higiene y Limpieza', monto: 320.00, fecha: '2026-09-12', notas: '' },
-    { id: 'G-007', concepto: 'Suplemento proteico Ensure adulto mayor', proveedor: 'Farmacia del Ahorro', categoria: 'Medicamentos y Suplementos', monto: 1580.00, fecha: '2026-09-11', notas: '4 cajas para residentes con sarcopenia' },
-    { id: 'G-008', concepto: 'Pescado blanco (tilapia y merluza)', proveedor: 'Pescadería Mar Azul', categoria: 'Insumos Alimentarios', monto: 920.00, fecha: '2026-09-10', notas: 'Para menú del jueves y viernes' },
-    { id: 'G-009', concepto: 'Aceite vegetal y espesante alimentario', proveedor: 'Costco Mayoreo', categoria: 'Granos y Abarrotes', monto: 480.00, fecha: '2026-09-09', notas: 'Espesante nivel 3 para residentes con disfagia' },
-    { id: 'G-010', concepto: 'Mantenimiento horno industrial', proveedor: 'TecnoEquip MX', categoria: 'Equipamiento y Utensilios', monto: 1200.00, fecha: '2026-09-08', notas: 'Revisión preventiva trimestral' },
+    'Salario',
+    'Gas',
+    'Agua',
+    'Electricidad / Luz',
+    'Medicamentos',
+    'Limpieza',
+    'Mantenimiento',
+    'Equipamiento'
   ];
 
   const [gastos, setGastos] = useState(() => {
     try {
       const saved = localStorage.getItem(GASTOS_KEY);
-      return saved ? JSON.parse(saved) : MOCK_GASTOS;
-    } catch { return MOCK_GASTOS; }
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      const validCategories = new Set(CATEGORIAS_GASTO);
+      return Array.isArray(parsed) 
+        ? parsed.filter(g => validCategories.has(g.categoria) && !g.id?.startsWith('G-00')) 
+        : [];
+    } catch { return []; }
   });
+
+  // Consolidación automática de compras de alimentos desde facturas de cocina
+  const [foodPurchases, setFoodPurchases] = useState(() => getCapturedFoodPurchasesSummary());
+
+  useEffect(() => {
+    const updateFood = () => {
+      setFoodPurchases(getCapturedFoodPurchasesSummary());
+    };
+    window.addEventListener('casanostra_purchases_updated', updateFood);
+    window.addEventListener('storage', updateFood);
+    return () => {
+      window.removeEventListener('casanostra_purchases_updated', updateFood);
+      window.removeEventListener('storage', updateFood);
+    };
+  }, []);
 
   const [presupuesto, setPresupuesto] = useState(() => {
     try {
@@ -168,11 +176,23 @@ export default function AdministracionView({
 
   const [isGastoModalOpen, setIsGastoModalOpen] = useState(false);
   const [gastoForm, setGastoForm] = useState({
-    concepto: '', proveedor: '', categoria: 'Insumos Alimentarios',
+    concepto: '', proveedor: '', categoria: 'Gas',
     monto: '', fecha: new Date().toISOString().slice(0, 10), notas: ''
   });
   const [gastoSearchTerm, setGastoSearchTerm] = useState('');
   const [gastoCategoryFilter, setGastoCategoryFilter] = useState('Todas');
+
+  // Bloqueo estricto del scroll de la página al abrir cualquier modal
+  useEffect(() => {
+    const isAnyModalOpen = isGastoModalOpen || isNewModalOpen || isImportModalOpen;
+    if (isAnyModalOpen) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [isGastoModalOpen, isNewModalOpen, isImportModalOpen]);
 
   const saveGastos = (list) => {
     setGastos(list);
@@ -188,7 +208,7 @@ export default function AdministracionView({
       fecha: gastoForm.fecha || new Date().toISOString().slice(0, 10)
     };
     saveGastos([newGasto, ...gastos]);
-    setGastoForm({ concepto: '', proveedor: '', categoria: 'Insumos Alimentarios', monto: '', fecha: new Date().toISOString().slice(0, 10), notas: '' });
+    setGastoForm({ concepto: '', proveedor: '', categoria: 'Gas', monto: '', fecha: new Date().toISOString().slice(0, 10), notas: '' });
     setIsGastoModalOpen(false);
   };
 
@@ -197,11 +217,21 @@ export default function AdministracionView({
     saveGastos(gastos.filter(g => g.id !== id));
   };
 
-  const totalGastos = gastos.reduce((acc, g) => acc + g.monto, 0);
-  const gastosPorCategoria = CATEGORIAS_GASTO.map(cat => ({
-    nombre: cat,
-    total: gastos.filter(g => g.categoria === cat).reduce((a, g) => a + g.monto, 0)
-  })).filter(c => c.total > 0);
+  const totalGastosOperativos = gastos.reduce((acc, g) => acc + g.monto, 0);
+  const totalGastos = totalGastosOperativos + foodPurchases.totalCost;
+
+  const gastosPorCategoria = [
+    ...(foodPurchases.totalCost > 0 ? [{
+      nombre: 'Alimentos e Insumos de Cocina (Facturas)',
+      total: foodPurchases.totalCost,
+      isAuto: true
+    }] : []),
+    ...CATEGORIAS_GASTO.map(cat => ({
+      nombre: cat,
+      total: gastos.filter(g => g.categoria === cat).reduce((a, g) => a + g.monto, 0),
+      isAuto: false
+    })).filter(c => c.total > 0)
+  ];
 
   const filteredGastos = gastos.filter(g => {
     const matchSearch = g.concepto.toLowerCase().includes(gastoSearchTerm.toLowerCase()) ||
@@ -217,7 +247,19 @@ export default function AdministracionView({
       `"${(g.proveedor || '').replace(/"/g, '""')}"`,
       `"${g.categoria}"`, g.monto, `"${(g.notas || '').replace(/"/g, '""')}"`
     ]);
-    rows.push(['"TOTAL"', '', '', '', totalGastos.toFixed(2), '']);
+
+    if (foodPurchases.totalCost > 0) {
+      rows.push([
+        `"${new Date().toISOString().slice(0, 10)}"`,
+        `"Consolidado Facturas de Insumos de Cocina (${foodPurchases.itemsCount} insumos en ${foodPurchases.weeksCount} semanas)"`,
+        `"Sincronización Automática"`,
+        `"Alimentos e Insumos"`,
+        foodPurchases.totalCost.toFixed(2),
+        `"Calculado desde compras capturadas en módulo de cocina"`
+      ]);
+    }
+
+    rows.push(['"TOTAL GENERAL"', '', '', '', totalGastos.toFixed(2), '']);
     const csv = '\uFEFF' + [headers.map(h => `"${h}"`).join(','), ...rows.map(r => r.join(','))].join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -1058,9 +1100,11 @@ export default function AdministracionView({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
             {/* Gasto total */}
             <div style={{ background: '#FFFFFF', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-              <div style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: '600', marginBottom: '0.4rem' }}>GASTO TOTAL REGISTRADO</div>
+              <div style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: '600', marginBottom: '0.4rem' }}>GASTO TOTAL CONSOLIDADO</div>
               <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#1E293B' }}>${totalGastos.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</div>
-              <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '0.2rem' }}>{gastos.length} registros</div>
+              <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '0.2rem' }}>
+                {gastos.length} operativos (${totalGastosOperativos.toLocaleString('es-MX', { minimumFractionDigits: 2 })}) + Alimentos (${foodPurchases.totalCost.toLocaleString('es-MX', { minimumFractionDigits: 2 })})
+              </div>
             </div>
 
             {/* Presupuesto mensual */}
@@ -1107,11 +1151,20 @@ export default function AdministracionView({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 {gastosPorCategoria.sort((a,b) => b.total - a.total).map(cat => (
                   <div key={cat.nombre} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ fontSize: '0.82rem', color: '#475569', minWidth: '180px', flexShrink: 0 }}>{cat.nombre}</div>
-                    <div style={{ flex: 1, height: '8px', background: '#F1F5F9', borderRadius: '99px', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${totalGastos > 0 ? (cat.total / totalGastos) * 100 : 0}%`, background: 'linear-gradient(90deg, #B45309, #D97706)', borderRadius: '99px' }} />
+                    <div style={{ fontSize: '0.82rem', color: '#475569', minWidth: '220px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <span>{cat.nombre}</span>
+                      {cat.isAuto && (
+                        <span style={{ background: '#DCFCE7', color: '#166534', fontSize: '0.65rem', fontWeight: '800', padding: '0.1rem 0.4rem', borderRadius: '4px', border: '1px solid #BBF7D0' }}>
+                          COCINA
+                        </span>
+                      )}
                     </div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#1E293B', minWidth: '90px', textAlign: 'right' }}>${cat.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</div>
+                    <div style={{ flex: 1, height: '8px', background: '#F1F5F9', borderRadius: '99px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${totalGastos > 0 ? (cat.total / totalGastos) * 100 : 0}%`, background: cat.isAuto ? 'linear-gradient(90deg, #059669, #10B981)' : 'linear-gradient(90deg, #B45309, #D97706)', borderRadius: '99px' }} />
+                    </div>
+                    <div style={{ fontSize: '0.82rem', fontWeight: '700', color: cat.isAuto ? '#065F46' : '#1E293B', minWidth: '95px', textAlign: 'right' }}>
+                      ${cat.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1126,14 +1179,14 @@ export default function AdministracionView({
                 <input value={gastoSearchTerm} onChange={e => setGastoSearchTerm(e.target.value)} placeholder="Buscar concepto o proveedor..." style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '0.85rem', color: '#1E293B', width: '100%' }} />
               </div>
               <select value={gastoCategoryFilter} onChange={e => setGastoCategoryFilter(e.target.value)} style={{ padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #E2E8F0', background: '#F8FAFC', fontSize: '0.82rem', color: '#475569', cursor: 'pointer' }}>
-                <option value="Todas">Todas las categorías</option>
+                <option value="Todas">Todas las categorías operativas</option>
                 {CATEGORIAS_GASTO.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
 
             {filteredGastos.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '2rem', color: '#94A3B8', fontSize: '0.88rem' }}>
-                {gastos.length === 0 ? 'Aún no hay compras registradas. Presiona «Registrar Compra» para comenzar.' : 'No hay resultados con ese filtro.'}
+                {gastos.length === 0 ? 'Aún no hay compras operativas registradas. Presiona «Registrar Compra» para comenzar.' : 'No hay resultados con ese filtro.'}
               </div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
@@ -1165,7 +1218,7 @@ export default function AdministracionView({
                   </tbody>
                   <tfoot>
                     <tr style={{ background: '#FEF3C7' }}>
-                      <td colSpan={4} style={{ padding: '0.75rem', fontWeight: '800', color: '#B45309', fontSize: '0.85rem' }}>TOTAL FILTRADO</td>
+                      <td colSpan={4} style={{ padding: '0.75rem', fontWeight: '800', color: '#B45309', fontSize: '0.85rem' }}>TOTAL OPERATIVO FILTRADO</td>
                       <td style={{ padding: '0.75rem', fontWeight: '900', color: '#B45309', fontSize: '0.92rem' }}>${filteredGastos.reduce((a, g) => a + g.monto, 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
                       <td></td>
                     </tr>
@@ -1175,17 +1228,71 @@ export default function AdministracionView({
             )}
           </div>
 
-          {/* ── Modal: Registrar Compra ── */}
-          {isGastoModalOpen && (
-            <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
-              <div style={{ background: '#FFFFFF', borderRadius: '20px', padding: '2rem', width: '100%', maxWidth: '480px', boxShadow: '0 25px 60px rgba(0,0,0,0.2)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#1E293B' }}>Registrar Compra / Gasto</h3>
-                  <button onClick={() => setIsGastoModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}><X size={20} /></button>
+          {/* ── Modal: Registrar Compra / Gasto Operativo (PORTAL DIRECTO A BODY) ── */}
+          {isGastoModalOpen && typeof document !== 'undefined' && createPortal(
+            <div 
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setIsGastoModalOpen(false);
+              }}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                width: '100vw',
+                height: '100vh',
+                background: 'rgba(15, 23, 42, 0.75)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 999999,
+                padding: '1.25rem',
+                overflowY: 'auto'
+              }}
+            >
+              <div style={{
+                background: '#FFFFFF',
+                borderRadius: '24px',
+                padding: '2rem',
+                width: '100%',
+                maxWidth: '480px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+                border: '1px solid #E2E8F0',
+                animation: 'scaleIn 0.2s ease-out'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '800', color: '#1E293B' }}>Registrar Gasto Operativo</h3>
+                    <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', color: '#64748B' }}>
+                      Restringido a insumos y servicios no alimentarios.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsGastoModalOpen(false)}
+                    style={{
+                      background: '#F1F5F9',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '32px',
+                      height: '32px',
+                      cursor: 'pointer',
+                      color: '#64748B',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {[{ label: 'Concepto *', key: 'concepto', type: 'text', placeholder: 'Ej. Compra de pollo, gas, etc.' },
-                    { label: 'Proveedor', key: 'proveedor', type: 'text', placeholder: 'Ej. Superama, Mercado Local' },
+                  {[{ label: 'Concepto *', key: 'concepto', type: 'text', placeholder: 'Ej. Gas LP, Electricidad CFE, Medicamentos...' },
+                    { label: 'Proveedor', key: 'proveedor', type: 'text', placeholder: 'Ej. Gas Express, CFE, Farmacia...' },
                     { label: 'Monto (MXN) *', key: 'monto', type: 'number', placeholder: '0.00' },
                     { label: 'Fecha *', key: 'fecha', type: 'date', placeholder: '' }].map(f => (
                     <div key={f.key}>
@@ -1196,25 +1303,21 @@ export default function AdministracionView({
                     </div>
                   ))}
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#64748B', marginBottom: '0.35rem' }}>Categoría</label>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#64748B', marginBottom: '0.35rem' }}>Categoría Operativa</label>
                     <select value={gastoForm.categoria} onChange={e => setGastoForm(prev => ({ ...prev, categoria: e.target.value }))}
                       style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '10px', border: '1.5px solid #E2E8F0', fontSize: '0.88rem', background: '#FFFFFF', cursor: 'pointer' }}>
                       {CATEGORIAS_GASTO.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#64748B', marginBottom: '0.35rem' }}>Notas</label>
-                    <textarea value={gastoForm.notas} placeholder="Observaciones adicionales..."
-                      onChange={e => setGastoForm(prev => ({ ...prev, notas: e.target.value }))}
-                      rows={2} style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '10px', border: '1.5px solid #E2E8F0', fontSize: '0.88rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
-                  </div>
+
                   <button onClick={handleAddGasto} disabled={!gastoForm.concepto.trim() || !gastoForm.monto}
-                    style={{ padding: '0.85rem', borderRadius: '12px', border: 'none', background: !gastoForm.concepto.trim() || !gastoForm.monto ? '#E2E8F0' : '#B45309', color: !gastoForm.concepto.trim() || !gastoForm.monto ? '#94A3B8' : '#FFFFFF', fontWeight: '800', fontSize: '0.92rem', cursor: !gastoForm.concepto.trim() || !gastoForm.monto ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
+                    style={{ padding: '0.85rem', borderRadius: '12px', border: 'none', background: !gastoForm.concepto.trim() || !gastoForm.monto ? '#E2E8F0' : '#B45309', color: !gastoForm.concepto.trim() || !gastoForm.monto ? '#94A3B8' : '#FFFFFF', fontWeight: '800', fontSize: '0.92rem', cursor: !gastoForm.concepto.trim() || !gastoForm.monto ? 'not-allowed' : 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(180,83,9,0.2)' }}>
                     Guardar Registro
                   </button>
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       )}
@@ -1222,27 +1325,39 @@ export default function AdministracionView({
       {/* ─────────────────────────────────────────────────────────── */}
       {/* 6. Modal: + Nuevo Residente / Editar Residente              */}
       {/* ─────────────────────────────────────────────────────────── */}
-      {isNewModalOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(15, 23, 42, 0.65)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '1rem'
-        }}>
+      {isNewModalOpen && typeof document !== 'undefined' && createPortal(
+        <div 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsNewModalOpen(false);
+          }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999999,
+            padding: '1.25rem',
+            overflowY: 'auto'
+          }}
+        >
           <div style={{
             background: '#FFFFFF',
             width: '100%',
             maxWidth: '560px',
-            borderRadius: '20px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            borderRadius: '24px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
             border: '1px solid #E2E8F0',
             overflow: 'hidden',
-            animation: 'fadeIn 0.2s ease-out'
+            animation: 'scaleIn 0.2s ease-out'
           }}>
             {/* Header del Modal */}
             <div style={{
@@ -1466,32 +1581,46 @@ export default function AdministracionView({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─────────────────────────────────────────────────────────── */}
       {/* 6. Modal: Importar Excel (.xlsx / .xls)                    */}
       {/* ─────────────────────────────────────────────────────────── */}
-      {isImportModalOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(15, 23, 42, 0.65)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '1rem'
-        }}>
+      {isImportModalOpen && typeof document !== 'undefined' && createPortal(
+        <div 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsImportModalOpen(false);
+          }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999999,
+            padding: '1.25rem',
+            overflowY: 'auto'
+          }}
+        >
           <div style={{
             background: '#FFFFFF',
             width: '100%',
             maxWidth: '640px',
-            borderRadius: '20px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            borderRadius: '24px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
             border: '1px solid #E2E8F0',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            animation: 'scaleIn 0.2s ease-out'
           }}>
             {/* Header Import */}
             <div style={{
@@ -1719,7 +1848,8 @@ export default function AdministracionView({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>
