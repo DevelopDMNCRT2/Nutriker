@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { HeartPulse, ChefHat, ArrowLeft, Edit3, ArrowRight, Scale, Activity, Plus, Minus, RotateCcw, Utensils } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { HeartPulse, ChefHat, ArrowLeft, Edit3, ArrowRight, Scale, Activity, Plus, Minus, RotateCcw, Utensils, ShieldCheck } from 'lucide-react';
 import { programInfo } from '../data/mockData';
 import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
 import { scaleIngredients, scaleNutrition } from '../utils/recipeScaler';
@@ -14,16 +14,63 @@ function getInitialDayIndex(days) {
   return foundIdx !== -1 ? foundIdx : 0;
 }
 
-export default function ChefView({ selectedWeek, serviceProfileKey = 'casa_nostra' }) {
-  const [chefWeekInfo, setChefWeekInfo] = useState(() => getWeekInfoFromDate(new Date()));
-  const [activeMenu, setActiveMenu] = useState(() => menuStore.getActiveMenu(chefWeekInfo));
-  const daysList = activeMenu.days || [];
-  const [currentDayIndex, setCurrentDayIndex] = useState(() => getInitialDayIndex(daysList));
-  const [, setRefreshOrders] = useState(0);
+class ChefErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("ChefView Runtime Error:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '2rem', background: '#FEF2F2', border: '2px solid #EF4444', borderRadius: '16px', margin: '2rem auto', maxWidth: '800px', textAlign: 'center' }}>
+          <h3 style={{ color: '#DC2626', fontSize: '1.25rem', fontWeight: '800', marginBottom: '0.5rem' }}>Error al Cargar la Vista de Cocina</h3>
+          <p style={{ color: '#991B1B', fontSize: '0.9rem', marginBottom: '1rem' }}>
+            {String(this.state.error?.message || this.state.error)}
+          </p>
+          <pre style={{ textAlign: 'left', background: '#FFFFFF', padding: '1rem', borderRadius: '8px', border: '1px solid #FCA5A5', color: '#B91C1C', fontSize: '0.75rem', overflowX: 'auto', maxHeight: '200px' }}>
+            {String(this.state.error?.stack || '')}
+          </pre>
+          <button 
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              window.location.reload();
+            }}
+            style={{ marginTop: '1rem', background: '#DC2626', color: '#FFFFFF', border: 'none', padding: '0.5rem 1.25rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
+          >
+            Reintentar / Recargar
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
-  // Estados para simulación/ajuste de porciones por el Chef
-  const [overrideCountA, setOverrideCountA] = useState(null);
-  const [overrideCountB, setOverrideCountB] = useState(null);
+function ChefViewContent({ selectedWeek, serviceProfileKey = 'casa_nostra' }) {
+  const [chefWeekInfo, setChefWeekInfo] = useState(() => {
+    if (selectedWeek && typeof selectedWeek === 'number') {
+      return getWeekInfoFromDate(selectedWeek);
+    }
+    return getWeekInfoFromDate(new Date());
+  });
+
+  useEffect(() => {
+    if (selectedWeek && typeof selectedWeek === 'number') {
+      setChefWeekInfo(getWeekInfoFromDate(selectedWeek));
+    }
+  }, [selectedWeek]);
+
+  const [activeMenu, setActiveMenu] = useState(() => menuStore.getActiveMenu(chefWeekInfo));
+  const daysList = activeMenu?.days || [];
+  const [currentDayIndex, setCurrentDayIndex] = useState(() => getInitialDayIndex(daysList));
+  const [refreshOrders, setRefreshOrders] = useState(0);
+
   const [activeTabA, setActiveTabA] = useState('ingredients'); // 'ingredients' | 'nutrition'
   const [activeTabB, setActiveTabB] = useState('ingredients');
   const [editingDish, setEditingDish] = useState(null);
@@ -50,14 +97,7 @@ export default function ChefView({ selectedWeek, serviceProfileKey = 'casa_nostr
     if (daysList.length > 0) {
       setCurrentDayIndex(getInitialDayIndex(daysList));
     }
-    setOverrideCountA(null);
-    setOverrideCountB(null);
   }, [chefWeekInfo.weekKey, daysList.length]);
-
-  useEffect(() => {
-    setOverrideCountA(null);
-    setOverrideCountB(null);
-  }, [currentDayIndex]);
 
   useEffect(() => {
     const handleMenuUpdate = (e) => {
@@ -74,14 +114,29 @@ export default function ChefView({ selectedWeek, serviceProfileKey = 'casa_nostr
       setRefreshOrders(prev => prev + 1);
     };
 
+    const handleServingsUpdate = (e) => {
+      if (!e.detail || e.detail.weekKey === chefWeekInfo.weekKey || e.detail.weekNumber === chefWeekInfo.weekNumber) {
+        setRefreshOrders(prev => prev + 1);
+      }
+    };
+    const handleStorageUpdate = (e) => {
+      if (!e.key || e.key.includes('casanostra_servings')) {
+        setRefreshOrders(prev => prev + 1);
+      }
+    };
+
     window.addEventListener('royal_canin_menu_updated', handleMenuUpdate);
     window.addEventListener('royal_canin_orders_updated', handleOrdersUpdate);
     window.addEventListener('casa_nostra_census_updated', handleCensusUpdate);
+    window.addEventListener('casanostra_servings_updated', handleServingsUpdate);
+    window.addEventListener('storage', handleStorageUpdate);
 
     return () => {
       window.removeEventListener('royal_canin_menu_updated', handleMenuUpdate);
       window.removeEventListener('royal_canin_orders_updated', handleOrdersUpdate);
       window.removeEventListener('casa_nostra_census_updated', handleCensusUpdate);
+      window.removeEventListener('casanostra_servings_updated', handleServingsUpdate);
+      window.removeEventListener('storage', handleStorageUpdate);
     };
   }, [chefWeekInfo]);
 
@@ -102,16 +157,40 @@ export default function ChefView({ selectedWeek, serviceProfileKey = 'casa_nostr
   const countB = metrics.countB;
   const confirmedCount = metrics.confirmedCount;
 
-  // Porciones activas para escalado (usar confirmadas o el override del chef)
-  const portionsA = overrideCountA !== null ? overrideCountA : countA;
-  const portionsB = overrideCountB !== null ? overrideCountB : countB;
+  // Sincronización en tiempo real de raciones oficiales asignadas por Administración
+  const adminServings = useMemo(() => {
+    try {
+      const saved = localStorage.getItem(`casanostra_servings_v2_${chefWeekInfo.weekKey}`) || 
+                    localStorage.getItem(`casanostra_servings_v2_w${chefWeekInfo.weekNumber}`) ||
+                    localStorage.getItem(`casanostra_servings_${chefWeekInfo.weekKey}`) || 
+                    localStorage.getItem(`casanostra_servings_w${chefWeekInfo.weekNumber}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && currentDay?.dayName) {
+          const dayData = parsed[currentDay.dayName];
+          if (dayData) {
+            const servA = dayData.optionA !== '' && dayData.optionA !== null && dayData.optionA !== undefined ? parseInt(dayData.optionA, 10) : null;
+            const servB = dayData.optionB !== '' && dayData.optionB !== null && dayData.optionB !== undefined ? parseInt(dayData.optionB, 10) : null;
+            return { servA, servB };
+          }
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return null;
+  }, [chefWeekInfo.weekKey, chefWeekInfo.weekNumber, currentDay?.dayName, refreshOrders]);
+
+  // Raciones oficiales determinadas por la administracion (solo lectura en cocina)
+  const portionsA = adminServings && adminServings.servA !== null && !isNaN(adminServings.servA) ? adminServings.servA : (countA || 0);
+  const portionsB = adminServings && adminServings.servB !== null && !isNaN(adminServings.servB) ? adminServings.servB : (countB || 0);
 
   // Cálculos automáticos escalados de recetas e información nutricional
-  const scaledA = scaleIngredients(currentDay.optionA?.recipe?.ingredients, Math.max(1, portionsA));
-  const nutritionA = scaleNutrition(currentDay.optionA, Math.max(1, portionsA));
+  const scaledA = scaleIngredients(currentDay?.optionA?.recipe?.ingredients, portionsA);
+  const nutritionA = scaleNutrition(currentDay?.optionA || {}, portionsA);
 
-  const scaledB = scaleIngredients(currentDay.optionB?.recipe?.ingredients, Math.max(1, portionsB));
-  const nutritionB = scaleNutrition(currentDay.optionB, Math.max(1, portionsB));
+  const scaledB = scaleIngredients(currentDay?.optionB?.recipe?.ingredients, portionsB);
+  const nutritionB = scaleNutrition(currentDay?.optionB || {}, portionsB);
 
   const handleNextDay = () => {
     if (safeDayIndex < daysList.length - 1) setCurrentDayIndex(safeDayIndex + 1);
@@ -121,57 +200,13 @@ export default function ChefView({ selectedWeek, serviceProfileKey = 'casa_nostr
     if (safeDayIndex > 0) setCurrentDayIndex(safeDayIndex - 1);
   };
 
-  // Helper para renderizar tabla de insumos escalados o tabla nutricional
-  const renderOptionContent = (optionKey, optionData, portions, confirmed, setOverride, activeTab, setActiveTab, brandColor, lightBg, borderCol) => {
-    const isCustom = portions !== confirmed;
+  // Helper para renderizar tabla de insumos escalados o tabla nutricional (solo lectura)
+  const renderOptionContent = (optionKey, optionData, portions, activeTab, setActiveTab, brandColor, lightBg, borderCol) => {
     const scaledList = optionKey === 'A' ? scaledA : scaledB;
     const nutritionInfo = optionKey === 'A' ? nutritionA : nutritionB;
 
     return (
       <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        
-        {/* Barra de Control de Producción y Porciones */}
-        <div style={{ background: lightBg, border: `1px solid ${borderCol}`, padding: '0.85rem 1rem', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div>
-            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: brandColor, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Base de Cálculo de Producción
-            </div>
-            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>
-              {portions} {portions === 1 ? 'Porción asignada' : 'Porciones asignadas'}
-              {isCustom && <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#B45309', marginLeft: '0.4rem' }}>(Modo Simulación Cocina)</span>}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <button
-              onClick={() => setOverride(Math.max(1, portions - 1))}
-              style={{ width: '28px', height: '28px', borderRadius: '6px', border: `1px solid ${borderCol}`, background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: brandColor }}
-              title="Disminuir 1 porción"
-            >
-              <Minus size={14} />
-            </button>
-            <span style={{ fontSize: '0.9rem', fontWeight: '800', minWidth: '28px', textAlign: 'center' }}>
-              {portions}
-            </span>
-            <button
-              onClick={() => setOverride(portions + 1)}
-              style={{ width: '28px', height: '28px', borderRadius: '6px', border: `1px solid ${borderCol}`, background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: brandColor }}
-              title="Aumentar 1 porción"
-            >
-              <Plus size={14} />
-            </button>
-            {isCustom && (
-              <button
-                onClick={() => setOverride(null)}
-                style={{ marginLeft: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', fontWeight: '700', color: '#64748B', background: '#FFFFFF', border: '1px solid #CBD5E1', padding: '0.25rem 0.6rem', borderRadius: '6px', cursor: 'pointer' }}
-                title="Volver a los pedidos confirmados reales"
-              >
-                <RotateCcw size={12} /> Restablecer ({confirmed})
-              </button>
-            )}
-          </div>
-        </div>
-
         {/* Pestañas: Insumos Escalados vs Tabla Nutricional */}
         <div style={{ display: 'flex', borderBottom: '1px solid #E2E8F0', gap: '0.5rem' }}>
           <button
@@ -467,11 +502,11 @@ export default function ChefView({ selectedWeek, serviceProfileKey = 'casa_nostr
                 📋 {daysList.length} Días en Menú Oficial
               </span>
               <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#16A34A', background: '#F0FDF4', padding: '0.3rem 0.75rem', borderRadius: '6px', border: '1px solid #BBF7D0' }}>
-                👥 {confirmedCount} {confirmedCount === 1 ? 'Pedido Confirmado' : 'Pedidos Confirmados'} • Plantilla: {totalPortions} Empleados
+                👥 {(portionsA || 0) + (portionsB || 0)} {((portionsA || 0) + (portionsB || 0)) === 1 ? 'Ración Asignada' : 'Raciones Asignadas'} • Censo: {activeCensus} Residentes
               </span>
               {activeMenu?.humanVerification?.isVerified && (
                 <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#15803D', background: '#F0FDF4', padding: '0.3rem 0.75rem', borderRadius: '6px', border: '1px solid #86EFAC', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <ShieldCheck size={14} color="#16A34A" /> Fichas Certificadas por {activeMenu.humanVerification.verifiedBy}
+                  <ShieldCheck size={14} color="#16A34A" /> Fichas Certificadas por {activeMenu?.humanVerification?.verifiedBy || 'Nutrióloga'}
                 </span>
               )}
             </div>
@@ -485,19 +520,19 @@ export default function ChefView({ selectedWeek, serviceProfileKey = 'casa_nostr
               <div style={{ background: '#EFF6FF', padding: '1.25rem 1.5rem', borderBottom: '1px solid #BFDBFE', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
                   <span className="badge-tag" style={{ background: '#DBEAFE', color: '#1E40AF', fontSize: '0.75rem', marginBottom: '0.4rem' }}>
-                    Opción A • {currentDay.optionA?.category}
+                    Opción A • {currentDay?.optionA?.category || 'Menú Tradicional'}
                   </span>
                   <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#1E3A8A', margin: 0 }}>
-                    {currentDay.optionA?.name}
+                    {currentDay?.optionA?.name || 'Platillo A'}
                   </h3>
                 </div>
                 <div style={{ background: '#2563EB', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '12px', textAlign: 'center' }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: '600', opacity: 0.9 }}>PEDIDOS CONFIRMADOS</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '800' }}>{countA} {countA === 1 ? 'Porción' : 'Porciones'}</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '800' }}>{portionsA} {portionsA === 1 ? 'Porción' : 'Porciones'}</div>
                 </div>
               </div>
               
-              {renderOptionContent('A', currentDay.optionA, portionsA, countA, setOverrideCountA, activeTabA, setActiveTabA, '#2563EB', '#EFF6FF', '#BFDBFE')}
+              {renderOptionContent('A', currentDay.optionA, portionsA, activeTabA, setActiveTabA, '#2563EB', '#EFF6FF', '#BFDBFE')}
             </div>
 
             {/* OPTION B */}
@@ -505,19 +540,19 @@ export default function ChefView({ selectedWeek, serviceProfileKey = 'casa_nostr
               <div style={{ background: '#F0FDF4', padding: '1.25rem 1.5rem', borderBottom: '1px solid #BBF7D0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
                   <span className="badge-tag" style={{ background: '#DCFCE7', color: '#166534', fontSize: '0.75rem', marginBottom: '0.4rem' }}>
-                    Opción B • {currentDay.optionB?.category}
+                    Opción B • {currentDay?.optionB?.category || 'Textura Suave'}
                   </span>
                   <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#14532D', margin: 0 }}>
-                    {currentDay.optionB?.name}
+                    {currentDay?.optionB?.name || 'Platillo B'}
                   </h3>
                 </div>
                 <div style={{ background: '#16A34A', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '12px', textAlign: 'center' }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: '600', opacity: 0.9 }}>PEDIDOS CONFIRMADOS</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '800' }}>{countB} {countB === 1 ? 'Porción' : 'Porciones'}</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '800' }}>{portionsB} {portionsB === 1 ? 'Porción' : 'Porciones'}</div>
                 </div>
               </div>
               
-              {renderOptionContent('B', currentDay.optionB, portionsB, countB, setOverrideCountB, activeTabB, setActiveTabB, '#16A34A', '#F0FDF4', '#BBF7D0')}
+              {renderOptionContent('B', currentDay.optionB, portionsB, activeTabB, setActiveTabB, '#16A34A', '#F0FDF4', '#BBF7D0')}
             </div>
 
           </div>
@@ -526,5 +561,13 @@ export default function ChefView({ selectedWeek, serviceProfileKey = 'casa_nostr
 
       <IngredientEditorModal isOpen={!!editingDish} onClose={() => setEditingDish(null)} dish={editingDish?.dish} dayName={currentDay?.dayName} optionKey={editingDish?.optionKey} role="chef" onSave={handleSaveIngredients} onReset={handleResetIngredients} />
     </div>
+  );
+}
+
+export default function ChefView(props) {
+  return (
+    <ChefErrorBoundary>
+      <ChefViewContent {...props} />
+    </ChefErrorBoundary>
   );
 }
