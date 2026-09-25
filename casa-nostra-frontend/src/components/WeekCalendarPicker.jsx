@@ -294,8 +294,8 @@ export default function WeekCalendarPicker({
             <span>Mi</span>
             <span>Ju</span>
             <span>Vi</span>
-            <span style={{ color: '#CBD5E1' }}>Sá</span>
-            <span style={{ color: '#CBD5E1' }}>Do</span>
+            <span>Sá</span>
+            <span>Do</span>
           </div>
 
           {/* Days Grid */}
@@ -312,7 +312,6 @@ export default function WeekCalendarPicker({
               const dayWeekInfo = getWeekInfoFromDate(dayDate);
               const isSelectedWeek = dayWeekInfo.weekKey === currentWeek.weekKey;
               const isHoveredWeek = hoveredWeekKey && dayWeekInfo.weekKey === hoveredWeekKey;
-              const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6;
 
               return (
                 <button
@@ -330,11 +329,7 @@ export default function WeekCalendarPicker({
                       : isHoveredWeek
                       ? '#EFF6FF'
                       : 'transparent',
-                    color: isSelectedWeek
-                      ? '#FFFFFF'
-                      : isWeekend
-                      ? '#94A3B8'
-                      : 'var(--text-dark)',
+                    color: isSelectedWeek ? '#FFFFFF' : 'var(--text-dark)',
                     fontWeight: isSelectedWeek ? '800' : '600',
                     fontSize: '0.82rem',
                     cursor: 'pointer',
