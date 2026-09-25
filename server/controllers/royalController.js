@@ -68,6 +68,8 @@ export async function obtenerMenuSemana(req, res) {
       let carbs = `${row.carbohidratos_g}g`
       let fats = `${row.grasas_g}g`
 
+      let sodiumVal = row.sodio_mg !== null && row.sodio_mg !== undefined ? parseInt(row.sodio_mg, 10) : 340
+
       // Auto-enriquecer con el nodo de IA si no tiene perfil clínico o tiene macros mock genéricos
       const needsEnrichment = !clinicalProfile || (calories === 480 && protein === '35.00g') || (calories === 430 && protein === '18.00g')
       if (needsEnrichment && (row.nombre_platillo || row.ingredientes)) {
@@ -84,6 +86,7 @@ export async function obtenerMenuSemana(req, res) {
             protein = aiData.proteina
             carbs = aiData.carbos
             fats = aiData.grasas
+            sodiumVal = aiData.sodio_mg || 340
 
             const protNum = parseFloat(String(protein).replace('g', '')) || 0
             const carbNum = parseFloat(String(carbs).replace('g', '')) || 0
@@ -91,9 +94,9 @@ export async function obtenerMenuSemana(req, res) {
 
             pool.query(
               `UPDATE menu_b2b_dias 
-               SET calorias = $1, proteinas_g = $2, carbohidratos_g = $3, grasas_g = $4, perfil_clinico = $5, alergenos = $6 
-               WHERE id = $7`,
-              [calories, protNum, carbNum, fatNum, clinicalProfile, JSON.stringify(allergens), row.id]
+               SET calorias = $1, proteinas_g = $2, carbohidratos_g = $3, grasas_g = $4, perfil_clinico = $5, alergenos = $6, sodio_mg = $7
+               WHERE id = $8`,
+              [calories, protNum, carbNum, fatNum, clinicalProfile, JSON.stringify(allergens), sodiumVal, row.id]
             ).catch(() => {})
           }
         } catch (_) {}
@@ -107,12 +110,21 @@ export async function obtenerMenuSemana(req, res) {
         protein,
         carbs,
         fats,
+        sodium: sodiumVal,
+        sodio_mg: sodiumVal,
         clinicalProfile,
         allergens,
         image: row.imagen_url,
         recipe: {
           ingredients: row.ingredientes || '',
-          method: row.metodo_preparacion || ''
+          method: row.metodo_preparacion || '',
+          nutrition: {
+            calories,
+            protein,
+            carbs,
+            fats,
+            sodium: sodiumVal
+          }
         }
       }
 
@@ -240,13 +252,14 @@ export async function guardarMenuSemana(req, res) {
         const proteinNum = parseFloat(String(d.soup.protein || '0').replace('g', '')) || 0
         const carbsNum = parseFloat(String(d.soup.carbs || '0').replace('g', '')) || 0
         const fatsNum = parseFloat(String(d.soup.fats || '0').replace('g', '')) || 0
+        const sodiumNumS = parseInt(d.soup.sodium || d.soup.sodio_mg || d.soup.recipe?.nutrition?.sodium, 10) || 260
 
         await client.query(
           `INSERT INTO menu_b2b_dias (
             id, menu_id, dia_semana, fecha, tipo_opcion, nombre_platillo, 
-            categoria, calorias, proteinas_g, carbohidratos_g, grasas_g, 
+            categoria, calorias, proteinas_g, carbohidratos_g, grasas_g, sodio_mg,
             ingredientes, metodo_preparacion, imagen_url
-          ) VALUES ($1, $2, $3, $4, 'S', $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+          ) VALUES ($1, $2, $3, $4, 'S', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
           [
             diaIdS,
             menuId,
@@ -258,6 +271,7 @@ export async function guardarMenuSemana(req, res) {
             proteinNum,
             carbsNum,
             fatsNum,
+            sodiumNumS,
             d.soup.recipe?.ingredients || '',
             d.soup.recipe?.method || '',
             d.soup.image || null
@@ -271,13 +285,14 @@ export async function guardarMenuSemana(req, res) {
         const proteinNum = parseFloat(String(d.optionA.protein || '0').replace('g', '')) || 0
         const carbsNum = parseFloat(String(d.optionA.carbs || '0').replace('g', '')) || 0
         const fatsNum = parseFloat(String(d.optionA.fats || '0').replace('g', '')) || 0
+        const sodiumNumA = parseInt(d.optionA.sodium || d.optionA.sodio_mg || d.optionA.recipe?.nutrition?.sodium, 10) || 340
 
         await client.query(
           `INSERT INTO menu_b2b_dias (
             id, menu_id, dia_semana, fecha, tipo_opcion, nombre_platillo, 
-            categoria, calorias, proteinas_g, carbohidratos_g, grasas_g, 
+            categoria, calorias, proteinas_g, carbohidratos_g, grasas_g, sodio_mg,
             ingredientes, metodo_preparacion, imagen_url, perfil_clinico, alergenos
-          ) VALUES ($1, $2, $3, $4, 'A', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+          ) VALUES ($1, $2, $3, $4, 'A', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
           [
             diaIdA,
             menuId,
@@ -289,6 +304,7 @@ export async function guardarMenuSemana(req, res) {
             proteinNum,
             carbsNum,
             fatsNum,
+            sodiumNumA,
             d.optionA.recipe?.ingredients || '',
             d.optionA.recipe?.method || '',
             d.optionA.image || null,
@@ -304,13 +320,14 @@ export async function guardarMenuSemana(req, res) {
         const proteinNum = parseFloat(String(d.optionB.protein || '0').replace('g', '')) || 0
         const carbsNum = parseFloat(String(d.optionB.carbs || '0').replace('g', '')) || 0
         const fatsNum = parseFloat(String(d.optionB.fats || '0').replace('g', '')) || 0
+        const sodiumNumB = parseInt(d.optionB.sodium || d.optionB.sodio_mg || d.optionB.recipe?.nutrition?.sodium, 10) || 320
 
         await client.query(
           `INSERT INTO menu_b2b_dias (
             id, menu_id, dia_semana, fecha, tipo_opcion, nombre_platillo, 
-            categoria, calorias, proteinas_g, carbohidratos_g, grasas_g, 
+            categoria, calorias, proteinas_g, carbohidratos_g, grasas_g, sodio_mg,
             ingredientes, metodo_preparacion, imagen_url, perfil_clinico, alergenos
-          ) VALUES ($1, $2, $3, $4, 'B', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+          ) VALUES ($1, $2, $3, $4, 'B', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
           [
             diaIdB,
             menuId,
@@ -322,6 +339,7 @@ export async function guardarMenuSemana(req, res) {
             proteinNum,
             carbsNum,
             fatsNum,
+            sodiumNumB,
             d.optionB.recipe?.ingredients || '',
             d.optionB.recipe?.method || '',
             d.optionB.image || null,
@@ -337,13 +355,14 @@ export async function guardarMenuSemana(req, res) {
         const proteinNum = parseFloat(String(d.optionC.protein || '0').replace('g', '')) || 0
         const carbsNum = parseFloat(String(d.optionC.carbs || '0').replace('g', '')) || 0
         const fatsNum = parseFloat(String(d.optionC.fats || '0').replace('g', '')) || 0
+        const sodiumNumC = parseInt(d.optionC.sodium || d.optionC.sodio_mg || d.optionC.recipe?.nutrition?.sodium, 10) || 280
 
         await client.query(
           `INSERT INTO menu_b2b_dias (
             id, menu_id, dia_semana, fecha, tipo_opcion, nombre_platillo, 
-            categoria, calorias, proteinas_g, carbohidratos_g, grasas_g, 
+            categoria, calorias, proteinas_g, carbohidratos_g, grasas_g, sodio_mg,
             ingredientes, metodo_preparacion, imagen_url
-          ) VALUES ($1, $2, $3, $4, 'C', $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+          ) VALUES ($1, $2, $3, $4, 'C', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
           [
             diaIdC,
             menuId,
@@ -355,6 +374,7 @@ export async function guardarMenuSemana(req, res) {
             proteinNum,
             carbsNum,
             fatsNum,
+            sodiumNumC,
             d.optionC.recipe?.ingredients || '',
             d.optionC.recipe?.method || '',
             d.optionC.image || null

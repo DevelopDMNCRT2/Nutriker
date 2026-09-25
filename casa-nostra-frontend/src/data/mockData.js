@@ -60,7 +60,8 @@ const weekOneMenu = {
               calories: 380,
               protein: 30,
               carbs: 45,
-              fats: 10
+              fats: 10,
+              sodium: 320
             }
           }
         },
@@ -74,7 +75,8 @@ const weekOneMenu = {
               calories: 350,
               protein: 38,
               carbs: 40,
-              fats: 8
+              fats: 8,
+              sodium: 280
             }
           }
         }
@@ -92,7 +94,8 @@ const weekOneMenu = {
               calories: 420,
               protein: 32,
               carbs: 48,
-              fats: 14
+              fats: 14,
+              sodium: 360
             }
           }
         },
@@ -106,7 +109,8 @@ const weekOneMenu = {
               calories: 250,
               protein: 25,
               carbs: 30,
-              fats: 6
+              fats: 6,
+              sodium: 180
             }
           }
         }
@@ -124,7 +128,8 @@ const weekOneMenu = {
               calories: 450,
               protein: 35,
               carbs: 40,
-              fats: 16
+              fats: 16,
+              sodium: 340
             }
           }
         },
@@ -138,7 +143,8 @@ const weekOneMenu = {
               calories: 380,
               protein: 32,
               carbs: 42,
-              fats: 12
+              fats: 12,
+              sodium: 310
             }
           }
         }
@@ -156,7 +162,8 @@ const weekOneMenu = {
               calories: 390,
               protein: 34,
               carbs: 45,
-              fats: 9
+              fats: 9,
+              sodium: 290
             }
           }
         },
@@ -170,7 +177,8 @@ const weekOneMenu = {
               calories: 180,
               protein: 20,
               carbs: 15,
-              fats: 4
+              fats: 4,
+              sodium: 150
             }
           }
         }
@@ -188,7 +196,8 @@ const weekOneMenu = {
               calories: 410,
               protein: 30,
               carbs: 40,
-              fats: 15
+              fats: 15,
+              sodium: 350
             }
           }
         },
@@ -202,7 +211,8 @@ const weekOneMenu = {
               calories: 340,
               protein: 28,
               carbs: 25,
-              fats: 16
+              fats: 16,
+              sodium: 270
             }
           }
         }
@@ -220,7 +230,8 @@ const weekOneMenu = {
               calories: 430,
               protein: 32,
               carbs: 35,
-              fats: 18
+              fats: 18,
+              sodium: 360
             }
           }
         },
@@ -234,7 +245,8 @@ const weekOneMenu = {
               calories: 310,
               protein: 22,
               carbs: 45,
-              fats: 5
+              fats: 5,
+              sodium: 190
             }
           }
         }
@@ -252,7 +264,8 @@ const weekOneMenu = {
               calories: 360,
               protein: 26,
               carbs: 5,
-              fats: 26
+              fats: 26,
+              sodium: 380
             }
           }
         },
@@ -266,7 +279,8 @@ const weekOneMenu = {
               calories: 280,
               protein: 18,
               carbs: 38,
-              fats: 6
+              fats: 6,
+              sodium: 160
             }
           }
         }

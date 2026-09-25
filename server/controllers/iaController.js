@@ -1,8 +1,12 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import OpenAI from 'openai'
 import pool from '../db/pool.js'
 
 const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || ''
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null
+
+const openaiApiKey = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY || ''
+const openai = openaiApiKey ? new OpenAI({ apiKey: openaiApiKey }) : null
 
 // Prompt del Sistema para la Nutrióloga de NutriKer
 const SYSTEM_PROMPT = `Eres el Asistente Clínico Inteligente de NutriKer, especializado en nutrición clínica y del metabolismo.
@@ -425,12 +429,45 @@ Debes calcular y devolver ÚNICAMENTE un objeto JSON estrictamente válido con e
   "proteina": texto con cantidad y 'g' (ej. "35g"),
   "carbos": texto con cantidad y 'g' (ej. "40g"),
   "grasas": texto con cantidad y 'g' (ej. "14g"),
+  "sodio_mg": número entero estimado de miligramos de sodio en la porción servida considerando sal añadida condimentos o ingredientes naturales (ej. 320),
   "perfilClinico": "Breve análisis clínico (1 o 2 oraciones) indicando impacto glucémico, digestibilidad y conveniencia metabólica",
   "alergenos": ["Lista de alérgenos comunes detectados (ej. Gluten, Lácteos, Huevo, Soya, Pescado, Frutos Secos) o [] si no contiene ninguno"]
 }
 
 NO incluyas explicaciones fuera del JSON ni bloques de código markdown.`
 
+  // 1. Integración principal: OpenAI API (gpt-4o-mini para precisión clínica y alta velocidad)
+  if (openai) {
+    try {
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: 'Eres un experto bromatólogo y nutriólogo clínico del sistema NutriKer. Devuelve ÚNICAMENTE un JSON válido sin bloques markdown.' },
+          { role: 'user', content: prompt }
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.2
+      })
+
+      const content = response.choices?.[0]?.message?.content
+      if (content) {
+        const parsed = JSON.parse(content)
+        return {
+          calorias: parseInt(parsed.calorias, 10) || 450,
+          proteina: String(parsed.proteina || '30g').endsWith('g') ? String(parsed.proteina) : `${parsed.proteina}g`,
+          carbos: String(parsed.carbos || '40g').endsWith('g') ? String(parsed.carbos) : `${parsed.carbos}g`,
+          grasas: String(parsed.grasas || '12g').endsWith('g') ? String(parsed.grasas) : `${parsed.grasas}g`,
+          sodio_mg: !isNaN(parseInt(parsed.sodio_mg, 10)) ? parseInt(parsed.sodio_mg, 10) : 340,
+          perfilClinico: parsed.perfilClinico || 'Aporte nutricional balanceado de fácil absorción.',
+          alergenos: Array.isArray(parsed.alergenos) ? parsed.alergenos : []
+        }
+      }
+    } catch (err) {
+      console.warn('OpenAI calcularMacrosIA error, recurriendo a fallback:', err.message)
+    }
+  }
+
+  // 2. Fallback secundario: Gemini
   if (genAI) {
     try {
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
@@ -444,6 +481,7 @@ NO incluyas explicaciones fuera del JSON ni bloques de código markdown.`
           proteina: String(parsed.proteina || '30g').endsWith('g') ? String(parsed.proteina) : `${parsed.proteina}g`,
           carbos: String(parsed.carbos || '40g').endsWith('g') ? String(parsed.carbos) : `${parsed.carbos}g`,
           grasas: String(parsed.grasas || '12g').endsWith('g') ? String(parsed.grasas) : `${parsed.grasas}g`,
+          sodio_mg: !isNaN(parseInt(parsed.sodio_mg, 10)) ? parseInt(parsed.sodio_mg, 10) : 340,
           perfilClinico: parsed.perfilClinico || 'Aporte nutricional balanceado de fácil absorción.',
           alergenos: Array.isArray(parsed.alergenos) ? parsed.alergenos : []
         }
@@ -453,7 +491,7 @@ NO incluyas explicaciones fuera del JSON ni bloques de código markdown.`
     }
   }
 
-  // Fallback heurístico bromatológico robusto
+  // 3. Fallback heurístico bromatológico robusto
   const textCombined = `${nombrePlatillo} ${ingredientes} ${categoria}`.toLowerCase()
   
   // Detección de alérgenos comunes
@@ -470,15 +508,22 @@ NO incluyas explicaciones fuera del JSON ni bloques de código markdown.`
   let prot = 32
   let carb = 40
   let fat = 13
+  let sod = 350
 
   if (/sopa|caldo|crema ligera/i.test(textCombined)) {
-    cal = 220; prot = 12; carb = 24; fat = 6;
+    cal = 220; prot = 12; carb = 24; fat = 6; sod = 380;
   } else if (/ensalada|plant-based|vegetariano|tofu/i.test(textCombined)) {
-    cal = 390; prot = 20; carb = 48; fat = 14;
+    cal = 390; prot = 20; carb = 48; fat = 14; sod = 280;
   } else if (/pollo|pechuga|sirloin|res|carne|pavo/i.test(textCombined)) {
-    cal = 480; prot = 36; carb = 38; fat = 14;
+    cal = 480; prot = 36; carb = 38; fat = 14; sod = 360;
   } else if (/pescado|salmon|salmón|atun|filete/i.test(textCombined)) {
-    cal = 440; prot = 34; carb = 30; fat = 13;
+    cal = 440; prot = 34; carb = 30; fat = 13; sod = 320;
+  }
+
+  if (/hipos[oó]dico|bajo en sodio|sin sal/i.test(textCombined)) {
+    sod = Math.min(sod, 220)
+  } else if (/soya|embutido|jamon|tocino|salchicha|consome/i.test(textCombined)) {
+    sod = Math.max(sod, 540)
   }
 
   let perfil = 'Índice glucémico controlado, digestión ágil en oficina sin causar pesadez post-almuerzo.'
@@ -495,6 +540,7 @@ NO incluyas explicaciones fuera del JSON ni bloques de código markdown.`
     proteina: `${prot}g`,
     carbos: `${carb}g`,
     grasas: `${fat}g`,
+    sodio_mg: sod,
     perfilClinico: perfil,
     alergenos
   }
