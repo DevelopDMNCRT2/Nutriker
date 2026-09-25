@@ -62,6 +62,41 @@ export function getUnitMetadata(unitRaw = '') {
 }
 
 /**
+ * Devuelve la unidad comercial de cotización y el ratio de conversión desde la unidad de captura.
+ * Cuando son gramos/miligramos, el precio cotizado es por kilo (kg).
+ * Cuando son mililitros/litros, el precio cotizado es por litro (L).
+ */
+export function getCommercialUnitInfo(unitRaw = '', unitType = '') {
+  const u = String(unitRaw || '').trim().toLowerCase();
+  
+  if (['g', 'gr', 'gramo', 'gramos'].includes(u)) {
+    return { commercialUnit: 'kg', ratioToCommercial: 0.001, label: 'PRECIO / KG ($)' };
+  }
+  if (['mg', 'miligramo', 'miligramos'].includes(u)) {
+    return { commercialUnit: 'kg', ratioToCommercial: 0.000001, label: 'PRECIO / KG ($)' };
+  }
+  if (['kg', 'kilo', 'kilos', 'kilogramo', 'kilogramos'].includes(u)) {
+    return { commercialUnit: 'kg', ratioToCommercial: 1, label: 'PRECIO / KG ($)' };
+  }
+  if (['ml', 'mililitro', 'mililitros'].includes(u)) {
+    return { commercialUnit: 'L', ratioToCommercial: 0.001, label: 'PRECIO / L ($)' };
+  }
+  if (['l', 'lt', 'lts', 'litro', 'litros'].includes(u)) {
+    return { commercialUnit: 'L', ratioToCommercial: 1, label: 'PRECIO / L ($)' };
+  }
+  if (unitType === UNIT_TYPES.MASS || unitType === 'mass') {
+    return { commercialUnit: 'kg', ratioToCommercial: 0.001, label: 'PRECIO / KG ($)' };
+  }
+  if (unitType === UNIT_TYPES.VOLUME || unitType === 'volume') {
+    return { commercialUnit: 'L', ratioToCommercial: 0.001, label: 'PRECIO / L ($)' };
+  }
+  if (['pza', 'pzas', 'pieza', 'piezas', 'unidad', 'unidades'].includes(u) || unitType === UNIT_TYPES.PIECE || unitType === 'piece') {
+    return { commercialUnit: 'pza', ratioToCommercial: 1, label: 'PRECIO / PZA ($)' };
+  }
+  return { commercialUnit: unitRaw || 'unidad', ratioToCommercial: 1, label: `PRECIO / ${String(unitRaw || 'UNIT').toUpperCase()} ($)` };
+}
+
+/**
  * Normaliza una cantidad a su valor en la unidad base.
  */
 export function toBaseAmount(amount, unitRaw) {
