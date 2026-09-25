@@ -371,15 +371,24 @@ export const menuStore = {
           id: `${weekInfo.weekKey}-${dayName.toLowerCase()}-soup`,
           name: soup.name || 'Sopa Nutritiva del Día',
           category: 'Sopa',
-          calories: 220,
-          protein: '12g',
-          carbs: '24g',
-          fats: '6g',
-          allergens: [],
+          calories: soup.calories || 220,
+          protein: typeof soup.protein === 'number' ? `${soup.protein}g` : (soup.protein || '12g'),
+          carbs: typeof soup.carbs === 'number' ? `${soup.carbs}g` : (soup.carbs || '24g'),
+          fats: typeof soup.fats === 'number' ? `${soup.fats}g` : (soup.fats || '6g'),
+          sodium: soup.sodium || soup.sodio_mg || 260,
+          sodio_mg: soup.sodium || soup.sodio_mg || 260,
+          allergens: Array.isArray(soup.allergens) ? soup.allergens : [],
           tags: ['Sopa', 'Fácil Deglución', 'Hidratación'],
           recipe: {
             ingredients: (soup.ingredients && soup.ingredients.trim()) || '',
-            method: methodSoup
+            method: methodSoup,
+            nutrition: {
+              calories: soup.calories || 220,
+              protein: typeof soup.protein === 'number' ? `${soup.protein}g` : (soup.protein || '12g'),
+              carbs: typeof soup.carbs === 'number' ? `${soup.carbs}g` : (soup.carbs || '24g'),
+              fats: typeof soup.fats === 'number' ? `${soup.fats}g` : (soup.fats || '6g'),
+              sodium: soup.sodium || soup.sodio_mg || 260
+            }
           }
         },
         optionA: {
@@ -390,13 +399,22 @@ export const menuStore = {
           protein: typeof optA.protein === 'number' ? `${optA.protein}g` : (optA.protein || '35g'),
           carbs: typeof optA.carbs === 'number' ? `${optA.carbs}g` : (optA.carbs || '40g'),
           fats: typeof optA.fats === 'number' ? `${optA.fats}g` : (optA.fats || '14g'),
+          sodium: optA.sodium || optA.sodio_mg || 340,
+          sodio_mg: optA.sodium || optA.sodio_mg || 340,
           clinicalProfile: optA.clinicalProfile || 'Índice glucémico controlado, digestión ágil en oficina sin causar pesadez post-almuerzo.',
           allergens: Array.isArray(optA.allergens) ? optA.allergens : [],
           tags: optA.tags || ['Alto en Proteína', 'Control Glucémico'],
           image: optA.image || defaultInfo.imageA,
           recipe: {
             ingredients: (optA.ingredients && optA.ingredients.trim()) || '',
-            method: methodA
+            method: methodA,
+            nutrition: {
+              calories: optA.calories || 480,
+              protein: typeof optA.protein === 'number' ? `${optA.protein}g` : (optA.protein || '35g'),
+              carbs: typeof optA.carbs === 'number' ? `${optA.carbs}g` : (optA.carbs || '40g'),
+              fats: typeof optA.fats === 'number' ? `${optA.fats}g` : (optA.fats || '14g'),
+              sodium: optA.sodium || optA.sodio_mg || 340
+            }
           }
         },
         optionB: {
@@ -407,28 +425,46 @@ export const menuStore = {
           protein: typeof optB.protein === 'number' ? `${optB.protein}g` : (optB.protein || '18g'),
           carbs: typeof optB.carbs === 'number' ? `${optB.carbs}g` : (optB.carbs || '50g'),
           fats: typeof optB.fats === 'number' ? `${optB.fats}g` : (optB.fats || '16g'),
+          sodium: optB.sodium || optB.sodio_mg || 320,
+          sodio_mg: optB.sodium || optB.sodio_mg || 320,
           clinicalProfile: optB.clinicalProfile || 'Alto contenido de fibra vegetal e ingredientes antioxidantes antiinflamatorios.',
           allergens: Array.isArray(optB.allergens) ? optB.allergens : [],
           tags: optB.tags || ['Plant-Based', 'Fibra Activa'],
           image: optB.image || defaultInfo.imageB,
           recipe: {
             ingredients: (optB.ingredients && optB.ingredients.trim()) || '',
-            method: methodB
+            method: methodB,
+            nutrition: {
+              calories: optB.calories || 430,
+              protein: typeof optB.protein === 'number' ? `${optB.protein}g` : (optB.protein || '18g'),
+              carbs: typeof optB.carbs === 'number' ? `${optB.carbs}g` : (optB.carbs || '50g'),
+              fats: typeof optB.fats === 'number' ? `${optB.fats}g` : (optB.fats || '16g'),
+              sodium: optB.sodium || optB.sodio_mg || 320
+            }
           }
         },
         optionC: {
           id: `${weekInfo.weekKey}-${dayName.toLowerCase()}-c`,
           name: optC.name || 'Platillo Opción C',
           category: dietOptionC || 'Especial & Hiposódico',
-          calories: 390,
-          protein: '28g',
-          carbs: '38g',
-          fats: '12g',
-          allergens: [],
-          tags: ['Especial Nutricional', 'Bajo en Sodio'],
+          calories: optC.calories || 390,
+          protein: typeof optC.protein === 'number' ? `${optC.protein}g` : (optC.protein || '28g'),
+          carbs: typeof optC.carbs === 'number' ? `${optC.carbs}g` : (optC.carbs || '38g'),
+          fats: typeof optC.fats === 'number' ? `${optC.fats}g` : (optC.fats || '12g'),
+          sodium: optC.sodium || optC.sodio_mg || 280,
+          sodio_mg: optC.sodium || optC.sodio_mg || 280,
+          allergens: Array.isArray(optC.allergens) ? optC.allergens : [],
+          tags: optC.tags || ['Especial Nutricional', 'Bajo en Sodio'],
           recipe: {
             ingredients: (optC.ingredients && optC.ingredients.trim()) || '',
-            method: methodC
+            method: methodC,
+            nutrition: {
+              calories: optC.calories || 390,
+              protein: typeof optC.protein === 'number' ? `${optC.protein}g` : (optC.protein || '28g'),
+              carbs: typeof optC.carbs === 'number' ? `${optC.carbs}g` : (optC.carbs || '38g'),
+              fats: typeof optC.fats === 'number' ? `${optC.fats}g` : (optC.fats || '12g'),
+              sodium: optC.sodium || optC.sodio_mg || 280
+            }
           }
         }
       };
