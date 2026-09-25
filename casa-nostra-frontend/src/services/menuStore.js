@@ -377,6 +377,7 @@ export const menuStore = {
           fats: typeof soup.fats === 'number' ? `${soup.fats}g` : (soup.fats || '6g'),
           sodium: soup.sodium || soup.sodio_mg || 260,
           sodio_mg: soup.sodium || soup.sodio_mg || 260,
+          clinicalProfile: soup.clinicalProfile || 'Caldo natural rico en electrolitos, favorece vaciado gástrico y deglución suave.',
           allergens: Array.isArray(soup.allergens) ? soup.allergens : [],
           tags: ['Sopa', 'Fácil Deglución', 'Hidratación'],
           recipe: {
@@ -453,6 +454,7 @@ export const menuStore = {
           fats: typeof optC.fats === 'number' ? `${optC.fats}g` : (optC.fats || '12g'),
           sodium: optC.sodium || optC.sodio_mg || 280,
           sodio_mg: optC.sodium || optC.sodio_mg || 280,
+          clinicalProfile: optC.clinicalProfile || 'Formulación balanceada, control estricto de sodio e ingredientes digestivos.',
           allergens: Array.isArray(optC.allergens) ? optC.allergens : [],
           tags: optC.tags || ['Especial Nutricional', 'Bajo en Sodio'],
           recipe: {
