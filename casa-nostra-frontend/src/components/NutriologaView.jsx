@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { HeartPulse, ShieldCheck, CheckCircle2, AlertTriangle, Activity, Apple, Flame, Wand2, ChevronRight, ChevronDown, ArrowLeft, Check, RefreshCw, Layers, Scale, Users, Plus, Minus, Calculator, Lock, Soup, Sparkles } from 'lucide-react';
+import { HeartPulse, ShieldCheck, CheckCircle2, AlertTriangle, Activity, Apple, Flame, Wand2, ChevronRight, ChevronDown, ArrowLeft, Check, RefreshCw, Layers, Scale, Users, Plus, Minus, Calculator, Lock, Soup, Sparkles, Sunrise, Sun, Moon, Clock } from 'lucide-react';
 
 import { cyclicMenus, nutriologaInfo, programInfo } from '../data/mockData';
-import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
+import { menuStore, getWeekInfoFromDate, DAILY_SERVICES, INSTITUTIONAL_COURSES } from '../services/menuStore';
 import { scaleIngredients, scaleNutrition } from '../utils/recipeScaler';
 import WeekCalendarPicker from './WeekCalendarPicker';
 import IngredientEditorModal from './IngredientEditorModal';
@@ -30,6 +30,12 @@ const createEmptyDishGrid = () => {
   return grid;
 };
 
+const createEmptyServiceDishes = () => ({
+  desayuno: createEmptyDishGrid(),
+  comida: createEmptyDishGrid(),
+  cena: createEmptyDishGrid()
+});
+
 export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa_nostra' }) {
   const [activeTab, setActiveTab] = useState('wizard'); // 'wizard' | 'audit'
 
@@ -53,7 +59,7 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
 
   // Wizard state: Selector de Días L M I J V S D
   const [wizardStep, setWizardStep] = useState(1);
-  const [selectedDays, setSelectedDays] = useState(['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']);
+  const [selectedDays, setSelectedDays] = useState(['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']);
   const activeDays = DAY_BUTTONS.map(d => d.key).filter(k => selectedDays.includes(k));
 
   const toggleDay = (dayKey) => {
@@ -67,8 +73,7 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
     });
   };
 
-  // 4 Enfoques: Enfoque 1 (Sopa) es fijo e inmutable
-  const DIET_SOUP = 'Sopa';
+  // Opciones de dieta configurables (Sopa fija; A, B, C configurables)
   const [dietOptionA, setDietOptionA] = useState(() => serviceProfileKey === 'senior_care' ? 'Fácil Masticación (IDDSI 6)' : 'Balance Proteico');
   const [dietOptionB, setDietOptionB] = useState(() => serviceProfileKey === 'senior_care' ? 'Papilla & Puré Suave (IDDSI 4)' : 'Plant-Based & Digestión Ligera');
   const [dietOptionC, setDietOptionC] = useState(() => serviceProfileKey === 'senior_care' ? 'Control Hiposódico & Sarcopenia' : 'Especial & Saludable');
@@ -86,25 +91,81 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
     }
   }, [serviceProfileKey]);
 
-  // Rejilla Manual de platillos inicializada en blanco (sin mockdata)
-  const [dishSelection, setDishSelection] = useState(createEmptyDishGrid);
+  // Soporte para 3 servicios diarios (Desayuno, Comida, Cena)
+  const [activeService, setActiveService] = useState('comida'); // 'desayuno' | 'comida' | 'cena'
+  const [auditService, setAuditService] = useState('comida');
+  const [dishServices, setDishServices] = useState(createEmptyServiceDishes);
   const [expandedRecipe, setExpandedRecipe] = useState(null); // track which recipe is expanded e.g. "Lunes-soup"
+
+  // Sincronizar platillos desde activeMenu si ya existen en la semana
+  useEffect(() => {
+    if (activeMenu?.days && activeMenu.days.length > 0) {
+      const activeDayNames = activeMenu.days.map(d => d.dayName).filter(Boolean);
+      if (activeDayNames.length > 0) {
+        setSelectedDays(activeDayNames);
+      }
+      setDishServices(prev => {
+        const nextServices = {
+          desayuno: { ...prev.desayuno },
+          comida: { ...prev.comida },
+          cena: { ...prev.cena }
+        };
+        activeMenu.days.forEach(day => {
+          const dName = day.dayName;
+          if (!dName) return;
+          ['desayuno', 'comida', 'cena'].forEach(sKey => {
+            const sData = day.services?.[sKey] || (sKey === 'comida' ? {
+              soup: day.soup,
+              optionA: day.optionA,
+              optionB: day.optionB,
+              optionC: day.optionC
+            } : null);
+            if (sData) {
+              if (!nextServices[sKey][dName]) nextServices[sKey][dName] = {};
+              ['soup', 'optionA', 'optionB', 'optionC'].forEach(cKey => {
+                const dishObj = sData[cKey];
+                if (dishObj?.name && !nextServices[sKey][dName][cKey]?.name) {
+                  nextServices[sKey][dName][cKey] = {
+                    name: dishObj.name || '',
+                    ingredients: dishObj.recipe?.ingredients || dishObj.ingredients || '',
+                    method: dishObj.recipe?.method || dishObj.method || '',
+                    calories: dishObj.calories,
+                    protein: dishObj.protein,
+                    carbs: dishObj.carbs,
+                    fats: dishObj.fats,
+                    sodium: dishObj.sodium || dishObj.sodio_mg,
+                    clinicalProfile: dishObj.clinicalProfile,
+                    allergens: dishObj.allergens
+                  };
+                }
+              });
+            }
+          });
+        });
+        return nextServices;
+      });
+    }
+  }, [activeMenu]);
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
 
   // Validación de completitud de todos los platillos requeridos
   const totalDishesRequired = activeDays.length * 4;
-  const completedDishesCount = activeDays.reduce((acc, dayName) => {
-    const d = dishSelection[dayName] || {};
-    let count = 0;
-    if (d.soup?.name?.trim()) count++;
-    if (d.optionA?.name?.trim()) count++;
-    if (d.optionB?.name?.trim()) count++;
-    if (d.optionC?.name?.trim()) count++;
-    return acc + count;
-  }, 0);
-  const areAllDishesFilled = completedDishesCount === totalDishesRequired && totalDishesRequired > 0;
+  const getServiceDishesCount = (sKey) => {
+    return activeDays.reduce((acc, dayName) => {
+      const d = dishServices[sKey]?.[dayName] || {};
+      let count = 0;
+      if (d.soup?.name?.trim()) count++;
+      if (d.optionA?.name?.trim()) count++;
+      if (d.optionB?.name?.trim()) count++;
+      if (d.optionC?.name?.trim()) count++;
+      return acc + count;
+    }, 0);
+  };
+  const completedComidaCount = getServiceDishesCount('comida');
+  const completedDishesCount = getServiceDishesCount(activeService);
+  const areAllDishesFilled = (completedComidaCount === totalDishesRequired || completedDishesCount === totalDishesRequired) && totalDishesRequired > 0;
 
   // Estado para cálculo automático de Tabla Nutricional y Recetas Técnicas
   const [auditMode, setAuditMode] = useState('unit'); // 'unit' | 'production'
@@ -191,14 +252,17 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
 
   const [isPublishing, setIsPublishing] = useState(false);
 
-  const handleDishChange = (dayName, option, field, newValue) => {
-    setDishSelection(prev => ({
+  const handleDishChange = (dayName, option, field, newValue, serviceKey = activeService) => {
+    setDishServices(prev => ({
       ...prev,
-      [dayName]: {
-        ...(prev[dayName] || {}),
-        [option]: {
-          ...((prev[dayName] && prev[dayName][option]) || {}),
-          [field]: newValue
+      [serviceKey]: {
+        ...(prev[serviceKey] || {}),
+        [dayName]: {
+          ...((prev[serviceKey] && prev[serviceKey][dayName]) || {}),
+          [option]: {
+            ...((prev[serviceKey] && prev[serviceKey][dayName] && prev[serviceKey][dayName][option]) || {}),
+            [field]: newValue
+          }
         }
       }
     }));
@@ -208,52 +272,52 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
     setIsPublishing(true);
     setIsHumanVerified(true);
 
-    // Enriquecer automáticamente todos los platillos (sopa y 3 enfoques) con el nodo de IA
-    const updatedSelection = { ...dishSelection };
+    // Enriquecer automáticamente todos los platillos para los 3 servicios con el nodo de IA
+    const updatedServices = {
+      desayuno: { ...dishServices.desayuno },
+      comida: { ...dishServices.comida },
+      cena: { ...dishServices.cena }
+    };
     const promises = [];
 
-    activeDays.forEach(dayName => {
-      const dayDishes = updatedSelection[dayName] || {};
-      
-      // Sopa fija obligatoria
-      if (dayDishes.soup?.name) {
-        promises.push(
-          menuStore.analyzeDishWithAI({
-            name: dayDishes.soup.name,
-            ingredients: dayDishes.soup.ingredients,
-            category: 'Sopa'
-          }).then(res => {
-            if (res) {
-              updatedSelection[dayName] = {
-                ...updatedSelection[dayName],
-                soup: {
-                  ...updatedSelection[dayName].soup,
+    ['desayuno', 'comida', 'cena'].forEach(sKey => {
+      activeDays.forEach(dayName => {
+        const dayDishes = updatedServices[sKey]?.[dayName] || {};
+
+        // 1er Tiempo: Sopa / Entrada
+        if (dayDishes.soup?.name?.trim()) {
+          promises.push(
+            menuStore.analyzeDishWithAI({
+              name: dayDishes.soup.name,
+              ingredients: dayDishes.soup.ingredients || '',
+              category: '1er Tiempo: Sopa / Entrada'
+            }).then(res => {
+              if (res) {
+                updatedServices[sKey][dayName].soup = {
+                  ...updatedServices[sKey][dayName].soup,
                   calories: res.calorias,
                   protein: res.proteina,
                   carbs: res.carbos,
                   fats: res.grasas,
                   clinicalProfile: res.perfilClinico,
                   allergens: res.alergenos
-                }
-              };
-            }
-          }).catch(() => {})
-        );
-      }
+                };
+              }
+            }).catch(() => {})
+          );
+        }
 
-      // Opción A
-      if (dayDishes.optionA?.name) {
-        promises.push(
-          menuStore.analyzeDishWithAI({
-            name: dayDishes.optionA.name,
-            ingredients: dayDishes.optionA.ingredients,
-            category: dietOptionA
-          }).then(res => {
-            if (res) {
-              updatedSelection[dayName] = {
-                ...updatedSelection[dayName],
-                optionA: {
-                  ...updatedSelection[dayName].optionA,
+        // 2do Tiempo: Plato Fuerte
+        if (dayDishes.optionA?.name?.trim()) {
+          promises.push(
+            menuStore.analyzeDishWithAI({
+              name: dayDishes.optionA.name,
+              ingredients: dayDishes.optionA.ingredients || '',
+              category: 'Platillo fuerte'
+            }).then(res => {
+              if (res) {
+                updatedServices[sKey][dayName].optionA = {
+                  ...updatedServices[sKey][dayName].optionA,
                   calories: res.calorias,
                   protein: res.proteina,
                   carbs: res.carbos,
@@ -262,26 +326,23 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                   sodio_mg: res.sodio_mg || 340,
                   clinicalProfile: res.perfilClinico,
                   allergens: res.alergenos
-                }
-              };
-            }
-          }).catch(() => {})
-        );
-      }
+                };
+              }
+            }).catch(() => {})
+          );
+        }
 
-      // Opción B
-      if (dayDishes.optionB?.name) {
-        promises.push(
-          menuStore.analyzeDishWithAI({
-            name: dayDishes.optionB.name,
-            ingredients: dayDishes.optionB.ingredients,
-            category: dietOptionB
-          }).then(res => {
-            if (res) {
-              updatedSelection[dayName] = {
-                ...updatedSelection[dayName],
-                optionB: {
-                  ...updatedSelection[dayName].optionB,
+        // 3er Tiempo: Guarnición
+        if (dayDishes.optionB?.name?.trim()) {
+          promises.push(
+            menuStore.analyzeDishWithAI({
+              name: dayDishes.optionB.name,
+              ingredients: dayDishes.optionB.ingredients || '',
+              category: 'Guarnicion'
+            }).then(res => {
+              if (res) {
+                updatedServices[sKey][dayName].optionB = {
+                  ...updatedServices[sKey][dayName].optionB,
                   calories: res.calorias,
                   protein: res.proteina,
                   carbs: res.carbos,
@@ -290,52 +351,50 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                   sodio_mg: res.sodio_mg || 340,
                   clinicalProfile: res.perfilClinico,
                   allergens: res.alergenos
-                }
-              };
-            }
-          }).catch(() => {})
-        );
-      }
+                };
+              }
+            }).catch(() => {})
+          );
+        }
 
-      // Opción C
-      if (dayDishes.optionC?.name) {
-        promises.push(
-          menuStore.analyzeDishWithAI({
-            name: dayDishes.optionC.name,
-            ingredients: dayDishes.optionC.ingredients,
-            category: dietOptionC
-          }).then(res => {
-            if (res) {
-              updatedSelection[dayName] = {
-                ...updatedSelection[dayName],
-                optionC: {
-                  ...updatedSelection[dayName].optionC,
+        // 4to Tiempo: Postre
+        if (dayDishes.optionC?.name?.trim()) {
+          promises.push(
+            menuStore.analyzeDishWithAI({
+              name: dayDishes.optionC.name,
+              ingredients: dayDishes.optionC.ingredients || '',
+              category: 'Postre'
+            }).then(res => {
+              if (res) {
+                updatedServices[sKey][dayName].optionC = {
+                  ...updatedServices[sKey][dayName].optionC,
                   calories: res.calorias,
                   protein: res.proteina,
                   carbs: res.carbos,
                   fats: res.grasas,
                   clinicalProfile: res.perfilClinico,
                   allergens: res.alergenos
-                }
-              };
-            }
-          }).catch(() => {})
-        );
-      }
+                };
+              }
+            }).catch(() => {})
+          );
+        }
+      });
     });
 
     try {
       await Promise.all(promises);
     } catch (_) {}
 
-    // Persist menu in menuStore para la semana seleccionada en calendario con los 4 enfoques
+    // Persist menu in menuStore para la semana seleccionada en calendario con los 3 servicios y 4 tiempos
     const published = menuStore.publishMenu({
       weekInput: targetWeekInfo,
       daysPerWeek: String(activeDays.length),
       dietOptionA,
       dietOptionB,
       dietOptionC,
-      dishSelection: updatedSelection,
+      dishServices: updatedServices,
+      dishSelection: updatedServices.comida,
       daysList: activeDays
     });
 
@@ -468,7 +527,7 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontSize: '0.82rem', fontWeight: '700', color: wizardStep >= 1 ? '#2563EB' : '#94A3B8' }}>1. Dias</span>
               <ChevronRight size={14} color="#CBD5E1" />
-              <span style={{ fontSize: '0.82rem', fontWeight: '700', color: wizardStep >= 2 ? '#2563EB' : '#94A3B8' }}>2. Enfoques</span>
+              <span style={{ fontSize: '0.82rem', fontWeight: '700', color: wizardStep >= 2 ? '#2563EB' : '#94A3B8' }}>2. Tiempos</span>
               <ChevronRight size={14} color="#CBD5E1" />
               <span style={{ fontSize: '0.82rem', fontWeight: '700', color: wizardStep >= 3 ? '#2563EB' : '#94A3B8' }}>3. Rejilla Manual</span>
             </div>
@@ -532,28 +591,25 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                   cursor: activeDays.length > 0 ? 'pointer' : 'not-allowed'
                 }}
               >
-                Siguiente: Configurar 4 Enfoques <ChevronRight size={16} />
+                Siguiente: Tiempos de Menú <ChevronRight size={16} />
               </button>
             </div>
           )}
 
-          {/* STEP 2: 4 ENFOQUES (SOPA FIJA + 3 OPCIONES CON 3 SELECCIONES CADA UNA) */}
+          {/* STEP 2: 4 TIEMPOS INSTITUCIONALES */}
           {wizardStep === 2 && (
             <div className="animate-fade-in" style={{ maxWidth: '680px', margin: '0 auto' }}>
-              <h4 style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                Paso 2: Define los 4 enfoques de menú
+              <h4 style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '1.25rem' }}>
+                Paso 2: Tiempos de menú
               </h4>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-                El Enfoque 1 es obligatoriamente Sopa. Selecciona entre las 3 opciones disponibles para cada uno de los demás enfoques:
-              </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1.75rem' }}>
                 
-                {/* ENFOQUE 1: SOPA (MISMO ASPECTO QUE LOS DEMÁS PERO SIN PODER SELECCIONAR NADA) */}
+                {/* 1: SOPA */}
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#B45309', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
                     <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#F59E0B' }}></span>
-                    Enfoque 1: Sopa (Nutritiva / Inicio):
+                    1er Tiempo:
                   </label>
                   <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <select
@@ -592,16 +648,16 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                   </div>
                 </div>
 
-                {/* ENFOQUE 2: OPCIÓN A (3 SELECCIONES DIFERENTES) */}
+                {/* 2: PLATILLO FUERTE */}
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#1D4ED8', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
                     <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#2563EB' }}></span>
-                    Enfoque 2: Opción A (Proteica / Balance):
+                    2do Tiempo:
                   </label>
                   <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <select
-                      value={dietOptionA}
-                      onChange={(e) => setDietOptionA(e.target.value)}
+                      disabled
+                      value="Platillo fuerte"
                       style={{
                         width: '100%',
                         padding: '0.8rem 2.75rem 0.8rem 1rem',
@@ -613,25 +669,15 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                         fontWeight: '600',
                         fontFamily: 'inherit',
                         outline: 'none',
-                        cursor: 'pointer',
+                        cursor: 'not-allowed',
                         appearance: 'none',
                         WebkitAppearance: 'none',
                         MozAppearance: 'none',
                         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)',
                         transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
                       }}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#3B82F6';
-                        e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.15)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = '#E2E8F0';
-                        e.target.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.04)';
-                      }}
                     >
-                      <option value="Balance Proteico">Balance Proteico</option>
-                      <option value="Fácil Masticación (IDDSI 6)">Fácil Masticación (IDDSI 6)</option>
-                      <option value="Gourmet Saludable">Gourmet Saludable</option>
+                      <option value="Platillo fuerte">Platillo fuerte</option>
                     </select>
                     <ChevronDown
                       size={18}
@@ -645,16 +691,16 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                   </div>
                 </div>
 
-                {/* ENFOQUE 3: OPCIÓN B (3 SELECCIONES DIFERENTES) */}
+                {/* 3: GUARNICION */}
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#15803D', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
                     <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#16A34A' }}></span>
-                    Enfoque 3: Opción B (Plant-Based / Texturas Asistidas):
+                    3er Tiempo:
                   </label>
                   <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <select
-                      value={dietOptionB}
-                      onChange={(e) => setDietOptionB(e.target.value)}
+                      disabled
+                      value="Guarnicion"
                       style={{
                         width: '100%',
                         padding: '0.8rem 2.75rem 0.8rem 1rem',
@@ -666,25 +712,15 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                         fontWeight: '600',
                         fontFamily: 'inherit',
                         outline: 'none',
-                        cursor: 'pointer',
+                        cursor: 'not-allowed',
                         appearance: 'none',
                         WebkitAppearance: 'none',
                         MozAppearance: 'none',
                         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)',
                         transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
                       }}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#16A34A';
-                        e.target.style.boxShadow = '0 0 0 3px rgba(22, 163, 74, 0.15)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = '#E2E8F0';
-                        e.target.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.04)';
-                      }}
                     >
-                      <option value="Plant-Based & Digestión Ligera">Plant-Based & Digestión Ligera</option>
-                      <option value="Papilla & Puré Suave (IDDSI 4)">Papilla & Puré Suave (IDDSI 4)</option>
-                      <option value="Vegetariano Balance">Vegetariano Balance</option>
+                      <option value="Guarnicion">Guarnicion</option>
                     </select>
                     <ChevronDown
                       size={18}
@@ -698,16 +734,16 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                   </div>
                 </div>
 
-                {/* ENFOQUE 4: OPCIÓN C (3 SELECCIONES DIFERENTES) */}
+                {/* 4: POSTRE */}
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#7C3AED', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
                     <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#8B5CF6' }}></span>
-                    Enfoque 4: Opción C (Especial / Hiposódica / Menú Alternativo):
+                    4to Tiempo:
                   </label>
                   <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <select
-                      value={dietOptionC}
-                      onChange={(e) => setDietOptionC(e.target.value)}
+                      disabled
+                      value="Postre"
                       style={{
                         width: '100%',
                         padding: '0.8rem 2.75rem 0.8rem 1rem',
@@ -719,25 +755,15 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                         fontWeight: '600',
                         fontFamily: 'inherit',
                         outline: 'none',
-                        cursor: 'pointer',
+                        cursor: 'not-allowed',
                         appearance: 'none',
                         WebkitAppearance: 'none',
                         MozAppearance: 'none',
                         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)',
                         transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
                       }}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#8B5CF6';
-                        e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.15)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = '#E2E8F0';
-                        e.target.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.04)';
-                      }}
                     >
-                      <option value="Control Hiposódico & Sarcopenia">Control Hiposódico & Sarcopenia</option>
-                      <option value="Picada & Húmeda (IDDSI 5)">Picada & Húmeda (IDDSI 5)</option>
-                      <option value="Low Carb / Keto Friendly">Low Carb / Keto Friendly</option>
+                      <option value="Postre">Postre</option>
                     </select>
                     <ChevronDown
                       size={18}
@@ -788,62 +814,129 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
             </div>
           )}
 
-          {/* STEP 3: REJILLA MANUAL EN BLANCO (SIN EMOJIS, CAPTURA LIMPIA A MANO) */}
+          {/* STEP 3: REJILLA MANUAL EN BLANCO (3 SERVICIOS DIARIOS Y 4 TIEMPOS INSTITUCIONALES) */}
           {wizardStep === 3 && (
             <div className="animate-fade-in">
+
+              {/* Selector de Servicio Diario (Desayuno, Comida, Cena) */}
+              <div style={{
+                background: '#FFFFFF',
+                border: '1.5px solid #E2E8F0',
+                borderRadius: '16px',
+                padding: '1rem 1.25rem',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '1rem',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <Clock size={18} color="#2563EB" />
+                  <span style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>
+                    Turno de Servicio Institucional:
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                  {DAILY_SERVICES.map(srv => {
+                    const isSelected = activeService === srv.key;
+                    const sCount = getServiceDishesCount(srv.key);
+                    return (
+                      <button
+                        key={srv.key}
+                        type="button"
+                        onClick={() => setActiveService(srv.key)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          padding: '0.55rem 1.15rem',
+                          borderRadius: '12px',
+                          border: isSelected ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                          background: isSelected ? '#EFF6FF' : '#FFFFFF',
+                          color: isSelected ? '#1D4ED8' : '#475569',
+                          fontWeight: '700',
+                          fontSize: '0.85rem',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          boxShadow: isSelected ? '0 4px 10px rgba(37, 99, 235, 0.15)' : 'none'
+                        }}
+                      >
+                        {srv.key === 'desayuno' && <Sunrise size={16} color={isSelected ? '#2563EB' : '#64748B'} />}
+                        {srv.key === 'comida' && <Sun size={16} color={isSelected ? '#2563EB' : '#64748B'} />}
+                        {srv.key === 'cena' && <Moon size={16} color={isSelected ? '#2563EB' : '#64748B'} />}
+                        <span>{srv.label}</span>
+                        <span style={{
+                          fontSize: '0.72rem',
+                          fontWeight: '800',
+                          padding: '0.15rem 0.5rem',
+                          borderRadius: '9999px',
+                          background: isSelected ? '#2563EB' : '#F1F5F9',
+                          color: isSelected ? '#FFFFFF' : '#64748B'
+                        }}>
+                          {sCount}/{totalDishesRequired}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
               {/* Distributed Days Catalog (Active Days Grid) */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
                 {activeDays.map((dayName) => {
-                  const dayDishes = dishSelection[dayName] || {
+                  const dayDishes = dishServices[activeService]?.[dayName] || {
                     soup: { name: '', ingredients: '', method: '' },
                     optionA: { name: '', ingredients: '', method: '' },
                     optionB: { name: '', ingredients: '', method: '' },
                     optionC: { name: '', ingredients: '', method: '' }
                   };
+                  const activeServiceObj = DAILY_SERVICES.find(s => s.key === activeService) || DAILY_SERVICES[1];
                   return (
                     <div key={dayName} style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
                       <div style={{ fontWeight: '800', fontSize: '1.1rem', color: 'var(--text-dark)', marginBottom: '1rem', borderBottom: '1.5px solid #F1F5F9', paddingBottom: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span>{dayName}</span>
                         <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#2563EB', background: '#EFF6FF', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
-                          4 Enfoques
+                          {activeServiceObj.label} • 4 Tiempos
                         </span>
                       </div>
 
-                      {/* 1. SOPA (OBLIGATORIA) */}
+                      {/* 1er TIEMPO: SOPA */}
                       <div style={{ background: '#FFFBEB', padding: '0.85rem', borderRadius: '12px', marginBottom: '0.85rem', border: '1px solid #FDE68A' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
-                          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#B45309' }}>
-                            Enfoque 1: Sopa (Fijo)
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#B45309' }}>
+                            Sopa
                           </span>
-                          <span style={{ fontSize: '0.68rem', fontWeight: '700', color: '#92400E' }}>Obligatorio</span>
+                          <span style={{ fontSize: '0.68rem', fontWeight: '700', color: '#92400E' }}>1er Tiempo</span>
                         </div>
                         <input 
                           type="text" 
-                          placeholder="Nombre de la sopa (Ej. Caldo de pollo suave)"
+                          placeholder="Nombre de la sopa (Ej. Caldo de ave, Consomé suave o Entrada ligera)"
                           value={dayDishes.soup ? dayDishes.soup.name : ''}
-                          onChange={(e) => handleDishChange(dayName, 'soup', 'name', e.target.value)}
+                          onChange={(e) => handleDishChange(dayName, 'soup', 'name', e.target.value, activeService)}
                           style={{ width: '100%', fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #FCD34D', borderRadius: '8px', outline: 'none', marginBottom: '0.4rem', background: '#FFFFFF' }}
                         />
                         <button 
                           type="button"
-                          onClick={() => setExpandedRecipe(expandedRecipe === `${dayName}-soup` ? null : `${dayName}-soup`)}
+                          onClick={() => setExpandedRecipe(expandedRecipe === `${activeService}-${dayName}-soup` ? null : `${activeService}-${dayName}-soup`)}
                           style={{ background: 'none', border: 'none', color: '#B45309', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
                         >
-                          {expandedRecipe === `${dayName}-soup` ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
+                          {expandedRecipe === `${activeService}-${dayName}-soup` ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
                         </button>
 
-                        {expandedRecipe === `${dayName}-soup` && (
+                        {expandedRecipe === `${activeService}-${dayName}-soup` && (
                           <div className="animate-fade-in" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                             <textarea
                               value={dayDishes.soup ? dayDishes.soup.ingredients : ''}
-                              onChange={(e) => handleDishChange(dayName, 'soup', 'ingredients', e.target.value)}
+                              onChange={(e) => handleDishChange(dayName, 'soup', 'ingredients', e.target.value, activeService)}
                               placeholder="Ingredientes y gramajes (Ej. 100ml Fondo de ave, 40g Zanahoria, 30g Calabacita)"
                               style={{ width: '100%', fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #FCD34D', borderRadius: '8px', outline: 'none', resize: 'vertical', minHeight: '65px', background: '#FFFFFF', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}
                             />
                             <textarea
                               value={dayDishes.soup ? dayDishes.soup.method : ''}
-                              onChange={(e) => handleDishChange(dayName, 'soup', 'method', e.target.value)}
+                              onChange={(e) => handleDishChange(dayName, 'soup', 'method', e.target.value, activeService)}
                               placeholder="Método de preparación técnica"
                               style={{ width: '100%', fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #FCD34D', borderRadius: '8px', outline: 'none', resize: 'vertical', minHeight: '55px', background: '#FFFFFF', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}
                             />
@@ -851,37 +944,37 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                         )}
                       </div>
 
-                      {/* 2. OPCIÓN A */}
+                      {/* 2do TIEMPO: PLATILLO FUERTE */}
                       <div style={{ background: '#EFF6FF', padding: '0.85rem', borderRadius: '12px', marginBottom: '0.85rem', border: '1px solid #BFDBFE' }}>
                         <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#2563EB', marginBottom: '0.3rem' }}>
-                          Opción A ({dietOptionA}):
+                          Platillo fuerte
                         </div>
                         <input 
                           type="text" 
-                          placeholder="Nombre del platillo Opción A"
+                          placeholder="Nombre del platillo fuerte (Ej. Filete de pescado horneado, Pechuga tierna)"
                           value={dayDishes.optionA ? dayDishes.optionA.name : ''}
-                          onChange={(e) => handleDishChange(dayName, 'optionA', 'name', e.target.value)}
+                          onChange={(e) => handleDishChange(dayName, 'optionA', 'name', e.target.value, activeService)}
                           style={{ width: '100%', fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #93C5FD', borderRadius: '8px', outline: 'none', marginBottom: '0.4rem', background: '#FFFFFF' }}
                         />
                         <button 
                           type="button"
-                          onClick={() => setExpandedRecipe(expandedRecipe === `${dayName}-A` ? null : `${dayName}-A`)}
+                          onClick={() => setExpandedRecipe(expandedRecipe === `${activeService}-${dayName}-A` ? null : `${activeService}-${dayName}-A`)}
                           style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
                         >
-                          {expandedRecipe === `${dayName}-A` ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
+                          {expandedRecipe === `${activeService}-${dayName}-A` ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
                         </button>
 
-                        {expandedRecipe === `${dayName}-A` && (
+                        {expandedRecipe === `${activeService}-${dayName}-A` && (
                           <div className="animate-fade-in" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                             <textarea
                               value={dayDishes.optionA ? dayDishes.optionA.ingredients : ''}
-                              onChange={(e) => handleDishChange(dayName, 'optionA', 'ingredients', e.target.value)}
+                              onChange={(e) => handleDishChange(dayName, 'optionA', 'ingredients', e.target.value, activeService)}
                               placeholder="Ingredientes y gramajes (Ej. 150g Pollo deshebrado, 50g Quinoa suave, 80g Calabacitas)"
                               style={{ width: '100%', fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #BFDBFE', borderRadius: '8px', outline: 'none', resize: 'vertical', minHeight: '65px', background: '#FFFFFF', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}
                             />
                             <textarea
                               value={dayDishes.optionA ? dayDishes.optionA.method : ''}
-                              onChange={(e) => handleDishChange(dayName, 'optionA', 'method', e.target.value)}
+                              onChange={(e) => handleDishChange(dayName, 'optionA', 'method', e.target.value, activeService)}
                               placeholder="Método de preparación técnica"
                               style={{ width: '100%', fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #BFDBFE', borderRadius: '8px', outline: 'none', resize: 'vertical', minHeight: '55px', background: '#FFFFFF', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}
                             />
@@ -889,37 +982,37 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                         )}
                       </div>
 
-                      {/* 3. OPCIÓN B */}
+                      {/* 3er TIEMPO: GUARNICION */}
                       <div style={{ background: '#F0FDF4', padding: '0.85rem', borderRadius: '12px', marginBottom: '0.85rem', border: '1px solid #BBF7D0' }}>
                         <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--green-dark)', marginBottom: '0.3rem' }}>
-                          Opción B ({dietOptionB}):
+                          Guarnicion
                         </div>
                         <input 
                           type="text" 
-                          placeholder="Nombre del platillo Opción B"
+                          placeholder="Nombre de la guarnicion (Ej. Puré de camote amarillo, Arroz salvaje al vapor)"
                           value={dayDishes.optionB ? dayDishes.optionB.name : ''}
-                          onChange={(e) => handleDishChange(dayName, 'optionB', 'name', e.target.value)}
+                          onChange={(e) => handleDishChange(dayName, 'optionB', 'name', e.target.value, activeService)}
                           style={{ width: '100%', fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #86EFAC', borderRadius: '8px', outline: 'none', marginBottom: '0.4rem', background: '#FFFFFF' }}
                         />
                         <button 
                           type="button"
-                          onClick={() => setExpandedRecipe(expandedRecipe === `${dayName}-B` ? null : `${dayName}-B`)}
+                          onClick={() => setExpandedRecipe(expandedRecipe === `${activeService}-${dayName}-B` ? null : `${activeService}-${dayName}-B`)}
                           style={{ background: 'none', border: 'none', color: '#15803D', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
                         >
-                          {expandedRecipe === `${dayName}-B` ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
+                          {expandedRecipe === `${activeService}-${dayName}-B` ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
                         </button>
 
-                        {expandedRecipe === `${dayName}-B` && (
+                        {expandedRecipe === `${activeService}-${dayName}-B` && (
                           <div className="animate-fade-in" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                             <textarea
                               value={dayDishes.optionB ? dayDishes.optionB.ingredients : ''}
-                              onChange={(e) => handleDishChange(dayName, 'optionB', 'ingredients', e.target.value)}
-                              placeholder="Ingredientes y gramajes (Ej. 120g Tofu o Legumbre, 80g Vegetales cocidos)"
+                              onChange={(e) => handleDishChange(dayName, 'optionB', 'ingredients', e.target.value, activeService)}
+                              placeholder="Ingredientes y gramajes (Ej. 120g Puré de papa o legumbre, 80g Vegetales cocidos)"
                               style={{ width: '100%', fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #BBF7D0', borderRadius: '8px', outline: 'none', resize: 'vertical', minHeight: '65px', background: '#FFFFFF', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}
                             />
                             <textarea
                               value={dayDishes.optionB ? dayDishes.optionB.method : ''}
-                              onChange={(e) => handleDishChange(dayName, 'optionB', 'method', e.target.value)}
+                              onChange={(e) => handleDishChange(dayName, 'optionB', 'method', e.target.value, activeService)}
                               placeholder="Método de preparación técnica"
                               style={{ width: '100%', fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #BBF7D0', borderRadius: '8px', outline: 'none', resize: 'vertical', minHeight: '55px', background: '#FFFFFF', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}
                             />
@@ -927,37 +1020,37 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                         )}
                       </div>
 
-                      {/* 4. OPCIÓN C */}
+                      {/* 4to TIEMPO: POSTRE */}
                       <div style={{ background: '#FAF5FF', padding: '0.85rem', borderRadius: '12px', border: '1px solid #E9D5FF' }}>
                         <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#7C3AED', marginBottom: '0.3rem' }}>
-                          Opción C ({dietOptionC}):
+                          Postre
                         </div>
                         <input 
                           type="text" 
-                          placeholder="Nombre del platillo Opción C"
+                          placeholder="Nombre del postre (Ej. Compota de pera, Gelatina proteica)"
                           value={dayDishes.optionC ? dayDishes.optionC.name : ''}
-                          onChange={(e) => handleDishChange(dayName, 'optionC', 'name', e.target.value)}
+                          onChange={(e) => handleDishChange(dayName, 'optionC', 'name', e.target.value, activeService)}
                           style={{ width: '100%', fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #D8B4FE', borderRadius: '8px', outline: 'none', marginBottom: '0.4rem', background: '#FFFFFF' }}
                         />
                         <button 
                           type="button"
-                          onClick={() => setExpandedRecipe(expandedRecipe === `${dayName}-C` ? null : `${dayName}-C`)}
+                          onClick={() => setExpandedRecipe(expandedRecipe === `${activeService}-${dayName}-C` ? null : `${activeService}-${dayName}-C`)}
                           style={{ background: 'none', border: 'none', color: '#7C3AED', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
                         >
-                          {expandedRecipe === `${dayName}-C` ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
+                          {expandedRecipe === `${activeService}-${dayName}-C` ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
                         </button>
 
-                        {expandedRecipe === `${dayName}-C` && (
+                        {expandedRecipe === `${activeService}-${dayName}-C` && (
                           <div className="animate-fade-in" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                             <textarea
                               value={dayDishes.optionC ? dayDishes.optionC.ingredients : ''}
-                              onChange={(e) => handleDishChange(dayName, 'optionC', 'ingredients', e.target.value)}
-                              placeholder="Ingredientes y gramajes (Ej. 100g Proteína magra, 60g Guarnición hiposódica)"
+                              onChange={(e) => handleDishChange(dayName, 'optionC', 'ingredients', e.target.value, activeService)}
+                              placeholder="Ingredientes y gramajes (Ej. 80g Fruta cocida al vapor, 10g Proteína neutra)"
                               style={{ width: '100%', fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #E9D5FF', borderRadius: '8px', outline: 'none', resize: 'vertical', minHeight: '65px', background: '#FFFFFF', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}
                             />
                             <textarea
                               value={dayDishes.optionC ? dayDishes.optionC.method : ''}
-                              onChange={(e) => handleDishChange(dayName, 'optionC', 'method', e.target.value)}
+                              onChange={(e) => handleDishChange(dayName, 'optionC', 'method', e.target.value, activeService)}
                               placeholder="Método de preparación técnica"
                               style={{ width: '100%', fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #E9D5FF', borderRadius: '8px', outline: 'none', resize: 'vertical', minHeight: '55px', background: '#FFFFFF', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}
                             />
@@ -1115,18 +1208,77 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                 </div>
               </div>
 
+              {/* Selector de Servicio Diario para Auditoría */}
+              <div style={{
+                background: '#FFFFFF',
+                border: '1px solid #E2E8F0',
+                borderRadius: '14px',
+                padding: '0.75rem 1.25rem',
+                marginBottom: '1.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.75rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '800', fontSize: '0.85rem', color: 'var(--text-dark)' }}>
+                  <Clock size={16} color="#2563EB" />
+                  <span>Servicio a Auditar:</span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  {DAILY_SERVICES.map(srv => {
+                    const isSelected = auditService === srv.key;
+                    return (
+                      <button
+                        key={srv.key}
+                        type="button"
+                        onClick={() => setAuditService(srv.key)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          padding: '0.45rem 1rem',
+                          borderRadius: '10px',
+                          border: isSelected ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                          background: isSelected ? '#EFF6FF' : '#FFFFFF',
+                          color: isSelected ? '#1D4ED8' : '#475569',
+                          fontWeight: '700',
+                          fontSize: '0.82rem',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {srv.key === 'desayuno' && <Sunrise size={15} color={isSelected ? '#2563EB' : '#64748B'} />}
+                        {srv.key === 'comida' && <Sun size={15} color={isSelected ? '#2563EB' : '#64748B'} />}
+                        {srv.key === 'cena' && <Moon size={15} color={isSelected ? '#2563EB' : '#64748B'} />}
+                        <span>{srv.label}</span>
+                        <span style={{ fontSize: '0.7rem', color: isSelected ? '#2563EB' : '#94A3B8', fontWeight: '600' }}>
+                          ({srv.timeLabel})
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Control de Cálculo Automático: Porción Unitaria vs Lote de Producción */}
               {(() => {
-                const portionsToScale = auditMode === 'production' ? Math.max(1, auditPortions) : 1;
-                const nutritionSoup = currentDay?.soup ? scaleNutrition(currentDay.soup, portionsToScale) : null;
-                const nutritionA = currentDay?.optionA ? scaleNutrition(currentDay.optionA, portionsToScale) : null;
-                const nutritionB = currentDay?.optionB ? scaleNutrition(currentDay.optionB, portionsToScale) : null;
-                const nutritionC = currentDay?.optionC ? scaleNutrition(currentDay.optionC, portionsToScale) : null;
+                const activeAuditServiceData = currentDay?.services?.[auditService] || (auditService === 'comida' ? currentDay : currentDay?.services?.[auditService]) || {};
+                const dishSoup = activeAuditServiceData.soup;
+                const dishOptionA = activeAuditServiceData.optionA;
+                const dishOptionB = activeAuditServiceData.optionB;
+                const dishOptionC = activeAuditServiceData.optionC;
 
-                const scaledSoup = currentDay?.soup?.recipe?.ingredients ? scaleIngredients(currentDay.soup.recipe.ingredients, portionsToScale) : [];
-                const scaledA = currentDay?.optionA?.recipe?.ingredients ? scaleIngredients(currentDay.optionA.recipe.ingredients, portionsToScale) : [];
-                const scaledB = currentDay?.optionB?.recipe?.ingredients ? scaleIngredients(currentDay.optionB.recipe.ingredients, portionsToScale) : [];
-                const scaledC = currentDay?.optionC?.recipe?.ingredients ? scaleIngredients(currentDay.optionC.recipe.ingredients, portionsToScale) : [];
+                const portionsToScale = auditMode === 'production' ? Math.max(1, auditPortions) : 1;
+                const nutritionSoup = dishSoup ? scaleNutrition(dishSoup, portionsToScale) : null;
+                const nutritionA = dishOptionA ? scaleNutrition(dishOptionA, portionsToScale) : null;
+                const nutritionB = dishOptionB ? scaleNutrition(dishOptionB, portionsToScale) : null;
+                const nutritionC = dishOptionC ? scaleNutrition(dishOptionC, portionsToScale) : null;
+
+                const scaledSoup = dishSoup?.recipe?.ingredients ? scaleIngredients(dishSoup.recipe.ingredients, portionsToScale) : [];
+                const scaledA = dishOptionA?.recipe?.ingredients ? scaleIngredients(dishOptionA.recipe.ingredients, portionsToScale) : [];
+                const scaledB = dishOptionB?.recipe?.ingredients ? scaleIngredients(dishOptionB.recipe.ingredients, portionsToScale) : [];
+                const scaledC = dishOptionC?.recipe?.ingredients ? scaleIngredients(dishOptionC.recipe.ingredients, portionsToScale) : [];
 
                 return (
                   <>
@@ -1134,7 +1286,7 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#2563EB', fontWeight: '700', fontSize: '0.85rem' }}>
                           <Calculator size={18} />
-                          <span>Cálculo Nutricional & Recetas (4 Enfoques):</span>
+                          <span>Cálculo Nutricional & Recetas (4 Tiempos):</span>
                         </div>
                         <div style={{ display: 'flex', background: '#F1F5F9', padding: '0.2rem', borderRadius: '8px', gap: '0.2rem' }}>
                           <button
@@ -1199,23 +1351,23 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                       )}
                     </div>
 
-                    {/* Comparative Clinical Cards (Sopa, Opción A, Opción B, Opción C) */}
+                    {/* Comparative Clinical Cards (4 Tiempos Institucionales) */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
                       
-                      {/* 1. SOPA AUDIT */}
-                      {currentDay.soup && (
+                      {/* 1er TIEMPO: SOPA */}
+                      {dishSoup && (
                         <div className="uber-card" style={{ padding: '1.5rem', borderTop: '4px solid #F59E0B' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
                             <span className="badge-tag" style={{ background: '#FEF3C7', color: '#92400E', fontWeight: '800' }}>
-                              Enfoque 1 • Sopa (Fijo)
+                              1er Tiempo • Sopa
                             </span>
                             <span style={{ fontSize: '0.72rem', color: '#92400E', fontWeight: '700', background: '#FFFBEB', padding: '0.2rem 0.6rem', borderRadius: '6px', border: '1px solid #FCD34D' }}>
-                              Obligatorio
+                              Inicio
                             </span>
                           </div>
 
                           <h4 style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
-                            {currentDay.soup?.name || 'Sopa Nutritiva'}
+                            {dishSoup?.name || 'Sopa'}
                           </h4>
 
                           {/* Clinical Macro Breakdown Grid */}
@@ -1223,7 +1375,7 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#92400E' }}>Calorías</div>
                               <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#B45309' }}>
-                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.calories} kcal` : `${nutritionSoup?.unit.calories || currentDay.soup?.calories || 220} kcal`}
+                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.calories} kcal` : `${nutritionSoup?.unit.calories || dishSoup?.calories || 220} kcal`}
                               </div>
                             </div>
                             <div>
@@ -1247,7 +1399,7 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                           </div>
 
                           <div style={{ fontSize: '0.78rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                            <strong>Perfil Clínico:</strong> Caldo natural rico en electrolitos, favorece vaciado gástrico y deglución suave.
+                            <strong>Perfil Clínico:</strong> {dishSoup?.clinicalProfile || 'Caldo natural rico en electrolitos, favorece vaciado gástrico y deglución suave.'}
                           </div>
 
                           {/* Receta Técnica Escalada Desplegable */}
@@ -1285,194 +1437,12 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                         </div>
                       )}
 
-                      {/* 2. OPTION A AUDIT */}
-                      <div className="uber-card" style={{ padding: '1.5rem', borderTop: '4px solid #2563EB' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                          <span className="badge-tag" style={{ background: '#EFF6FF', color: '#2563EB', fontWeight: '800' }}>
-                            Opción A • {currentDay.optionA?.category || dietOptionA}
-                          </span>
-                          <span style={{ fontSize: '0.72rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
-                            ✓ Aprobado
-                          </span>
-                        </div>
-
-                        <h4 style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
-                          {currentDay.optionA?.name || 'Platillo A'}
-                        </h4>
-
-                        {/* Clinical Macro Breakdown Grid */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.35rem', background: '#F8FAFC', padding: '0.75rem 0.5rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
-                          <div>
-                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--primary)' }}>
-                              {auditMode === 'production' ? `${nutritionA?.totalProduction.calories} kcal` : `${nutritionA?.unit.calories || currentDay.optionA?.calories || 480} kcal`}
-                            </div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#2563EB' }}>
-                              {auditMode === 'production' ? `${nutritionA?.totalProduction.protein}g` : `${nutritionA?.unit.protein || 35}g`}
-                            </div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
-                              {auditMode === 'production' ? `${nutritionA?.totalProduction.carbs}g` : `${nutritionA?.unit.carbs || 40}g`}
-                            </div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
-                              {auditMode === 'production' ? `${nutritionA?.totalProduction.fats}g` : `${nutritionA?.unit.fats || 14}g`}
-                            </div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Sodio</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.optionA?.sodium || currentDay.optionA?.sodio_mg || 340) <= 500 ? '#065F46' : '#991B1B' }}>
-                              {currentDay.optionA?.sodium || currentDay.optionA?.sodio_mg || 340}mg
-                            </div>
-                          </div>
-                        </div>
-
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                          <strong>Perfil Clínico:</strong> {currentDay.optionA?.clinicalProfile || 'Índice glucémico controlado, digestión ágil en oficina sin causar pesadez post-almuerzo.'}
-                        </div>
-
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                          <strong>Alérgenos registrados:</strong> {(currentDay.optionA?.allergens || []).length > 0 ? currentDay.optionA.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
-                        </div>
-
-                        {/* Receta Técnica Escalada Desplegable */}
-                        <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '0.75rem' }}>
-                          <button
-                            onClick={() => setExpandedAuditRecipe(expandedAuditRecipe === 'A' ? null : 'A')}
-                            style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', padding: 0 }}
-                          >
-                            <Scale size={14} />
-                            {expandedAuditRecipe === 'A' ? 'Ocultar Insumos' : `Ver Insumos y Receta Escalada (${portionsToScale}p)`}
-                          </button>
-                          {expandedAuditRecipe === 'A' && (
-                            <div className="animate-fade-in" style={{ marginTop: '0.6rem' }}>
-                              {scaledA.length > 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                                  {scaledA.map((item, idx) => (
-                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '0.45rem 0.65rem', background: idx % 2 === 0 ? '#F8FAFC' : '#FFFFFF', borderRadius: '6px', border: '1px solid #E2E8F0', fontSize: '0.78rem' }}>
-                                      <div style={{ fontWeight: '600', color: 'var(--text-dark)', flex: 1, minWidth: 0, wordBreak: 'break-word', whiteSpace: 'normal', lineHeight: '1.4' }}>
-                                        {item.name}
-                                      </div>
-                                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                        <div style={{ fontWeight: '800', color: '#2563EB', fontSize: '0.82rem' }}>
-                                          {item.amountScaled !== null ? `${item.amountScaled} ${item.unitScaled}` : item.displayScaled}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sin ingredientes técnicos cargados.</div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* 3. OPTION B AUDIT */}
-                      <div className="uber-card" style={{ padding: '1.5rem', borderTop: '4px solid #16A34A' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                          <span className="badge-tag" style={{ background: '#F0FDF4', color: '#16A34A', fontWeight: '800' }}>
-                            Opción B • {currentDay.optionB?.category || dietOptionB}
-                          </span>
-                          <span style={{ fontSize: '0.72rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
-                            ✓ Aprobado
-                          </span>
-                        </div>
-
-                        <h4 style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
-                          {currentDay.optionB?.name || 'Platillo B'}
-                        </h4>
-
-                        {/* Clinical Macro Breakdown Grid */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.35rem', background: '#F8FAFC', padding: '0.75rem 0.5rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
-                          <div>
-                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--primary)' }}>
-                              {auditMode === 'production' ? `${nutritionB?.totalProduction.calories} kcal` : `${nutritionB?.unit.calories || currentDay.optionB?.calories || 430} kcal`}
-                            </div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#2563EB' }}>
-                              {auditMode === 'production' ? `${nutritionB?.totalProduction.protein}g` : `${nutritionB?.unit.protein || 18}g`}
-                            </div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
-                              {auditMode === 'production' ? `${nutritionB?.totalProduction.carbs}g` : `${nutritionB?.unit.carbs || 50}g`}
-                            </div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
-                              {auditMode === 'production' ? `${nutritionB?.totalProduction.fats}g` : `${nutritionB?.unit.fats || 16}g`}
-                            </div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Sodio</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.optionB?.sodium || currentDay.optionB?.sodio_mg || 320) <= 500 ? '#065F46' : '#991B1B' }}>
-                              {currentDay.optionB?.sodium || currentDay.optionB?.sodio_mg || 320}mg
-                            </div>
-                          </div>
-                        </div>
-
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                          <strong>Perfil Clínico:</strong> {currentDay.optionB?.clinicalProfile || 'Alto contenido de fibra vegetal e ingredientes antioxidantes antiinflamatorios.'}
-                        </div>
-
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                          <strong>Alérgenos registrados:</strong> {(currentDay.optionB?.allergens || []).length > 0 ? currentDay.optionB.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
-                        </div>
-
-                        {/* Receta Técnica Escalada Desplegable */}
-                        <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '0.75rem' }}>
-                          <button
-                            onClick={() => setExpandedAuditRecipe(expandedAuditRecipe === 'B' ? null : 'B')}
-                            style={{ background: 'none', border: 'none', color: '#15803D', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', padding: 0 }}
-                          >
-                            <Scale size={14} />
-                            {expandedAuditRecipe === 'B' ? 'Ocultar Insumos' : `Ver Insumos y Receta Escalada (${portionsToScale}p)`}
-                          </button>
-                          {expandedAuditRecipe === 'B' && (
-                            <div className="animate-fade-in" style={{ marginTop: '0.6rem' }}>
-                              {scaledB.length > 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                                  {scaledB.map((item, idx) => (
-                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '0.45rem 0.65rem', background: idx % 2 === 0 ? '#F8FAFC' : '#FFFFFF', borderRadius: '6px', border: '1px solid #E2E8F0', fontSize: '0.78rem' }}>
-                                      <div style={{ fontWeight: '600', color: 'var(--text-dark)', flex: 1, minWidth: 0, wordBreak: 'break-word', whiteSpace: 'normal', lineHeight: '1.4' }}>
-                                        {item.name}
-                                      </div>
-                                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                        <div style={{ fontWeight: '800', color: '#15803D', fontSize: '0.82rem' }}>
-                                          {item.amountScaled !== null ? `${item.amountScaled} ${item.unitScaled}` : item.displayScaled}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sin ingredientes técnicos cargados.</div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* 4. OPTION C AUDIT */}
-                      {currentDay.optionC && (
-                        <div className="uber-card" style={{ padding: '1.5rem', borderTop: '4px solid #8B5CF6' }}>
+                      {/* 2do TIEMPO: PLATO FUERTE */}
+                      {dishOptionA && (
+                        <div className="uber-card" style={{ padding: '1.5rem', borderTop: '4px solid #2563EB' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                            <span className="badge-tag" style={{ background: '#FAF5FF', color: '#7C3AED', fontWeight: '800' }}>
-                              Opción C • {currentDay.optionC?.category || dietOptionC}
+                            <span className="badge-tag" style={{ background: '#EFF6FF', color: '#2563EB', fontWeight: '800' }}>
+                              2do Tiempo • Platillo fuerte
                             </span>
                             <span style={{ fontSize: '0.72rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
                               ✓ Aprobado
@@ -1480,7 +1450,193 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                           </div>
 
                           <h4 style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
-                            {currentDay.optionC?.name || 'Platillo C'}
+                            {dishOptionA?.name || 'Platillo fuerte'}
+                          </h4>
+
+                          {/* Clinical Macro Breakdown Grid */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.35rem', background: '#F8FAFC', padding: '0.75rem 0.5rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--primary)' }}>
+                                {auditMode === 'production' ? `${nutritionA?.totalProduction.calories} kcal` : `${nutritionA?.unit.calories || dishOptionA?.calories || 480} kcal`}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#2563EB' }}>
+                                {auditMode === 'production' ? `${nutritionA?.totalProduction.protein}g` : `${nutritionA?.unit.protein || 35}g`}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
+                                {auditMode === 'production' ? `${nutritionA?.totalProduction.carbs}g` : `${nutritionA?.unit.carbs || 40}g`}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
+                                {auditMode === 'production' ? `${nutritionA?.totalProduction.fats}g` : `${nutritionA?.unit.fats || 14}g`}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Sodio</div>
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (dishOptionA?.sodium || dishOptionA?.sodio_mg || 340) <= 500 ? '#065F46' : '#991B1B' }}>
+                                {dishOptionA?.sodium || dishOptionA?.sodio_mg || 340}mg
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
+                            <strong>Perfil Clínico:</strong> {dishOptionA?.clinicalProfile || 'Índice glucémico controlado, digestión ágil sin pesadez post-almuerzo.'}
+                          </div>
+
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                            <strong>Alérgenos registrados:</strong> {(dishOptionA?.allergens || []).length > 0 ? dishOptionA.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
+                          </div>
+
+                          {/* Receta Técnica Escalada Desplegable */}
+                          <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '0.75rem' }}>
+                            <button
+                              onClick={() => setExpandedAuditRecipe(expandedAuditRecipe === 'A' ? null : 'A')}
+                              style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', padding: 0 }}
+                            >
+                              <Scale size={14} />
+                              {expandedAuditRecipe === 'A' ? 'Ocultar Insumos' : `Ver Insumos y Receta Escalada (${portionsToScale}p)`}
+                            </button>
+                            {expandedAuditRecipe === 'A' && (
+                              <div className="animate-fade-in" style={{ marginTop: '0.6rem' }}>
+                                {scaledA.length > 0 ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                    {scaledA.map((item, idx) => (
+                                      <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '0.45rem 0.65rem', background: idx % 2 === 0 ? '#F8FAFC' : '#FFFFFF', borderRadius: '6px', border: '1px solid #E2E8F0', fontSize: '0.78rem' }}>
+                                        <div style={{ fontWeight: '600', color: 'var(--text-dark)', flex: 1, minWidth: 0, wordBreak: 'break-word', whiteSpace: 'normal', lineHeight: '1.4' }}>
+                                          {item.name}
+                                        </div>
+                                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                          <div style={{ fontWeight: '800', color: '#2563EB', fontSize: '0.82rem' }}>
+                                            {item.amountScaled !== null ? `${item.amountScaled} ${item.unitScaled}` : item.displayScaled}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sin ingredientes técnicos cargados.</div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 3er TIEMPO: GUARNICIÓN */}
+                      {dishOptionB && (
+                        <div className="uber-card" style={{ padding: '1.5rem', borderTop: '4px solid #16A34A' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                            <span className="badge-tag" style={{ background: '#F0FDF4', color: '#16A34A', fontWeight: '800' }}>
+                              3er Tiempo • Guarnicion
+                            </span>
+                            <span style={{ fontSize: '0.72rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
+                              ✓ Aprobado
+                            </span>
+                          </div>
+
+                          <h4 style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
+                            {dishOptionB?.name || 'Guarnicion'}
+                          </h4>
+
+                          {/* Clinical Macro Breakdown Grid */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.35rem', background: '#F8FAFC', padding: '0.75rem 0.5rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--primary)' }}>
+                                {auditMode === 'production' ? `${nutritionB?.totalProduction.calories} kcal` : `${nutritionB?.unit.calories || dishOptionB?.calories || 430} kcal`}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#2563EB' }}>
+                                {auditMode === 'production' ? `${nutritionB?.totalProduction.protein}g` : `${nutritionB?.unit.protein || 18}g`}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
+                                {auditMode === 'production' ? `${nutritionB?.totalProduction.carbs}g` : `${nutritionB?.unit.carbs || 50}g`}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
+                                {auditMode === 'production' ? `${nutritionB?.totalProduction.fats}g` : `${nutritionB?.unit.fats || 16}g`}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Sodio</div>
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (dishOptionB?.sodium || dishOptionB?.sodio_mg || 320) <= 500 ? '#065F46' : '#991B1B' }}>
+                                {dishOptionB?.sodium || dishOptionB?.sodio_mg || 320}mg
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
+                            <strong>Perfil Clínico:</strong> {dishOptionB?.clinicalProfile || 'Alto contenido de fibra vegetal e ingredientes antioxidantes antiinflamatorios.'}
+                          </div>
+
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                            <strong>Alérgenos registrados:</strong> {(dishOptionB?.allergens || []).length > 0 ? dishOptionB.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
+                          </div>
+
+                          {/* Receta Técnica Escalada Desplegable */}
+                          <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '0.75rem' }}>
+                            <button
+                              onClick={() => setExpandedAuditRecipe(expandedAuditRecipe === 'B' ? null : 'B')}
+                              style={{ background: 'none', border: 'none', color: '#15803D', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', padding: 0 }}
+                            >
+                              <Scale size={14} />
+                              {expandedAuditRecipe === 'B' ? 'Ocultar Insumos' : `Ver Insumos y Receta Escalada (${portionsToScale}p)`}
+                            </button>
+                            {expandedAuditRecipe === 'B' && (
+                              <div className="animate-fade-in" style={{ marginTop: '0.6rem' }}>
+                                {scaledB.length > 0 ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                    {scaledB.map((item, idx) => (
+                                      <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '0.45rem 0.65rem', background: idx % 2 === 0 ? '#F8FAFC' : '#FFFFFF', borderRadius: '6px', border: '1px solid #E2E8F0', fontSize: '0.78rem' }}>
+                                        <div style={{ fontWeight: '600', color: 'var(--text-dark)', flex: 1, minWidth: 0, wordBreak: 'break-word', whiteSpace: 'normal', lineHeight: '1.4' }}>
+                                          {item.name}
+                                        </div>
+                                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                          <div style={{ fontWeight: '800', color: '#15803D', fontSize: '0.82rem' }}>
+                                            {item.amountScaled !== null ? `${item.amountScaled} ${item.unitScaled}` : item.displayScaled}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sin ingredientes técnicos cargados.</div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 4to TIEMPO: POSTRE */}
+                      {dishOptionC && (
+                        <div className="uber-card" style={{ padding: '1.5rem', borderTop: '4px solid #8B5CF6' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                            <span className="badge-tag" style={{ background: '#FAF5FF', color: '#7C3AED', fontWeight: '800' }}>
+                              4to Tiempo • Postre
+                            </span>
+                            <span style={{ fontSize: '0.72rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
+                              ✓ Aprobado
+                            </span>
+                          </div>
+
+                          <h4 style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
+                            {dishOptionC?.name || 'Postre'}
                           </h4>
 
                           {/* Clinical Macro Breakdown Grid */}
@@ -1488,7 +1644,7 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#7C3AED' }}>Calorías</div>
                               <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#7C3AED' }}>
-                                {auditMode === 'production' ? `${nutritionC?.totalProduction.calories} kcal` : `${nutritionC?.unit.calories || currentDay.optionC?.calories || 390} kcal`}
+                                {auditMode === 'production' ? `${nutritionC?.totalProduction.calories} kcal` : `${nutritionC?.unit.calories || dishOptionC?.calories || 390} kcal`}
                               </div>
                             </div>
                             <div>
@@ -1512,7 +1668,7 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                           </div>
 
                           <div style={{ fontSize: '0.78rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                            <strong>Perfil Clínico:</strong> Formulación balanceada, control estricto de sodio e ingredientes digestivos.
+                            <strong>Perfil Clínico:</strong> {dishOptionC?.clinicalProfile || 'Formulación balanceada, control estricto de sodio e ingredientes digestivos.'}
                           </div>
 
                           {/* Receta Técnica Escalada Desplegable */}

@@ -18,6 +18,154 @@ export const MONTH_NAMES = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
+// Constantes del Modelo Institucional de Casa Nostra (4 Tiempos y 3 Servicios)
+export const DAILY_SERVICES = [
+  {
+    key: 'desayuno',
+    label: 'Desayuno / Almuerzo',
+    shortLabel: 'Desayuno',
+    timeRange: '08:00 - 10:00',
+    iconName: 'Sunrise',
+    color: '#EA580C',
+    bgColor: '#FFF7ED',
+    borderColor: '#FFEDD5',
+    description: 'Arranque metabólico, hidratación matutina y aporte proteico de fácil digestión.'
+  },
+  {
+    key: 'comida',
+    label: 'Comida Principal',
+    shortLabel: 'Comida',
+    timeRange: '13:30 - 15:30',
+    iconName: 'Sun',
+    color: '#B45309',
+    bgColor: '#FEF3C7',
+    borderColor: '#FDE68A',
+    description: 'Servicio central con 4 tiempos institucionales completos y mayor densidad de nutrientes.'
+  },
+  {
+    key: 'cena',
+    label: 'Cena Ligera',
+    shortLabel: 'Cena',
+    timeRange: '19:00 - 20:30',
+    iconName: 'Moon',
+    color: '#4F46E5',
+    bgColor: '#EEF2FF',
+    borderColor: '#E0E7FF',
+    description: 'Porciones digestivas hiposódicas para promover el descanso nocturno reparador.'
+  }
+];
+
+export const INSTITUTIONAL_COURSES = [
+  {
+    key: 'soup',
+    typeCode: 'S',
+    label: 'Sopa / Entrada',
+    shortLabel: 'Entrada',
+    badge: '1er Tiempo',
+    color: '#D97706',
+    bgColor: '#FEF3C7',
+    borderColor: '#FDE68A',
+    placeholder: 'Ej. Consomé casero de ave con verduras suaves, Crema de calabacita...',
+    categoryDefault: 'Sopa / Entrada'
+  },
+  {
+    key: 'optionA',
+    typeCode: 'A',
+    label: 'Plato Fuerte',
+    shortLabel: 'Plato Fuerte',
+    badge: '2do Tiempo',
+    color: '#2563EB',
+    bgColor: '#DBEAFE',
+    borderColor: '#BFDBFE',
+    placeholder: 'Ej. Pechuga de pollo a la plancha suave, Filete de pescado magro...',
+    categoryDefault: 'Plato Fuerte'
+  },
+  {
+    key: 'optionB',
+    typeCode: 'B',
+    label: 'Guarnición',
+    shortLabel: 'Guarnición',
+    badge: '3er Tiempo',
+    color: '#16A34A',
+    bgColor: '#DCFCE7',
+    borderColor: '#BBF7D0',
+    placeholder: 'Ej. Puré de papa rústico al vapor, Arroz blanco suave con zanahoria...',
+    categoryDefault: 'Guarnición'
+  },
+  {
+    key: 'optionC',
+    typeCode: 'C',
+    label: 'Postre',
+    shortLabel: 'Postre',
+    badge: '4to Tiempo',
+    color: '#9333EA',
+    bgColor: '#F3E8FF',
+    borderColor: '#E9D5FF',
+    placeholder: 'Ej. Compota de manzana sin azúcar añadida, Gelatina ligera de fresa...',
+    categoryDefault: 'Postre'
+  }
+];
+
+export function ensureInstitutionalServices(menu) {
+  if (!menu || !Array.isArray(menu.days)) return menu;
+  menu.days.forEach(day => {
+    if (!day) return;
+    if (!day.services) {
+      day.services = {
+        desayuno: {
+          soup: { name: 'Avena Tibia con Manzana', category: 'Sopa / Entrada', calories: 180, protein: '8g', carbs: '28g', fats: '4g', sodium: 140, recipe: { ingredients: '40g Avena, 200ml Leche, 0.5pza Manzana', method: 'Cocer a fuego lento.' } },
+          optionA: { name: 'Omelette Tierno de Claras', category: 'Plato Fuerte', calories: 320, protein: '24g', carbs: '18g', fats: '10g', sodium: 280, recipe: { ingredients: '2pza Claras, 50g Espinacas, 30g Panela', method: 'Cocer en sartén antiadherente.' } },
+          optionB: { name: 'Frijoles Refritos Tersos', category: 'Guarnición', calories: 220, protein: '10g', carbs: '32g', fats: '6g', sodium: 210, recipe: { ingredients: '80g Frijoles negros machacados', method: 'Calentar hasta tersura.' } },
+          optionC: { name: 'Compota de Pera sin Azúcar', category: 'Postre', calories: 140, protein: '2g', carbs: '28g', fats: '1g', sodium: 60, recipe: { ingredients: '100g Pera cocida al vapor', method: 'Machacar sin grumos.' } }
+        },
+        comida: {
+          soup: day.soup || null,
+          optionA: day.optionA || null,
+          optionB: day.optionB || null,
+          optionC: day.optionC || null
+        },
+        cena: {
+          soup: { name: 'Crema Ligera de Calabacita', category: 'Sopa / Entrada', calories: 160, protein: '6g', carbs: '20g', fats: '4g', sodium: 180, recipe: { ingredients: '150g Calabacita, 100ml Caldo de ave', method: 'Cocer y licuar suave.' } },
+          optionA: { name: 'Tortitas de Requesón y Pavo al Vapor', category: 'Plato Fuerte', calories: 340, protein: '28g', carbs: '22g', fats: '9g', sodium: 290, recipe: { ingredients: '80g Requesón, 60g Pavo, 1 Clara', method: 'Cocer al vapor 12 min.' } },
+          optionB: { name: 'Puré de Camote Amarillo', category: 'Guarnición', calories: 210, protein: '5g', carbs: '38g', fats: '4g', sodium: 160, recipe: { ingredients: '120g Camote amarillo al vapor', method: 'Hacer puré con leche tibia.' } },
+          optionC: { name: 'Gelatina con Proteína Neutra', category: 'Postre', calories: 150, protein: '12g', carbs: '22g', fats: '1g', sodium: 90, recipe: { ingredients: '120ml Gelatina ligera, 10g Proteína', method: 'Refrigerar hasta cuajar.' } }
+        }
+      };
+    } else {
+      if (!day.services.comida) {
+        day.services.comida = {
+          soup: day.soup || null,
+          optionA: day.optionA || null,
+          optionB: day.optionB || null,
+          optionC: day.optionC || null
+        };
+      }
+      if (!day.services.desayuno) {
+        day.services.desayuno = {
+          soup: { name: 'Avena Tibia con Canela', category: 'Sopa / Entrada', calories: 180, protein: '8g', carbs: '28g', fats: '4g', sodium: 140, recipe: { ingredients: '40g Avena, 200ml Leche', method: 'Cocer a fuego lento.' } },
+          optionA: { name: 'Omelette Tierno de Claras', category: 'Plato Fuerte', calories: 320, protein: '24g', carbs: '18g', fats: '10g', sodium: 280, recipe: { ingredients: '2pza Claras, 30g Panela', method: 'Cocer en sartén.' } },
+          optionB: { name: 'Frijoles Refritos Tersos', category: 'Guarnición', calories: 220, protein: '10g', carbs: '32g', fats: '6g', sodium: 210, recipe: { ingredients: '80g Frijoles machacados', method: 'Calentar hasta tersura.' } },
+          optionC: { name: 'Compota de Pera', category: 'Postre', calories: 140, protein: '2g', carbs: '28g', fats: '1g', sodium: 60, recipe: { ingredients: '100g Pera cocida', method: 'Machacar sin grumos.' } }
+        };
+      }
+      if (!day.services.cena) {
+        day.services.cena = {
+          soup: { name: 'Crema Ligera de Calabacita', category: 'Sopa / Entrada', calories: 160, protein: '6g', carbs: '20g', fats: '4g', sodium: 180, recipe: { ingredients: '150g Calabacita', method: 'Licuar con caldo tibio.' } },
+          optionA: { name: 'Tortitas de Requesón y Pavo al Vapor', category: 'Plato Fuerte', calories: 340, protein: '28g', carbs: '22g', fats: '9g', sodium: 290, recipe: { ingredients: '80g Requesón, 60g Pavo', method: 'Cocer al vapor.' } },
+          optionB: { name: 'Puré de Camote Amarillo', category: 'Guarnición', calories: 210, protein: '5g', carbs: '38g', fats: '4g', sodium: 160, recipe: { ingredients: '120g Camote amarillo', method: 'Hacer puré terso.' } },
+          optionC: { name: 'Gelatina con Proteína Neutra', category: 'Postre', calories: 150, protein: '12g', carbs: '22g', fats: '1g', sodium: 90, recipe: { ingredients: '120ml Gelatina ligera', method: 'Refrigerar hasta cuajar.' } }
+        };
+      }
+    }
+    // Asegurar espejo retrocompatible a raíz
+    day.soup = day.services.comida.soup || day.soup || null;
+    day.optionA = day.services.comida.optionA || day.optionA || null;
+    day.optionB = day.services.comida.optionB || day.optionB || null;
+    day.optionC = day.services.comida.optionC || day.optionC || null;
+  });
+  return menu;
+}
+
 export const BASE_START_MONDAY = new Date(2026, 7, 10, 12, 0, 0); // 10 de Agosto, 2026
 
 export function getMondayOfDate(inputDate) {
@@ -51,6 +199,7 @@ export function getWeekInfoFromDate(inputDate) {
     monday = getMondayOfDate(inputDate);
   }
 
+  const sunday = new Date(monday.getTime() + 6 * 86400000);
   const friday = new Date(monday.getTime() + 4 * 86400000);
   const weekKey = formatYYYYMMDD(monday);
 
@@ -60,13 +209,15 @@ export function getWeekInfoFromDate(inputDate) {
 
   const monDay = monday.getDate();
   const monMonth = MONTH_NAMES[monday.getMonth()];
+  const sunDay = sunday.getDate();
+  const sunMonth = MONTH_NAMES[sunday.getMonth()];
   const friDay = friday.getDate();
   const friMonth = MONTH_NAMES[friday.getMonth()];
-  const year = friday.getFullYear();
+  const year = sunday.getFullYear();
 
-  const dateRange = (monMonth === friMonth)
-    ? `${monDay} al ${friDay} de ${monMonth}, ${year}`
-    : `${monDay} de ${monMonth} al ${friDay} de ${friMonth}, ${year}`;
+  const dateRange = (monMonth === sunMonth)
+    ? `${monDay} al ${sunDay} de ${monMonth}, ${year}`
+    : `${monDay} de ${monMonth} al ${sunDay} de ${sunMonth}, ${year}`;
 
   const title = dateRange;
 
@@ -77,7 +228,7 @@ export function getWeekInfoFromDate(inputDate) {
     Jueves: `${new Date(monday.getTime() + 3 * 86400000).getDate()} de ${MONTH_NAMES[new Date(monday.getTime() + 3 * 86400000).getMonth()]}, ${new Date(monday.getTime() + 3 * 86400000).getFullYear()}`,
     Viernes: `${friDay} de ${friMonth}, ${friday.getFullYear()}`,
     Sábado: `${new Date(monday.getTime() + 5 * 86400000).getDate()} de ${MONTH_NAMES[new Date(monday.getTime() + 5 * 86400000).getMonth()]}, ${new Date(monday.getTime() + 5 * 86400000).getFullYear()}`,
-    Domingo: `${new Date(monday.getTime() + 6 * 86400000).getDate()} de ${MONTH_NAMES[new Date(monday.getTime() + 6 * 86400000).getMonth()]}, ${new Date(monday.getTime() + 6 * 86400000).getFullYear()}`
+    Domingo: `${sunDay} de ${sunMonth}, ${year}`
   };
 
   return {
@@ -85,6 +236,7 @@ export function getWeekInfoFromDate(inputDate) {
     weekNumber,
     monday,
     friday,
+    sunday,
     dateRange,
     title,
     dayDates
@@ -160,7 +312,7 @@ export const menuStore = {
       .then(res => (res.ok ? res.json() : null))
       .then(data => {
         if (data && data.isPublished && Array.isArray(data.days) && data.days.length > 0) {
-          const formattedMenu = {
+          const formattedMenu = ensureInstitutionalServices({
             weekKey: data.weekKey || weekInfo.weekKey,
             weekNumber: data.weekNumber || weekInfo.weekNumber,
             dateRange: weekInfo.dateRange,
@@ -172,7 +324,7 @@ export const menuStore = {
             publishedAt: data.publishedAt || new Date().toISOString(),
             isPublished: true,
             days: data.days
-          };
+          });
           const currentStored = localStorage.getItem(`${MENU_STORAGE_PREFIX}${weekInfo.weekKey}`);
           const stringified = JSON.stringify(formattedMenu);
           if (currentStored !== stringified) {
@@ -256,9 +408,9 @@ export const menuStore = {
 
     try {
       const stored = localStorage.getItem(`${MENU_STORAGE_PREFIX}${weekInfo.weekKey}`);
-      if (stored) return JSON.parse(stored);
+      if (stored) return ensureInstitutionalServices(JSON.parse(stored));
       const storedByNum = localStorage.getItem(`${MENU_STORAGE_PREFIX}w${weekInfo.weekNumber}`);
-      if (storedByNum) return JSON.parse(storedByNum);
+      if (storedByNum) return ensureInstitutionalServices(JSON.parse(storedByNum));
       
       // Fallback a claves alternativas o previas de Casa Nostra y Royal Canin
       const altKeys = [
@@ -272,9 +424,9 @@ export const menuStore = {
         const altStored = localStorage.getItem(k);
         if (altStored) {
           try {
-            const parsed = JSON.parse(altStored);
+            const parsed = ensureInstitutionalServices(JSON.parse(altStored));
             // Migrar automáticamente a la clave estándar
-            localStorage.setItem(`${MENU_STORAGE_PREFIX}${weekInfo.weekKey}`, altStored);
+            localStorage.setItem(`${MENU_STORAGE_PREFIX}${weekInfo.weekKey}`, JSON.stringify(parsed));
             return parsed;
           } catch (_) {}
         }
@@ -282,7 +434,7 @@ export const menuStore = {
 
       if (weekInfo.weekNumber === 1) {
         const legacy = localStorage.getItem(LEGACY_MENU_KEY) || localStorage.getItem('royal_canin_active_menu_v2');
-        if (legacy) return JSON.parse(legacy);
+        if (legacy) return ensureInstitutionalServices(JSON.parse(legacy));
       }
     } catch (e) {
       console.error(`Error reading active menu for week ${weekInfo.weekKey}:`, e);
@@ -323,7 +475,7 @@ export const menuStore = {
   },
 
   // Publicar menú desde la Nutrióloga para cualquier semana seleccionada
-  publishMenu({ weekInput = 1, week = 1, daysPerWeek, dietOptionA, dietOptionB, dietOptionC, dishSelection, humanVerification, daysList }) {
+  publishMenu({ weekInput = 1, week = 1, daysPerWeek, dietOptionA, dietOptionB, dietOptionC, dishSelection, dishServices, humanVerification, daysList }) {
     const weekInfo = this.normalizeWeek(weekInput || week);
     const ALL_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
     const numDays = Array.isArray(daysList) && daysList.length > 0 ? daysList.length : (parseInt(daysPerWeek, 10) || 5);
@@ -341,121 +493,73 @@ export const menuStore = {
     }
 
     const days = dayNames.map((dayName) => {
-      const dayDishes = dishSelection[dayName] || {};
-      const soup = dayDishes.soup || {};
-      const optA = dayDishes.optionA || {};
-      const optB = dayDishes.optionB || {};
-      const optC = dayDishes.optionC || {};
-      const defaultInfo = DEFAULT_RECIPES[dayName] || DEFAULT_RECIPES.Lunes;
+      const buildCourse = (dishRaw, fallbackName, defaultCat, defaultCal, defaultProt, defaultCarb, defaultFat, defaultSod) => {
+        const dish = dishRaw || {};
+        return {
+          id: `${weekInfo.weekKey}-${dayName.toLowerCase()}-${Math.random().toString(36).substr(2, 5)}`,
+          name: dish.name || fallbackName,
+          category: dish.category || defaultCat,
+          calories: parseInt(dish.calories, 10) || defaultCal,
+          protein: typeof dish.protein === 'number' ? `${dish.protein}g` : (dish.protein || `${defaultProt}g`),
+          carbs: typeof dish.carbs === 'number' ? `${dish.carbs}g` : (dish.carbs || `${defaultCarb}g`),
+          fats: typeof dish.fats === 'number' ? `${dish.fats}g` : (dish.fats || `${defaultFat}g`),
+          sodium: parseInt(dish.sodium || dish.sodio_mg, 10) || defaultSod,
+          sodio_mg: parseInt(dish.sodium || dish.sodio_mg, 10) || defaultSod,
+          allergens: Array.isArray(dish.allergens) ? dish.allergens : [],
+          clinicalProfile: dish.clinicalProfile || null,
+          image: dish.image || null,
+          recipe: {
+            ingredients: (dish.ingredients || dish.recipe?.ingredients || '').trim(),
+            method: (dish.method || dish.recipe?.method || '').trim() || '1. Preparar ingredientes según técnica institucional.\n2. Cocinar a temperatura controlada.\n3. Servir en textura adecuada.',
+            nutrition: {
+              calories: parseInt(dish.calories, 10) || defaultCal,
+              protein: typeof dish.protein === 'number' ? `${dish.protein}g` : (dish.protein || `${defaultProt}g`),
+              carbs: typeof dish.carbs === 'number' ? `${dish.carbs}g` : (dish.carbs || `${defaultCarb}g`),
+              fats: typeof dish.fats === 'number' ? `${dish.fats}g` : (dish.fats || `${defaultFat}g`),
+              sodium: parseInt(dish.sodium || dish.sodio_mg, 10) || defaultSod
+            }
+          }
+        };
+      };
 
-      const methodSoup = (soup.method && soup.method.trim()) || "1. Hervir fondo natural a fuego lento.\n2. Incorporar verduras y proteína suave.\n3. Servir caliente.";
-      const methodA = (optA.method && optA.method.trim()) || defaultInfo.methodA;
-      const methodB = (optB.method && optB.method.trim()) || defaultInfo.methodB;
-      const methodC = (optC.method && optC.method.trim()) || "1. Cocinar ingredientes al vapor o plancha suave.\n2. Servir con guarnición balanceada.";
+      const comidaRaw = (dishServices?.comida?.[dayName]) || (dishSelection?.[dayName]) || {};
+      const desayunoRaw = (dishServices?.desayuno?.[dayName]) || {};
+      const cenaRaw = (dishServices?.cena?.[dayName]) || {};
+
+      const serviceDesayuno = {
+        soup: buildCourse(desayunoRaw.soup, 'Avena Tibia o Fruta en Compota', 'Sopa / Entrada', 180, 8, 28, 4, 140),
+        optionA: buildCourse(desayunoRaw.optionA, 'Omelette Tierno de Claras con Queso Panela', dietOptionA || 'Plato Fuerte', 320, 24, 18, 10, 280),
+        optionB: buildCourse(desayunoRaw.optionB, 'Frijoles Refritos Tersos Suaves', dietOptionB || 'Guarnición', 220, 10, 32, 6, 210),
+        optionC: buildCourse(desayunoRaw.optionC, 'Compota de Pera o Fruta Cocida', dietOptionC || 'Postre', 140, 2, 28, 1, 60)
+      };
+
+      const serviceComida = {
+        soup: buildCourse(comidaRaw.soup, 'Sopa Nutritiva del Día', 'Sopa / Entrada', 220, 12, 24, 6, 260),
+        optionA: buildCourse(comidaRaw.optionA, 'Plato Fuerte Principal', dietOptionA || 'Plato Fuerte', 480, 35, 40, 14, 340),
+        optionB: buildCourse(comidaRaw.optionB, 'Guarnición Balanceada', dietOptionB || 'Guarnición', 430, 18, 50, 16, 320),
+        optionC: buildCourse(comidaRaw.optionC, 'Postre Geriátrico Ligero', dietOptionC || 'Postre', 390, 28, 38, 12, 280)
+      };
+
+      const serviceCena = {
+        soup: buildCourse(cenaRaw.soup, 'Crema Ligera de Calabacita o Caldo de Ave', 'Sopa / Entrada', 160, 6, 20, 4, 180),
+        optionA: buildCourse(cenaRaw.optionA, 'Pechuga Deshebrada Suave o Tortitas de Requesón', dietOptionA || 'Plato Fuerte', 340, 28, 22, 9, 290),
+        optionB: buildCourse(cenaRaw.optionB, 'Puré de Camote Amarillo al Vapor', dietOptionB || 'Guarnición', 210, 5, 38, 4, 160),
+        optionC: buildCourse(cenaRaw.optionC, 'Gelatina con Suplemento Proteico', dietOptionC || 'Postre', 150, 12, 22, 1, 90)
+      };
 
       return {
         dayName,
         dateLabel: weekInfo.dayDates[dayName] || `${dayName}, ${weekInfo.dateRange}`,
-        soup: {
-          id: `${weekInfo.weekKey}-${dayName.toLowerCase()}-soup`,
-          name: soup.name || 'Sopa Nutritiva del Día',
-          category: 'Sopa',
-          calories: soup.calories || 220,
-          protein: typeof soup.protein === 'number' ? `${soup.protein}g` : (soup.protein || '12g'),
-          carbs: typeof soup.carbs === 'number' ? `${soup.carbs}g` : (soup.carbs || '24g'),
-          fats: typeof soup.fats === 'number' ? `${soup.fats}g` : (soup.fats || '6g'),
-          sodium: soup.sodium || soup.sodio_mg || 260,
-          sodio_mg: soup.sodium || soup.sodio_mg || 260,
-          allergens: Array.isArray(soup.allergens) ? soup.allergens : [],
-          tags: ['Sopa', 'Fácil Deglución', 'Hidratación'],
-          recipe: {
-            ingredients: (soup.ingredients && soup.ingredients.trim()) || '',
-            method: methodSoup,
-            nutrition: {
-              calories: soup.calories || 220,
-              protein: typeof soup.protein === 'number' ? `${soup.protein}g` : (soup.protein || '12g'),
-              carbs: typeof soup.carbs === 'number' ? `${soup.carbs}g` : (soup.carbs || '24g'),
-              fats: typeof soup.fats === 'number' ? `${soup.fats}g` : (soup.fats || '6g'),
-              sodium: soup.sodium || soup.sodio_mg || 260
-            }
-          }
+        services: {
+          desayuno: serviceDesayuno,
+          comida: serviceComida,
+          cena: serviceCena
         },
-        optionA: {
-          id: `${weekInfo.weekKey}-${dayName.toLowerCase()}-a`,
-          name: optA.name || 'Platillo Opción A',
-          category: dietOptionA || 'Balance Proteico',
-          calories: optA.calories || 480,
-          protein: typeof optA.protein === 'number' ? `${optA.protein}g` : (optA.protein || '35g'),
-          carbs: typeof optA.carbs === 'number' ? `${optA.carbs}g` : (optA.carbs || '40g'),
-          fats: typeof optA.fats === 'number' ? `${optA.fats}g` : (optA.fats || '14g'),
-          sodium: optA.sodium || optA.sodio_mg || 340,
-          sodio_mg: optA.sodium || optA.sodio_mg || 340,
-          clinicalProfile: optA.clinicalProfile || 'Índice glucémico controlado, digestión ágil en oficina sin causar pesadez post-almuerzo.',
-          allergens: Array.isArray(optA.allergens) ? optA.allergens : [],
-          tags: optA.tags || ['Alto en Proteína', 'Control Glucémico'],
-          image: optA.image || defaultInfo.imageA,
-          recipe: {
-            ingredients: (optA.ingredients && optA.ingredients.trim()) || '',
-            method: methodA,
-            nutrition: {
-              calories: optA.calories || 480,
-              protein: typeof optA.protein === 'number' ? `${optA.protein}g` : (optA.protein || '35g'),
-              carbs: typeof optA.carbs === 'number' ? `${optA.carbs}g` : (optA.carbs || '40g'),
-              fats: typeof optA.fats === 'number' ? `${optA.fats}g` : (optA.fats || '14g'),
-              sodium: optA.sodium || optA.sodio_mg || 340
-            }
-          }
-        },
-        optionB: {
-          id: `${weekInfo.weekKey}-${dayName.toLowerCase()}-b`,
-          name: optB.name || 'Platillo Opción B',
-          category: dietOptionB || 'Plant-Based & Digestión Ligera',
-          calories: optB.calories || 430,
-          protein: typeof optB.protein === 'number' ? `${optB.protein}g` : (optB.protein || '18g'),
-          carbs: typeof optB.carbs === 'number' ? `${optB.carbs}g` : (optB.carbs || '50g'),
-          fats: typeof optB.fats === 'number' ? `${optB.fats}g` : (optB.fats || '16g'),
-          sodium: optB.sodium || optB.sodio_mg || 320,
-          sodio_mg: optB.sodium || optB.sodio_mg || 320,
-          clinicalProfile: optB.clinicalProfile || 'Alto contenido de fibra vegetal e ingredientes antioxidantes antiinflamatorios.',
-          allergens: Array.isArray(optB.allergens) ? optB.allergens : [],
-          tags: optB.tags || ['Plant-Based', 'Fibra Activa'],
-          image: optB.image || defaultInfo.imageB,
-          recipe: {
-            ingredients: (optB.ingredients && optB.ingredients.trim()) || '',
-            method: methodB,
-            nutrition: {
-              calories: optB.calories || 430,
-              protein: typeof optB.protein === 'number' ? `${optB.protein}g` : (optB.protein || '18g'),
-              carbs: typeof optB.carbs === 'number' ? `${optB.carbs}g` : (optB.carbs || '50g'),
-              fats: typeof optB.fats === 'number' ? `${optB.fats}g` : (optB.fats || '16g'),
-              sodium: optB.sodium || optB.sodio_mg || 320
-            }
-          }
-        },
-        optionC: {
-          id: `${weekInfo.weekKey}-${dayName.toLowerCase()}-c`,
-          name: optC.name || 'Platillo Opción C',
-          category: dietOptionC || 'Especial & Hiposódico',
-          calories: optC.calories || 390,
-          protein: typeof optC.protein === 'number' ? `${optC.protein}g` : (optC.protein || '28g'),
-          carbs: typeof optC.carbs === 'number' ? `${optC.carbs}g` : (optC.carbs || '38g'),
-          fats: typeof optC.fats === 'number' ? `${optC.fats}g` : (optC.fats || '12g'),
-          sodium: optC.sodium || optC.sodio_mg || 280,
-          sodio_mg: optC.sodium || optC.sodio_mg || 280,
-          allergens: Array.isArray(optC.allergens) ? optC.allergens : [],
-          tags: optC.tags || ['Especial Nutricional', 'Bajo en Sodio'],
-          recipe: {
-            ingredients: (optC.ingredients && optC.ingredients.trim()) || '',
-            method: methodC,
-            nutrition: {
-              calories: optC.calories || 390,
-              protein: typeof optC.protein === 'number' ? `${optC.protein}g` : (optC.protein || '28g'),
-              carbs: typeof optC.carbs === 'number' ? `${optC.carbs}g` : (optC.carbs || '38g'),
-              fats: typeof optC.fats === 'number' ? `${optC.fats}g` : (optC.fats || '12g'),
-              sodium: optC.sodium || optC.sodio_mg || 280
-            }
-          }
-        }
+        // Retrocompatibilidad raíz con comida
+        soup: serviceComida.soup,
+        optionA: serviceComida.optionA,
+        optionB: serviceComida.optionB,
+        optionC: serviceComida.optionC
       };
     });
 
