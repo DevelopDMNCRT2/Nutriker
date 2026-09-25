@@ -12,14 +12,20 @@ async function migrateUsuariosEmpresas() {
         empresa VARCHAR(100) NOT NULL,
         nombre VARCHAR(150) NOT NULL,
         correo VARCHAR(150) NOT NULL,
+        telefono VARCHAR(30),
         contrasena VARCHAR(255) NOT NULL,
         rol VARCHAR(50) NOT NULL CHECK (rol IN ('Chef', 'Empleado')),
         activo BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        deleted_at TIMESTAMP WITH TIME ZONE,
-        CONSTRAINT uq_empresa_correo UNIQUE (empresa, correo)
+        deleted_at TIMESTAMP WITH TIME ZONE
       );
+
+      ALTER TABLE usuarios_empresas ADD COLUMN IF NOT EXISTS telefono VARCHAR(30);
+
+      -- Permitir re-registro de usuarios dados de baja usando un índice único parcial
+      ALTER TABLE usuarios_empresas DROP CONSTRAINT IF EXISTS uq_empresa_correo;
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_empresa_correo_active ON usuarios_empresas (empresa, correo) WHERE deleted_at IS NULL;
 
       CREATE INDEX IF NOT EXISTS idx_usuarios_empresas_empresa ON usuarios_empresas(empresa);
       CREATE INDEX IF NOT EXISTS idx_usuarios_empresas_correo ON usuarios_empresas(correo);

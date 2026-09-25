@@ -362,3 +362,130 @@ export function generarSSOToken(req, res) {
     res.status(500).json({ error: 'Error interno al generar el token SSO' })
   }
 }
+
+// ─── POST /api/auth/registro-empleado ─────────────────────────────────────────
+// Registro público de empleados exclusivo para Royal Canin con rol inmutable 'Empleado'
+export async function registroEmpleado(req, res) {
+  try {
+    const { nombre, telefono, correo, contrasena, confirmarContrasena, codigoInvitacion } = req.body
+
+    // 1. Validar presencia de campos obligatorios
+    if (!nombre || !telefono || !correo || !contrasena || !confirmarContrasena) {
+      return res.status(400).json({ error: 'Todos los campos son obligatorios (nombre, teléfono, correo, contraseña y confirmación).' })
+    }
+
+    const nombreLimpio = String(nombre).trim()
+    const telefonoLimpio = String(telefono).trim()
+    const correoLimpio = String(correo).trim().toLowerCase()
+    const passLimpio = String(contrasena)
+    const codigoLimpio = codigoInvitacion ? String(codigoInvitacion).trim() : ''
+
+    // 2. Validar longitudes máximas y bytes (evitar error de VARCHAR o truncado de bcrypt)
+    if (nombreLimpio.length > 150) {
+      return res.status(400).json({ error: 'El nombre no puede exceder 150 caracteres.' })
+    }
+    if (correoLimpio.length > 150) {
+      return res.status(400).json({ error: 'El correo electrónico no puede exceder 150 caracteres.' })
+    }
+    if (Buffer.byteLength(passLimpio, 'utf8') > 72) {
+      return res.status(400).json({ error: 'La contraseña no puede exceder los 72 bytes de longitud.' })
+    }
+
+    // 3. Validar formato de correo electrónico
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(correoLimpio)) {
+      return res.status(400).json({ error: 'El formato de correo electrónico no es válido.' })
+    }
+
+    // 4. Restricción de dominios corporativos autorizados o código de invitación de empresa
+    const allowedDomainsEnv = process.env.ALLOWED_EMPLOYEE_DOMAINS || 'royalcanin.com,mars.com'
+    const allowedDomains = allowedDomainsEnv.split(',').map(d => d.trim().toLowerCase().replace(/^@/, ''))
+    const emailDomain = correoLimpio.split('@')[1]
+    const inviteCodeEnv = process.env.EMPLOYEE_INVITE_CODE || 'ROYAL2026'
+
+    const isAllowedDomain = allowedDomains.includes(emailDomain)
+    const isValidInvite = Boolean(codigoLimpio && codigoLimpio === inviteCodeEnv)
+
+    if (!isAllowedDomain && !isValidInvite) {
+      return res.status(403).json({ 
+        error: `El registro requiere un correo corporativo autorizado (@${allowedDomains.join(', @')}) o un código de invitación válido.` 
+      })
+    }
+
+    // 5. Validar longitud y dígitos del teléfono (entre 8 y 13 dígitos)
+    const cleanPhone = telefonoLimpio.replace(/\D/g, '')
+    if (cleanPhone.length < 8 || cleanPhone.length > 13) {
+      return res.status(400).json({ error: 'El número de teléfono debe contener entre 8 y 13 dígitos numéricos.' })
+    }
+
+    // 6. Validar longitud y coincidencia de contraseña
+    if (passLimpio.length < 6) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres.' })
+    }
+    if (passLimpio !== String(confirmarContrasena)) {
+      return res.status(400).json({ error: 'Las contraseñas ingresadas no coinciden.' })
+    }
+
+    // 7. Verificar si el correo ya existe en la plataforma (mensaje 409 genérico anti-enumeración)
+    const existeEnEmpresas = await pool.query(
+      `SELECT id FROM usuarios_empresas WHERE LOWER(correo) = $1 AND deleted_at IS NULL`,
+      [correoLimpio]
+    )
+    const existeEnUsuarios = await pool.query(
+      `SELECT id FROM usuarios WHERE LOWER(correo) = $1 AND deleted_at IS NULL`,
+      [correoLimpio]
+    )
+    if (existeEnEmpresas.rowCount > 0 || existeEnUsuarios.rowCount > 0) {
+      return res.status(409).json({ error: 'Ya existe una cuenta registrada con este correo electrónico.' })
+    }
+
+    // 8. Encriptar contraseña de forma segura con bcrypt
+    const hashedPass = await bcrypt.hash(passLimpio, 10)
+
+    // 9. Generar identificador único
+    const newId = await generarIdUnico('usuarios_empresas')
+
+    // 10. Inserción con rol strictly 'Empleado' y empresa 'Royal Canin'
+    const result = await pool.query(
+      `INSERT INTO usuarios_empresas (id, empresa, nombre, correo, telefono, contrasena, rol, activo)
+       VALUES ($1, 'Royal Canin', $2, $3, $4, $5, 'Empleado', TRUE)
+       RETURNING id, empresa, nombre, correo, telefono, rol, activo, created_at`,
+      [newId, nombreLimpio, correoLimpio, cleanPhone, hashedPass]
+    )
+
+    const nuevoEmpleado = result.rows[0]
+
+    // 11. Generar token JWT con vigencia estándar de 8 horas (igual al login)
+    const token = jwt.sign(
+      {
+        id: nuevoEmpleado.id,
+        nombre: nuevoEmpleado.nombre,
+        correo: nuevoEmpleado.correo,
+        rol: 'Empleado',
+        empresa: 'Royal Canin'
+      },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    )
+
+    return res.status(201).json({
+      mensaje: 'Empleado registrado exitosamente',
+      token,
+      usuario: {
+        id: nuevoEmpleado.id,
+        nombre: nuevoEmpleado.nombre,
+        correo: nuevoEmpleado.correo,
+        telefono: nuevoEmpleado.telefono,
+        rol: 'Empleado',
+        empresa: 'Royal Canin'
+      }
+    })
+  } catch (error) {
+    console.error('Error en /api/auth/registro-empleado:', error)
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'El correo electrónico ya se encuentra registrado.' })
+    }
+    return res.status(500).json({ error: 'Error interno del servidor al procesar el registro.' })
+  }
+}
+

@@ -1,5 +1,5 @@
 import express from 'express'
-import { verificarToken } from '../middleware/authMiddleware.js'
+import { verificarToken, verificarRol } from '../middleware/authMiddleware.js'
 import {
   getCitas,
   getCitaById,
@@ -22,11 +22,12 @@ const upload = multer({ storage: multer.memoryStorage() })
 router.post('/', createCita)
 router.get('/horarios-ocupados', getHorariosOcupados)
 
-// Rutas protegidas (Admin)
-router.get('/', verificarToken, getCitas)
-router.post('/importar', verificarToken, upload.single('archivo'), importarCitas)
-router.get('/:id', verificarToken, getCitaById)
-router.put('/:id', verificarToken, updateCita)
-router.delete('/:id', verificarToken, deleteCita)
+// Rutas protegidas (Personal Clínico / Administrativo Autorizado)
+const rolesClinicos = verificarRol('Administrador', 'Nutrióloga', 'RRHH')
+router.get('/', verificarToken, rolesClinicos, getCitas)
+router.post('/importar', verificarToken, rolesClinicos, upload.single('archivo'), importarCitas)
+router.get('/:id', verificarToken, rolesClinicos, getCitaById)
+router.put('/:id', verificarToken, rolesClinicos, updateCita)
+router.delete('/:id', verificarToken, rolesClinicos, deleteCita)
 
 export default router

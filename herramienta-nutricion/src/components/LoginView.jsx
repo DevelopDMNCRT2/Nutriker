@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Lock, User, ArrowRight, Salad } from 'lucide-react';
 import { chefInfo, nutriologaInfo } from '../data/mockData';
 import { API_BASE_URL } from '../services/menuStore';
+import BlurredAppBackdrop from './BlurredAppBackdrop';
 
-export default function LoginView({ onLoginSuccess }) {
+export default function LoginView({ onLoginSuccess, onSwitchToRegister }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,7 +44,20 @@ export default function LoginView({ onLoginSuccess }) {
       } else if (userLower.includes('nutri') || userLower.includes('karla')) {
         onLoginSuccess('nutriologa', { nombre: nutriologaInfo.name, rol: 'Nutriologa' });
       } else {
-        onLoginSuccess('participant', { nombre: 'Ana Sofía Morales', rol: 'Empleado' });
+        const savedUsers = JSON.parse(localStorage.getItem('royal_registered_users') || '[]');
+        const matched = savedUsers.find(u => u.correo?.toLowerCase() === username.trim().toLowerCase());
+        const dynamicName = matched?.nombre || (
+          username.includes('@')
+            ? username.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+            : username.trim()
+        );
+        onLoginSuccess('participant', {
+          id: matched?.id || 'EMP-' + Math.floor(1000 + Math.random() * 9000),
+          nombre: dynamicName,
+          correo: username.trim().toLowerCase(),
+          rol: 'Empleado',
+          empresa: 'Royal Canin'
+        });
       }
     } finally {
       setLoading(false);
@@ -53,21 +67,29 @@ export default function LoginView({ onLoginSuccess }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#F8FAFC',
+      position: 'relative',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       padding: '2rem 1rem',
-      fontFamily: 'system-ui, -apple-system, sans-serif'
+      fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
+      overflow: 'hidden'
     }}>
+      {/* Fondo Desenfocado con Profundidad Óptica (Bokeh / Profundidad de Campo) */}
+      <BlurredAppBackdrop />
+
       <div style={{
         maxWidth: '440px',
         width: '100%',
-        background: '#FFFFFF',
-        borderRadius: '20px',
-        border: '1px solid #E2E8F0',
-        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01)',
-        padding: '2.5rem 2rem'
+        background: 'rgba(255, 255, 255, 0.98)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderRadius: '24px',
+        border: '1px solid rgba(255, 255, 255, 0.9)',
+        boxShadow: '0 32px 85px -15px rgba(15, 23, 42, 0.36), 0 18px 40px -10px rgba(226, 0, 26, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.7), 0 0 50px -5px rgba(226, 0, 26, 0.12)',
+        padding: '2.5rem 2rem',
+        position: 'relative',
+        zIndex: 10
       }}>
         
         {/* Header / Brand */}
@@ -76,20 +98,23 @@ export default function LoginView({ onLoginSuccess }) {
             width: '48px',
             height: '48px',
             borderRadius: '14px',
-            background: 'var(--primary, #E11D48)',
+            background: '#E2001A',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: 'white',
             marginBottom: '1rem',
-            boxShadow: '0 4px 12px rgba(225, 29, 72, 0.25)'
+            boxShadow: '0 4px 12px rgba(226, 0, 26, 0.25)'
           }}>
             <Salad size={26} />
           </div>
 
           <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0F172A' }}>
-            NutriKer <span style={{ color: 'var(--primary, #E11D48)' }}>Royal Canin</span>
+            NutriKer <span style={{ color: '#E2001A' }}>Royal Canin</span>
           </h1>
+          <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.82rem', color: '#64748B' }}>
+            Plataforma Institucional de Nutrición Corporativa
+          </p>
         </div>
 
         {errorMsg && (
@@ -156,7 +181,7 @@ export default function LoginView({ onLoginSuccess }) {
             type="submit"
             disabled={loading}
             style={{
-              background: 'var(--primary, #E11D48)',
+              background: '#E2001A',
               color: 'white',
               border: 'none',
               padding: '0.85rem',
@@ -168,13 +193,42 @@ export default function LoginView({ onLoginSuccess }) {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '0.5rem',
-              boxShadow: '0 4px 12px rgba(225, 29, 72, 0.25)',
+              boxShadow: '0 4px 12px rgba(226, 0, 26, 0.25)',
               marginTop: '0.5rem'
             }}
           >
             {loading ? 'Verificando...' : <>Ingresar al Sistema <ArrowRight size={18} /></>}
           </button>
         </form>
+
+        {/* Enlace para registrarse como empleado */}
+        {onSwitchToRegister && (
+          <div style={{
+            marginTop: '1.75rem',
+            paddingTop: '1.25rem',
+            borderTop: '1px solid #F1F5F9',
+            textAlign: 'center',
+            fontSize: '0.85rem',
+            color: '#64748B'
+          }}>
+            ¿Eres colaborador de Royal Canin y aún no tienes cuenta?{' '}
+            <button
+              type="button"
+              onClick={onSwitchToRegister}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#E2001A',
+                fontWeight: '800',
+                cursor: 'pointer',
+                textDecoration: 'underline',
+                padding: 0
+              }}
+            >
+              Regístrate aquí
+            </button>
+          </div>
+        )}
 
       </div>
     </div>

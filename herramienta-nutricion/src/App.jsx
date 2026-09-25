@@ -7,11 +7,21 @@ import NutriologaView from './components/NutriologaView';
 import ChefView from './components/ChefView';
 import NotificationModal from './components/NotificationModal';
 import LoginView from './components/LoginView';
+import RegisterView from './components/RegisterView';
 import { cyclicMenus, sampleParticipants, chefInfo, nutriologaInfo } from './data/mockData';
 import { getWeekInfoFromDate } from './services/menuStore';
 
+const isRegisterRoute = () => {
+  if (typeof window === 'undefined') return false;
+  const path = window.location.pathname.toLowerCase();
+  const hash = window.location.hash.toLowerCase();
+  const params = new URLSearchParams(window.location.search);
+  return path === '/registro' || path.startsWith('/registro') || hash === '#registro' || params.get('mode') === 'register' || params.get('register') === 'true';
+};
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(localStorage.getItem('royal_role')));
+  const [authMode, setAuthMode] = useState(() => (isRegisterRoute() ? 'register' : 'login')); // 'login' | 'register'
   const [currentView, setCurrentView] = useState(() => localStorage.getItem('royal_role') || 'participant'); // 'participant' | 'admin' | 'chef' | 'nutriologa'
   const [selectedWeek, setSelectedWeek] = useState(() => getWeekInfoFromDate(new Date()).weekNumber);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -26,7 +36,7 @@ export default function App() {
     const role = localStorage.getItem('royal_role');
     if (role === 'chef') return { nombre: chefInfo.name, rol: 'Chef' };
     if (role === 'nutriologa') return { nombre: nutriologaInfo.name, rol: 'Nutrióloga' };
-    return { nombre: 'Ana Sofía Morales', rol: 'Empleado' };
+    return { nombre: 'Colaborador Royal Canin', rol: 'Empleado' };
   });
 
   // Active Service Profile (Corporate B2B vs Senior Care)
@@ -39,13 +49,23 @@ export default function App() {
 
   const isAdmin = currentUser?.rol === 'Administrador' || currentUser?.rol === 'Admin';
 
-  // Detectar rol activo por parámetro de URL (?role=chef | ?role=nutriologa)
+  // Detectar ruta /registro, popstate del navegador o rol por parámetro de URL
   useEffect(() => {
+    const syncRoute = () => {
+      const isReg = isRegisterRoute();
+      setAuthMode(isReg ? 'register' : 'login');
+    };
+
+    window.addEventListener('popstate', syncRoute);
+    syncRoute();
+
     const params = new URLSearchParams(window.location.search);
     const roleParam = params.get('role');
     if (roleParam && ['participant', 'chef', 'nutriologa', 'admin'].includes(roleParam)) {
       handleLoginSuccess(roleParam === 'admin' ? 'nutriologa' : roleParam, null);
     }
+
+    return () => window.removeEventListener('popstate', syncRoute);
   }, []);
 
   const handleLoginSuccess = (roleKey, userObj) => {
@@ -57,9 +77,20 @@ export default function App() {
       setCurrentUser(userObj);
       localStorage.setItem('royal_user', JSON.stringify(userObj));
     } else {
+      try {
+        const saved = localStorage.getItem('royal_user');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const expectedRol = roleKey === 'chef' ? 'Chef' : (roleKey === 'nutriologa' ? 'Nutrióloga' : (roleKey === 'admin' ? 'Administrador' : 'Empleado'));
+          if (!roleKey || parsed.rol === expectedRol) {
+            setCurrentUser(parsed);
+            return;
+          }
+        }
+      } catch (e) {}
       if (roleKey === 'chef') setCurrentUser({ nombre: chefInfo.name, rol: 'Chef' });
       else if (roleKey === 'nutriologa') setCurrentUser({ nombre: nutriologaInfo.name, rol: 'Nutrióloga' });
-      else setCurrentUser({ nombre: 'Ana Sofía Morales', rol: 'Empleado' });
+      else setCurrentUser({ nombre: 'Colaborador Royal Canin', rol: 'Empleado' });
     }
   };
 
@@ -129,7 +160,36 @@ export default function App() {
   };
 
   if (!isLoggedIn) {
-    return <LoginView onLoginSuccess={handleLoginSuccess} />;
+    if (authMode === 'register') {
+      return (
+        <RegisterView
+          onRegisterSuccess={(usuario, token) => {
+            if (token) localStorage.setItem('token', token);
+            window.history.replaceState({}, '', '/');
+            handleLoginSuccess('participant', usuario);
+            confetti({
+              particleCount: 65,
+              spread: 70,
+              origin: { y: 0.7 },
+              colors: ['#E2001A', '#C40016', '#FFFFFF', '#16A34A']
+            });
+          }}
+          onSwitchToLogin={() => {
+            setAuthMode('login');
+            window.history.pushState({}, '', '/');
+          }}
+        />
+      );
+    }
+    return (
+      <LoginView
+        onLoginSuccess={handleLoginSuccess}
+        onSwitchToRegister={() => {
+          setAuthMode('register');
+          window.history.pushState({}, '', '/registro');
+        }}
+      />
+    );
   }
 
   return (
