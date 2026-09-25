@@ -176,6 +176,23 @@ export const menuStore = {
           const currentStored = localStorage.getItem(`${MENU_STORAGE_PREFIX}${weekInfo.weekKey}`);
           const stringified = JSON.stringify(formattedMenu);
           if (currentStored !== stringified) {
+            // Protección contra sobreescritura con datos obsoletos del backend
+            if (currentStored) {
+              try {
+                const parsedStored = JSON.parse(currentStored);
+                if (parsedStored && parsedStored.publishedAt && formattedMenu.publishedAt) {
+                  if (new Date(parsedStored.publishedAt).getTime() > new Date(formattedMenu.publishedAt).getTime()) {
+                    return parsedStored;
+                  }
+                }
+                // Si el almacén local ya tiene perfiles clínicos reales y el backend aún no, conservar local
+                const localHasClinical = parsedStored?.days?.some(d => d.soup?.clinicalProfile && d.optionA?.clinicalProfile);
+                const backendMissingClinical = !formattedMenu?.days?.some(d => d.soup?.clinicalProfile && d.optionA?.clinicalProfile);
+                if (localHasClinical && backendMissingClinical) {
+                  return parsedStored;
+                }
+              } catch (_) {}
+            }
             localStorage.setItem(`${MENU_STORAGE_PREFIX}${weekInfo.weekKey}`, stringified);
             localStorage.setItem(`${MENU_STORAGE_PREFIX}w${weekInfo.weekNumber}`, stringified);
             if (weekInfo.weekNumber === 1) {
@@ -323,7 +340,7 @@ export const menuStore = {
   },
 
   // Publicar menú desde la Nutrióloga para cualquier semana seleccionada
-  publishMenu({ weekInput = 1, week = 1, daysPerWeek, dietOptionA, dietOptionB, dietOptionC, dishSelection, humanVerification, daysList }) {
+  async publishMenu({ weekInput = 1, week = 1, daysPerWeek, dietOptionA, dietOptionB, dietOptionC, dishSelection, humanVerification, daysList }) {
     const weekInfo = this.normalizeWeek(weekInput || week);
     const ALL_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
     const numDays = Array.isArray(daysList) && daysList.length > 0 ? daysList.length : (parseInt(daysPerWeek, 10) || 5);
@@ -366,6 +383,7 @@ export const menuStore = {
           fats: typeof soup.fats === 'number' ? `${soup.fats}g` : (soup.fats || '6g'),
           sodium: soup.sodium || soup.sodio_mg || 260,
           sodio_mg: soup.sodium || soup.sodio_mg || 260,
+          clinicalProfile: soup.clinicalProfile || null,
           allergens: Array.isArray(soup.allergens) ? soup.allergens : [],
           tags: ['Sopa', 'Fácil Deglución', 'Hidratación'],
           recipe: {
@@ -390,7 +408,7 @@ export const menuStore = {
           fats: typeof optA.fats === 'number' ? `${optA.fats}g` : (optA.fats || '14g'),
           sodium: optA.sodium || optA.sodio_mg || 340,
           sodio_mg: optA.sodium || optA.sodio_mg || 340,
-          clinicalProfile: optA.clinicalProfile || 'Índice glucémico controlado, digestión ágil en oficina sin causar pesadez post-almuerzo.',
+          clinicalProfile: optA.clinicalProfile || null,
           allergens: Array.isArray(optA.allergens) ? optA.allergens : [],
           tags: optA.tags || ['Alto en Proteína', 'Control Glucémico'],
           image: optA.image || defaultInfo.imageA,
@@ -416,7 +434,7 @@ export const menuStore = {
           fats: typeof optB.fats === 'number' ? `${optB.fats}g` : (optB.fats || '16g'),
           sodium: optB.sodium || optB.sodio_mg || 320,
           sodio_mg: optB.sodium || optB.sodio_mg || 320,
-          clinicalProfile: optB.clinicalProfile || 'Alto contenido de fibra vegetal e ingredientes antioxidantes antiinflamatorios.',
+          clinicalProfile: optB.clinicalProfile || null,
           allergens: Array.isArray(optB.allergens) ? optB.allergens : [],
           tags: optB.tags || ['Plant-Based', 'Fibra Activa'],
           image: optB.image || defaultInfo.imageB,
@@ -442,6 +460,7 @@ export const menuStore = {
           fats: typeof optC.fats === 'number' ? `${optC.fats}g` : (optC.fats || '12g'),
           sodium: optC.sodium || optC.sodio_mg || 280,
           sodio_mg: optC.sodium || optC.sodio_mg || 280,
+          clinicalProfile: optC.clinicalProfile || null,
           allergens: Array.isArray(optC.allergens) ? optC.allergens : [],
           tags: optC.tags || ['Especial Nutricional', 'Bajo en Sodio'],
           recipe: {
@@ -495,31 +514,36 @@ export const menuStore = {
       }
     }));
 
-    // Persistir asíncronamente en backend PostgreSQL (3FN)
-    fetch(`${API_BASE_URL}/api/royal/menu`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        empresa: 'Casa Nostra',
-        weekKey: activeMenu.weekKey,
-        weekNumber: activeMenu.weekNumber,
-        daysPerWeek: activeMenu.daysPerWeek,
-        dietOptionA: activeMenu.dietOptionA,
-        dietOptionB: activeMenu.dietOptionB,
-        dietOptionC: activeMenu.dietOptionC,
-        humanVerification: activeMenu.humanVerification,
-        days: activeMenu.days
-      })
-    })
-      .then(res => res.json())
-      .then(result => {
-        if (result.success) {
-          console.log('✅ Menú semanal persistido en PostgreSQL:', result.menuId);
-        }
-      })
-      .catch(err => {
-        console.warn('⚠️ No se pudo persistir en backend, menú guardado en localStorage:', err.message);
+    // Invalidar caché de sincronización para que las consultas subsecuentes no usen respuestas anteriores
+    const syncCacheKey = `menu_${weekInfo.weekKey}`;
+    if (this._syncMenuCache && this._syncMenuCache[syncCacheKey]) {
+      delete this._syncMenuCache[syncCacheKey];
+    }
+
+    // Persistir asíncronamente en backend PostgreSQL (3FN) con await para evitar condiciones de carrera
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/royal/menu`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresa: 'Casa Nostra',
+          weekKey: activeMenu.weekKey,
+          weekNumber: activeMenu.weekNumber,
+          daysPerWeek: activeMenu.daysPerWeek,
+          dietOptionA: activeMenu.dietOptionA,
+          dietOptionB: activeMenu.dietOptionB,
+          dietOptionC: activeMenu.dietOptionC,
+          humanVerification: activeMenu.humanVerification,
+          days: activeMenu.days
+        })
       });
+      const result = await res.json();
+      if (result.success) {
+        console.log('✅ Menú semanal persistido en PostgreSQL:', result.menuId);
+      }
+    } catch (err) {
+      console.warn('⚠️ No se pudo persistir en backend, menú guardado en localStorage:', err.message);
+    }
 
     return activeMenu;
   },

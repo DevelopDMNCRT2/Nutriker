@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { HeartPulse, ShieldCheck, CheckCircle2, AlertTriangle, Activity, Apple, Flame, Wand2, ChevronRight, ChevronDown, ArrowLeft, Check, RefreshCw, Layers, Scale, Users, Plus, Minus, Calculator, Lock, Soup, Sparkles } from 'lucide-react';
-
 import { cyclicMenus, nutriologaInfo, programInfo } from '../data/mockData';
 import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
 import { scaleIngredients, scaleNutrition } from '../utils/recipeScaler';
@@ -30,16 +30,40 @@ const createEmptyDishGrid = () => {
   return grid;
 };
 
-export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa_nostra' }) {
+export default function NutriologaView({ selectedWeek, onWeekChange, serviceProfileKey = 'casa_nostra' }) {
   const [activeTab, setActiveTab] = useState('wizard'); // 'wizard' | 'audit'
 
-  // Semana en curso calculada dinámicamente según la fecha actual del sistema
-  const [targetWeekInfo, setTargetWeekInfo] = useState(() => getWeekInfoFromDate(new Date()));
+  // Semana calculada dinámicamente según la semana seleccionada o la sesión activa
+  const [targetWeekInfo, setTargetWeekInfo] = useState(() => {
+    if (selectedWeek && typeof selectedWeek === 'number') {
+      return getWeekInfoFromDate(selectedWeek);
+    }
+    try {
+      const saved = sessionStorage.getItem('nutriker_active_session_week');
+      if (saved) {
+        const num = parseInt(saved, 10);
+        if (!isNaN(num) && num > 0) return getWeekInfoFromDate(num);
+      }
+    } catch (_) {}
+    return getWeekInfoFromDate(new Date());
+  });
+
   const [activeMenu, setActiveMenu] = useState(() => menuStore.getActiveMenu(targetWeekInfo));
 
+  // Sincronizar targetWeekInfo si cambia selectedWeek desde el componente padre
+  useEffect(() => {
+    if (selectedWeek && typeof selectedWeek === 'number') {
+      const info = getWeekInfoFromDate(selectedWeek);
+      if (info.weekKey !== targetWeekInfo.weekKey) {
+        setTargetWeekInfo(info);
+      }
+    }
+  }, [selectedWeek]);
+
+  // Actualizar reactivamente activeMenu al cambiar la semana o al alternar a la pestaña de auditoría
   useEffect(() => {
     setActiveMenu(menuStore.getActiveMenu(targetWeekInfo));
-  }, [targetWeekInfo]);
+  }, [targetWeekInfo, activeTab]);
 
   useEffect(() => {
     const handleMenuUpdate = (e) => {
@@ -50,6 +74,18 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
     window.addEventListener('royal_canin_menu_updated', handleMenuUpdate);
     return () => window.removeEventListener('royal_canin_menu_updated', handleMenuUpdate);
   }, [targetWeekInfo]);
+
+  const handleWeekChange = (newWeekInfo) => {
+    setTargetWeekInfo(newWeekInfo);
+    if (newWeekInfo?.weekNumber) {
+      try {
+        sessionStorage.setItem('nutriker_active_session_week', String(newWeekInfo.weekNumber));
+      } catch (_) {}
+      if (onWeekChange) {
+        onWeekChange(newWeekInfo.weekNumber);
+      }
+    }
+  };
 
   // Wizard state: Selector de Días L M I J V S D
   const [wizardStep, setWizardStep] = useState(1);
@@ -131,65 +167,29 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
   };
   const currentDay = (weekData.days && weekData.days[safeDayIndex]) || null;
 
-  // Auto-enriquecer en tiempo real con IA cualquier platillo publicado que no tenga aún cálculo clínico de macros o alérgenos
-  useEffect(() => {
-    if (!currentDay) return;
-    const enrichDish = async (dish, optionKey) => {
-      if (!dish || !dish.name) return;
-      const isDefaultMock = (dish.calories === 480 && (dish.protein === '35g' || dish.protein === 35) && !dish.clinicalProfile);
-      const isMissingClinical = !dish.clinicalProfile || !Array.isArray(dish.allergens) || dish.allergens.length === 0;
 
-      if ((isDefaultMock || isMissingClinical) && !dish._aiEnriching) {
-        dish._aiEnriching = true;
-        try {
-          const res = await menuStore.analyzeDishWithAI({
-            name: dish.name,
-            ingredients: dish.recipe?.ingredients || '',
-            category: dish.category || (optionKey === 'optionA' ? dietOptionA : dietOptionB)
-          });
-          if (res) {
-            dish.calories = res.calorias;
-            dish.protein = typeof res.proteina === 'number' ? `${res.proteina}g` : res.proteina;
-            dish.carbs = typeof res.carbos === 'number' ? `${res.carbos}g` : res.carbos;
-            dish.fats = typeof res.grasas === 'number' ? `${res.grasas}g` : res.grasas;
-            dish.sodium = res.sodio_mg || 340;
-            dish.sodio_mg = res.sodio_mg || 340;
-            dish.clinicalProfile = res.perfilClinico;
-            dish.allergens = res.alergenos || [];
-            if (dish.recipe) {
-              dish.recipe.nutrition = {
-                calories: res.calorias,
-                protein: dish.protein,
-                carbs: dish.carbs,
-                fats: dish.fats,
-                sodium: res.sodio_mg || 340
-              };
-            }
-            
-            // Persistir de inmediato en localStorage y emitir evento
-            const updatedMenu = { ...activeMenu };
-            localStorage.setItem(`casa_nostra_menu_v2_${targetWeekInfo.weekKey}`, JSON.stringify(updatedMenu));
-            localStorage.setItem(`casa_nostra_menu_v2_w${targetWeekInfo.weekNumber}`, JSON.stringify(updatedMenu));
-            setActiveMenu(updatedMenu);
-            window.dispatchEvent(new CustomEvent('royal_canin_menu_updated', {
-              detail: { weekKey: targetWeekInfo.weekKey, weekNumber: targetWeekInfo.weekNumber, activeMenu: updatedMenu }
-            }));
-          }
-        } catch (e) {
-          console.warn('Error en enriquecimiento automático de platillo:', e);
-        } finally {
-          dish._aiEnriching = false;
-        }
-      }
-    };
-
-    if (currentDay.optionA) enrichDish(currentDay.optionA, 'optionA');
-    if (currentDay.optionB) enrichDish(currentDay.optionB, 'optionB');
-  }, [currentDay, targetWeekInfo]);
   const [isHumanVerified, setIsHumanVerified] = useState(false);
   const [humanAuditNotes, setHumanAuditNotes] = useState('');
 
   const [isPublishing, setIsPublishing] = useState(false);
+  const [publishingState, setPublishingState] = useState({
+    active: false,
+    step: 'ai', // 'ai' | 'saving' | 'done'
+    completed: 0,
+    total: 0,
+    currentDish: ''
+  });
+
+  // Bloquear scroll de la página de fondo mientras el preloader está activo
+  useEffect(() => {
+    if (publishingState.active) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [publishingState.active]);
 
   const handleDishChange = (dayName, option, field, newValue) => {
     setDishSelection(prev => ({
@@ -208,128 +208,120 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
     setIsPublishing(true);
     setIsHumanVerified(true);
 
-    // Enriquecer automáticamente todos los platillos (sopa y 3 enfoques) con el nodo de IA
-    const updatedSelection = { ...dishSelection };
-    const promises = [];
-
+    const updatedSelection = JSON.parse(JSON.stringify(dishSelection));
+    
+    // Recopilar preparaciones a enriquecer (Sopa fija + 3 enfoques)
+    const dishesToEnrich = [];
     activeDays.forEach(dayName => {
       const dayDishes = updatedSelection[dayName] || {};
       
       // Sopa fija obligatoria
       if (dayDishes.soup?.name) {
-        promises.push(
-          menuStore.analyzeDishWithAI({
-            name: dayDishes.soup.name,
-            ingredients: dayDishes.soup.ingredients,
-            category: 'Sopa'
-          }).then(res => {
-            if (res) {
-              updatedSelection[dayName] = {
-                ...updatedSelection[dayName],
-                soup: {
-                  ...updatedSelection[dayName].soup,
-                  calories: res.calorias,
-                  protein: res.proteina,
-                  carbs: res.carbos,
-                  fats: res.grasas,
-                  clinicalProfile: res.perfilClinico,
-                  allergens: res.alergenos
-                }
-              };
-            }
-          }).catch(() => {})
-        );
+        dishesToEnrich.push({
+          dayName,
+          option: 'soup',
+          name: dayDishes.soup.name,
+          ingredients: dayDishes.soup.ingredients,
+          category: 'Sopa'
+        });
       }
 
       // Opción A
       if (dayDishes.optionA?.name) {
-        promises.push(
-          menuStore.analyzeDishWithAI({
-            name: dayDishes.optionA.name,
-            ingredients: dayDishes.optionA.ingredients,
-            category: dietOptionA
-          }).then(res => {
-            if (res) {
-              updatedSelection[dayName] = {
-                ...updatedSelection[dayName],
-                optionA: {
-                  ...updatedSelection[dayName].optionA,
-                  calories: res.calorias,
-                  protein: res.proteina,
-                  carbs: res.carbos,
-                  fats: res.grasas,
-                  sodium: res.sodio_mg || 340,
-                  sodio_mg: res.sodio_mg || 340,
-                  clinicalProfile: res.perfilClinico,
-                  allergens: res.alergenos
-                }
-              };
-            }
-          }).catch(() => {})
-        );
+        dishesToEnrich.push({
+          dayName,
+          option: 'optionA',
+          name: dayDishes.optionA.name,
+          ingredients: dayDishes.optionA.ingredients,
+          category: dietOptionA
+        });
       }
 
       // Opción B
       if (dayDishes.optionB?.name) {
-        promises.push(
-          menuStore.analyzeDishWithAI({
-            name: dayDishes.optionB.name,
-            ingredients: dayDishes.optionB.ingredients,
-            category: dietOptionB
-          }).then(res => {
-            if (res) {
-              updatedSelection[dayName] = {
-                ...updatedSelection[dayName],
-                optionB: {
-                  ...updatedSelection[dayName].optionB,
-                  calories: res.calorias,
-                  protein: res.proteina,
-                  carbs: res.carbos,
-                  fats: res.grasas,
-                  sodium: res.sodio_mg || 340,
-                  sodio_mg: res.sodio_mg || 340,
-                  clinicalProfile: res.perfilClinico,
-                  allergens: res.alergenos
-                }
-              };
-            }
-          }).catch(() => {})
-        );
+        dishesToEnrich.push({
+          dayName,
+          option: 'optionB',
+          name: dayDishes.optionB.name,
+          ingredients: dayDishes.optionB.ingredients,
+          category: dietOptionB
+        });
       }
 
       // Opción C
       if (dayDishes.optionC?.name) {
-        promises.push(
-          menuStore.analyzeDishWithAI({
-            name: dayDishes.optionC.name,
-            ingredients: dayDishes.optionC.ingredients,
-            category: dietOptionC
-          }).then(res => {
-            if (res) {
-              updatedSelection[dayName] = {
-                ...updatedSelection[dayName],
-                optionC: {
-                  ...updatedSelection[dayName].optionC,
-                  calories: res.calorias,
-                  protein: res.proteina,
-                  carbs: res.carbos,
-                  fats: res.grasas,
-                  clinicalProfile: res.perfilClinico,
-                  allergens: res.alergenos
-                }
-              };
-            }
-          }).catch(() => {})
-        );
+        dishesToEnrich.push({
+          dayName,
+          option: 'optionC',
+          name: dayDishes.optionC.name,
+          ingredients: dayDishes.optionC.ingredients,
+          category: dietOptionC
+        });
       }
     });
 
-    try {
-      await Promise.all(promises);
-    } catch (_) {}
+    const totalDishes = dishesToEnrich.length;
+    setPublishingState({
+      active: true,
+      step: 'ai',
+      completed: 0,
+      total: totalDishes,
+      currentDish: dishesToEnrich[0]?.name || ''
+    });
 
-    // Persist menu in menuStore para la semana seleccionada en calendario con los 4 enfoques
-    const published = menuStore.publishMenu({
+    let completedCount = 0;
+    const promises = dishesToEnrich.map(item => {
+      return menuStore.analyzeDishWithAI({
+        name: item.name,
+        ingredients: item.ingredients,
+        category: item.category
+      }).then(res => {
+        return { item, res };
+      }).catch(e => {
+        console.warn('Error al enriquecer platillo con IA:', item.name, e);
+        return { item, res: null };
+      }).finally(() => {
+        completedCount++;
+        setPublishingState(prev => ({
+          ...prev,
+          completed: completedCount,
+          currentDish: dishesToEnrich[completedCount]?.name || ''
+        }));
+      });
+    });
+
+    const results = await Promise.all(promises);
+
+    results.forEach(({ item, res }) => {
+      if (res) {
+        if (!updatedSelection[item.dayName]) updatedSelection[item.dayName] = {};
+        if (!updatedSelection[item.dayName][item.option]) updatedSelection[item.dayName][item.option] = {};
+        updatedSelection[item.dayName][item.option] = {
+          ...updatedSelection[item.dayName][item.option],
+          calories: res.calorias,
+          protein: res.proteina,
+          carbs: res.carbos,
+          fats: res.grasas,
+          sodium: res.sodio_mg || 340,
+          sodio_mg: res.sodio_mg || 340,
+          clinicalProfile: res.perfilClinico,
+          allergens: res.alergenos
+        };
+      }
+    });
+
+    setDishSelection(updatedSelection);
+
+    // Transición a etapa de guardado
+    setPublishingState(prev => ({
+      ...prev,
+      step: 'saving',
+      completed: totalDishes,
+      currentDish: ''
+    }));
+
+    // Persistir menú en menuStore para la semana seleccionada en calendario con los 4 enfoques (esperar persistencia en base de datos)
+    const published = await menuStore.publishMenu({
       weekInput: targetWeekInfo,
       daysPerWeek: String(activeDays.length),
       dietOptionA,
@@ -343,13 +335,21 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
       setActiveMenu(published);
     }
 
-    setIsPublishing(false);
+    // Transición a éxito completado
+    setPublishingState(prev => ({
+      ...prev,
+      step: 'done'
+    }));
     setWizardSuccess(true);
+
+    // Pausa estética para visualizar el 100% y transición suave sin saltos
     setTimeout(() => {
+      setPublishingState({ active: false, step: 'ai', completed: 0, total: 0, currentDish: '' });
+      setIsPublishing(false);
       setWizardSuccess(false);
       setWizardStep(1);
       setActiveTab('audit');
-    }, 1200);
+    }, 950);
   };
 
   return (
@@ -399,9 +399,7 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
       <div style={{ marginBottom: '1.25rem' }}>
         <WeekCalendarPicker
           selectedWeekInfo={targetWeekInfo}
-          onChangeWeek={(newWeekInfo) => {
-            setTargetWeekInfo(newWeekInfo);
-          }}
+          onChangeWeek={handleWeekChange}
           label="Semana del Servicio para Programación y Auditoría Clínica:"
         />
       </div>
@@ -1219,35 +1217,45 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                           </h4>
 
                           {/* Clinical Macro Breakdown Grid */}
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#FFFBEB', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '0.85rem 0', border: '1px solid #FDE68A' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.35rem', background: '#FFFBEB', padding: '0.75rem 0.5rem', borderRadius: '10px', textAlign: 'center', margin: '0.85rem 0', border: '1px solid #FDE68A' }}>
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#92400E' }}>Calorías</div>
-                              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#B45309' }}>
-                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.calories} kcal` : `${nutritionSoup?.unit.calories || currentDay.soup?.calories || 220} kcal`}
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#B45309' }}>
+                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.calories} kcal` : (nutritionSoup?.unit.calories ? `${nutritionSoup.unit.calories} kcal` : (currentDay.soup?.calories ? `${currentDay.soup.calories} kcal` : '--'))}
                               </div>
                             </div>
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#92400E' }}>Proteína</div>
-                              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#B45309' }}>
-                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.protein}g` : `${nutritionSoup?.unit.protein || 12}g`}
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#B45309' }}>
+                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.protein}g` : (nutritionSoup?.unit.protein ? `${nutritionSoup.unit.protein}g` : (currentDay.soup?.protein ? `${String(currentDay.soup.protein).replace('g','')}g` : '--'))}
                               </div>
                             </div>
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#92400E' }}>Carbos</div>
-                              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#B45309' }}>
-                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.carbs}g` : `${nutritionSoup?.unit.carbs || 24}g`}
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#B45309' }}>
+                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.carbs}g` : (nutritionSoup?.unit.carbs ? `${nutritionSoup.unit.carbs}g` : (currentDay.soup?.carbs ? `${String(currentDay.soup.carbs).replace('g','')}g` : '--'))}
                               </div>
                             </div>
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#92400E' }}>Grasas</div>
-                              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#B45309' }}>
-                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.fats}g` : `${nutritionSoup?.unit.fats || 6}g`}
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#B45309' }}>
+                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.fats}g` : (nutritionSoup?.unit.fats ? `${nutritionSoup.unit.fats}g` : (currentDay.soup?.fats ? `${String(currentDay.soup.fats).replace('g','')}g` : '--'))}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: '#92400E' }}>Sodio</div>
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.soup?.sodium || currentDay.soup?.sodio_mg) ? ((currentDay.soup?.sodium || currentDay.soup?.sodio_mg) <= 500 ? '#065F46' : '#991B1B') : '#92400E' }}>
+                                {(currentDay.soup?.sodium || currentDay.soup?.sodio_mg) ? `${currentDay.soup?.sodium || currentDay.soup?.sodio_mg}mg` : '--'}
                               </div>
                             </div>
                           </div>
 
-                          <div style={{ fontSize: '0.78rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                            <strong>Perfil Clínico:</strong> Caldo natural rico en electrolitos, favorece vaciado gástrico y deglución suave.
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
+                            <strong>Perfil Clínico:</strong> {currentDay.soup?.clinicalProfile || 'Calculando perfil clínico con IA...'}
+                          </div>
+
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                            <strong>Alérgenos registrados:</strong> {(currentDay.soup?.allergens || []).length > 0 ? currentDay.soup.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
                           </div>
 
                           {/* Receta Técnica Escalada Desplegable */}
@@ -1270,7 +1278,7 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                                         </div>
                                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                           <div style={{ fontWeight: '800', color: '#B45309', fontSize: '0.82rem' }}>
-                                            {item.amountScaled !== null ? `${item.amountScaled} ${item.unitScaled}` : item.displayScaled}
+                                            {item.amountScaled !== null ? `${Math.round(item.amountScaled * 100) / 100} ${item.unitScaled}` : item.displayScaled}
                                           </div>
                                         </div>
                                       </div>
@@ -1305,37 +1313,37 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
                             <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--primary)' }}>
-                              {auditMode === 'production' ? `${nutritionA?.totalProduction.calories} kcal` : `${nutritionA?.unit.calories || currentDay.optionA?.calories || 480} kcal`}
+                              {auditMode === 'production' ? `${nutritionA?.totalProduction.calories} kcal` : (nutritionA?.unit.calories ? `${nutritionA.unit.calories} kcal` : (currentDay.optionA?.calories ? `${currentDay.optionA.calories} kcal` : '--'))}
                             </div>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
                             <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#2563EB' }}>
-                              {auditMode === 'production' ? `${nutritionA?.totalProduction.protein}g` : `${nutritionA?.unit.protein || 35}g`}
+                              {auditMode === 'production' ? `${nutritionA?.totalProduction.protein}g` : (nutritionA?.unit.protein ? `${nutritionA.unit.protein}g` : (currentDay.optionA?.protein ? `${String(currentDay.optionA.protein).replace('g','')}g` : '--'))}
                             </div>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
                             <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
-                              {auditMode === 'production' ? `${nutritionA?.totalProduction.carbs}g` : `${nutritionA?.unit.carbs || 40}g`}
+                              {auditMode === 'production' ? `${nutritionA?.totalProduction.carbs}g` : (nutritionA?.unit.carbs ? `${nutritionA.unit.carbs}g` : (currentDay.optionA?.carbs ? `${String(currentDay.optionA.carbs).replace('g','')}g` : '--'))}
                             </div>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
                             <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
-                              {auditMode === 'production' ? `${nutritionA?.totalProduction.fats}g` : `${nutritionA?.unit.fats || 14}g`}
+                              {auditMode === 'production' ? `${nutritionA?.totalProduction.fats}g` : (nutritionA?.unit.fats ? `${nutritionA.unit.fats}g` : (currentDay.optionA?.fats ? `${String(currentDay.optionA.fats).replace('g','')}g` : '--'))}
                             </div>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Sodio</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.optionA?.sodium || currentDay.optionA?.sodio_mg || 340) <= 500 ? '#065F46' : '#991B1B' }}>
-                              {currentDay.optionA?.sodium || currentDay.optionA?.sodio_mg || 340}mg
+                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.optionA?.sodium || currentDay.optionA?.sodio_mg) ? ((currentDay.optionA?.sodium || currentDay.optionA?.sodio_mg) <= 500 ? '#065F46' : '#991B1B') : '#475569' }}>
+                              {(currentDay.optionA?.sodium || currentDay.optionA?.sodio_mg) ? `${currentDay.optionA?.sodium || currentDay.optionA?.sodio_mg}mg` : '--'}
                             </div>
                           </div>
                         </div>
 
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                          <strong>Perfil Clínico:</strong> {currentDay.optionA?.clinicalProfile || 'Índice glucémico controlado, digestión ágil en oficina sin causar pesadez post-almuerzo.'}
+                          <strong>Perfil Clínico:</strong> {currentDay.optionA?.clinicalProfile || 'Calculando perfil clínico con IA...'}
                         </div>
 
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
@@ -1362,7 +1370,7 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                                       </div>
                                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                         <div style={{ fontWeight: '800', color: '#2563EB', fontSize: '0.82rem' }}>
-                                          {item.amountScaled !== null ? `${item.amountScaled} ${item.unitScaled}` : item.displayScaled}
+                                          {item.amountScaled !== null ? `${Math.round(item.amountScaled * 100) / 100} ${item.unitScaled}` : item.displayScaled}
                                         </div>
                                       </div>
                                     </div>
@@ -1396,37 +1404,37 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
                             <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--primary)' }}>
-                              {auditMode === 'production' ? `${nutritionB?.totalProduction.calories} kcal` : `${nutritionB?.unit.calories || currentDay.optionB?.calories || 430} kcal`}
+                              {auditMode === 'production' ? `${nutritionB?.totalProduction.calories} kcal` : (nutritionB?.unit.calories ? `${nutritionB.unit.calories} kcal` : (currentDay.optionB?.calories ? `${currentDay.optionB.calories} kcal` : '--'))}
                             </div>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
                             <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#2563EB' }}>
-                              {auditMode === 'production' ? `${nutritionB?.totalProduction.protein}g` : `${nutritionB?.unit.protein || 18}g`}
+                              {auditMode === 'production' ? `${nutritionB?.totalProduction.protein}g` : (nutritionB?.unit.protein ? `${nutritionB.unit.protein}g` : (currentDay.optionB?.protein ? `${String(currentDay.optionB.protein).replace('g','')}g` : '--'))}
                             </div>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
                             <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
-                              {auditMode === 'production' ? `${nutritionB?.totalProduction.carbs}g` : `${nutritionB?.unit.carbs || 50}g`}
+                              {auditMode === 'production' ? `${nutritionB?.totalProduction.carbs}g` : (nutritionB?.unit.carbs ? `${nutritionB.unit.carbs}g` : (currentDay.optionB?.carbs ? `${String(currentDay.optionB.carbs).replace('g','')}g` : '--'))}
                             </div>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
                             <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
-                              {auditMode === 'production' ? `${nutritionB?.totalProduction.fats}g` : `${nutritionB?.unit.fats || 16}g`}
+                              {auditMode === 'production' ? `${nutritionB?.totalProduction.fats}g` : (nutritionB?.unit.fats ? `${nutritionB.unit.fats}g` : (currentDay.optionB?.fats ? `${String(currentDay.optionB.fats).replace('g','')}g` : '--'))}
                             </div>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Sodio</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.optionB?.sodium || currentDay.optionB?.sodio_mg || 320) <= 500 ? '#065F46' : '#991B1B' }}>
-                              {currentDay.optionB?.sodium || currentDay.optionB?.sodio_mg || 320}mg
+                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.optionB?.sodium || currentDay.optionB?.sodio_mg) ? ((currentDay.optionB?.sodium || currentDay.optionB?.sodio_mg) <= 500 ? '#065F46' : '#991B1B') : '#475569' }}>
+                              {(currentDay.optionB?.sodium || currentDay.optionB?.sodio_mg) ? `${currentDay.optionB?.sodium || currentDay.optionB?.sodio_mg}mg` : '--'}
                             </div>
                           </div>
                         </div>
 
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                          <strong>Perfil Clínico:</strong> {currentDay.optionB?.clinicalProfile || 'Alto contenido de fibra vegetal e ingredientes antioxidantes antiinflamatorios.'}
+                          <strong>Perfil Clínico:</strong> {currentDay.optionB?.clinicalProfile || 'Calculando perfil clínico con IA...'}
                         </div>
 
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
@@ -1453,7 +1461,7 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                                       </div>
                                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                         <div style={{ fontWeight: '800', color: '#15803D', fontSize: '0.82rem' }}>
-                                          {item.amountScaled !== null ? `${item.amountScaled} ${item.unitScaled}` : item.displayScaled}
+                                          {item.amountScaled !== null ? `${Math.round(item.amountScaled * 100) / 100} ${item.unitScaled}` : item.displayScaled}
                                         </div>
                                       </div>
                                     </div>
@@ -1484,35 +1492,45 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                           </h4>
 
                           {/* Clinical Macro Breakdown Grid */}
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#FAF5FF', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '0.85rem 0', border: '1px solid #E9D5FF' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.35rem', background: '#FAF5FF', padding: '0.75rem 0.5rem', borderRadius: '10px', textAlign: 'center', margin: '0.85rem 0', border: '1px solid #E9D5FF' }}>
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#7C3AED' }}>Calorías</div>
-                              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#7C3AED' }}>
-                                {auditMode === 'production' ? `${nutritionC?.totalProduction.calories} kcal` : `${nutritionC?.unit.calories || currentDay.optionC?.calories || 390} kcal`}
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#7C3AED' }}>
+                                {auditMode === 'production' ? `${nutritionC?.totalProduction.calories} kcal` : (nutritionC?.unit.calories ? `${nutritionC.unit.calories} kcal` : (currentDay.optionC?.calories ? `${currentDay.optionC.calories} kcal` : '--'))}
                               </div>
                             </div>
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#7C3AED' }}>Proteína</div>
-                              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#7C3AED' }}>
-                                {auditMode === 'production' ? `${nutritionC?.totalProduction.protein}g` : `${nutritionC?.unit.protein || 28}g`}
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#7C3AED' }}>
+                                {auditMode === 'production' ? `${nutritionC?.totalProduction.protein}g` : (nutritionC?.unit.protein ? `${nutritionC.unit.protein}g` : (currentDay.optionC?.protein ? `${String(currentDay.optionC.protein).replace('g','')}g` : '--'))}
                               </div>
                             </div>
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#7C3AED' }}>Carbos</div>
-                              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#7C3AED' }}>
-                                {auditMode === 'production' ? `${nutritionC?.totalProduction.carbs}g` : `${nutritionC?.unit.carbs || 38}g`}
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#7C3AED' }}>
+                                {auditMode === 'production' ? `${nutritionC?.totalProduction.carbs}g` : (nutritionC?.unit.carbs ? `${nutritionC.unit.carbs}g` : (currentDay.optionC?.carbs ? `${String(currentDay.optionC.carbs).replace('g','')}g` : '--'))}
                               </div>
                             </div>
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#7C3AED' }}>Grasas</div>
-                              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#7C3AED' }}>
-                                {auditMode === 'production' ? `${nutritionC?.totalProduction.fats}g` : `${nutritionC?.unit.fats || 12}g`}
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#7C3AED' }}>
+                                {auditMode === 'production' ? `${nutritionC?.totalProduction.fats}g` : (nutritionC?.unit.fats ? `${nutritionC.unit.fats}g` : (currentDay.optionC?.fats ? `${String(currentDay.optionC.fats).replace('g','')}g` : '--'))}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: '#7C3AED' }}>Sodio</div>
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.optionC?.sodium || currentDay.optionC?.sodio_mg) ? ((currentDay.optionC?.sodium || currentDay.optionC?.sodio_mg) <= 500 ? '#065F46' : '#991B1B') : '#7C3AED' }}>
+                                {(currentDay.optionC?.sodium || currentDay.optionC?.sodio_mg) ? `${currentDay.optionC?.sodium || currentDay.optionC?.sodio_mg}mg` : '--'}
                               </div>
                             </div>
                           </div>
 
-                          <div style={{ fontSize: '0.78rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                            <strong>Perfil Clínico:</strong> Formulación balanceada, control estricto de sodio e ingredientes digestivos.
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
+                            <strong>Perfil Clínico:</strong> {currentDay.optionC?.clinicalProfile || 'Calculando perfil clínico con IA...'}
+                          </div>
+
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                            <strong>Alérgenos registrados:</strong> {(currentDay.optionC?.allergens || []).length > 0 ? currentDay.optionC.allergens.join(', ') : 'Ninguno (Libre de alérgenos comunes)'}
                           </div>
 
                           {/* Receta Técnica Escalada Desplegable */}
@@ -1535,7 +1553,7 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
                                         </div>
                                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                           <div style={{ fontWeight: '800', color: '#7C3AED', fontSize: '0.82rem' }}>
-                                            {item.amountScaled !== null ? `${item.amountScaled} ${item.unitScaled}` : item.displayScaled}
+                                            {item.amountScaled !== null ? `${Math.round(item.amountScaled * 100) / 100} ${item.unitScaled}` : item.displayScaled}
                                           </div>
                                         </div>
                                       </div>
@@ -1560,6 +1578,129 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
       )}
 
       <IngredientEditorModal isOpen={!!editingDish} onClose={() => setEditingDish(null)} dish={editingDish?.dish} dayName={currentDay?.dayName} optionKey={editingDish?.optionKey} role="nutriologa" onSave={handleSaveIngredients} onReset={handleResetIngredients} />
+
+      {/* Preloader Modal Overlay de IA y Publicación (Renderizado con createPortal directamente en document.body) */}
+      {publishingState.active && typeof document !== 'undefined' && createPortal(
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999999,
+          padding: '1rem',
+          margin: 0,
+          boxSizing: 'border-box'
+        }}>
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: '24px',
+            padding: '2.5rem 2rem',
+            maxWidth: '490px',
+            width: '100%',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            textAlign: 'center',
+            border: '1px solid #E2E8F0',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '1.25rem',
+            margin: 'auto',
+            animation: 'fadeIn 0.2s ease-out'
+          }}>
+            {/* Icono animado */}
+            <div style={{
+              width: '74px',
+              height: '74px',
+              borderRadius: '22px',
+              background: publishingState.step === 'done' ? '#F0FDF4' : '#EFF6FF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: publishingState.step === 'done' ? '#16A34A' : '#2563EB',
+              border: publishingState.step === 'done' ? '2px solid #BBF7D0' : '2px solid #BFDBFE',
+              boxShadow: publishingState.step === 'done' ? '0 10px 25px rgba(22, 163, 74, 0.2)' : '0 10px 25px rgba(37, 99, 235, 0.2)',
+              transition: 'all 0.3s ease'
+            }}>
+              {publishingState.step === 'done' ? (
+                <CheckCircle2 size={40} />
+              ) : (
+                <Sparkles size={38} style={{ animation: 'pulse 1.5s infinite ease-in-out' }} />
+              )}
+            </div>
+
+            {/* Títulos y Subtítulo Informativo */}
+            <div>
+              <h3 style={{ fontSize: '1.35rem', fontWeight: '800', color: '#0F172A', marginBottom: '0.4rem' }}>
+                {publishingState.step === 'done'
+                  ? '¡Menú Certificado y Publicado!'
+                  : publishingState.step === 'saving'
+                  ? 'Sincronizando Recetas y Fichas...'
+                  : 'Optimizando Menú con IA Clínica'}
+              </h3>
+              <p style={{ fontSize: '0.88rem', color: '#64748B', lineHeight: '1.45', margin: 0 }}>
+                {publishingState.step === 'done'
+                  ? 'Todos los platillos fueron enriquecidos con macros, alérgenos y recetas técnicas.'
+                  : publishingState.step === 'saving'
+                  ? 'Persistiendo datos clínicos en PostgreSQL y actualizando almacén oficial...'
+                  : publishingState.currentDish
+                  ? `Analizando: "${publishingState.currentDish}"`
+                  : 'Calculando requerimientos nutricionales para Casa Nostra...'}
+              </p>
+            </div>
+
+            {/* Barra de Progreso Dinámica */}
+            <div style={{ width: '100%', marginTop: '0.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', fontWeight: '700', color: '#475569', marginBottom: '0.5rem' }}>
+                <span>Progreso de Análisis</span>
+                <span style={{ color: publishingState.step === 'done' ? '#16A34A' : '#2563EB' }}>
+                  {publishingState.step === 'done'
+                    ? '100%'
+                    : `${Math.round(((publishingState.completed || 0) / Math.max(publishingState.total || 1, 1)) * 100)}%`}
+                </span>
+              </div>
+              <div style={{ width: '100%', height: '10px', background: '#F1F5F9', borderRadius: '9999px', overflow: 'hidden', border: '1px solid #E2E8F0' }}>
+                <div style={{
+                  height: '100%',
+                  width: publishingState.step === 'done'
+                    ? '100%'
+                    : `${Math.max(10, Math.round(((publishingState.completed || 0) / Math.max(publishingState.total || 1, 1)) * 100))}%`,
+                  background: publishingState.step === 'done' ? '#16A34A' : 'linear-gradient(90deg, #2563EB, #3B82F6)',
+                  borderRadius: '9999px',
+                  transition: 'width 0.35s ease'
+                }} />
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '0.4rem', textAlign: 'right' }}>
+                {publishingState.completed} de {publishingState.total} preparaciones analizadas
+              </div>
+            </div>
+
+            {/* Sello de Garantía Médica */}
+            <div style={{
+              background: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              padding: '0.6rem 1rem',
+              borderRadius: '12px',
+              fontSize: '0.78rem',
+              color: '#334155',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontWeight: '600'
+            }}>
+              <ShieldCheck size={16} color="#2563EB" />
+              <span>Verificación Médica y Auditoría Clínica Automatizada</span>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

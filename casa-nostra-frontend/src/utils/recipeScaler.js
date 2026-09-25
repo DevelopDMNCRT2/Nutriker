@@ -115,12 +115,15 @@ export function scaleIngredientLine(line, portions = 1) {
   const displayBase = `${formatAmount(normalizedBase.amount)}${normalizedBase.unit ? ' ' + normalizedBase.unit : ''} ${rawName}`.trim();
   const displayScaled = `${formatAmount(normalizedScaled.amount)}${normalizedScaled.unit ? ' ' + normalizedScaled.unit : ''} ${rawName}`.trim();
 
+  const baseRounded = normalizedBase.amount !== null ? Math.round(normalizedBase.amount * 100) / 100 : null;
+  const scaledRounded = normalizedScaled.amount !== null ? Math.round(normalizedScaled.amount * 100) / 100 : null;
+
   return {
     raw: trimmed,
     name: rawName,
-    amountBase: normalizedBase.amount,
+    amountBase: baseRounded,
     unitBase: normalizedBase.unit,
-    amountScaled: normalizedScaled.amount,
+    amountScaled: scaledRounded,
     unitScaled: normalizedScaled.unit,
     displayBase,
     displayScaled
