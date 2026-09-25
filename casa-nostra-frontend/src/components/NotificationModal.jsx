@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Send, CheckCheck, Mail, MessageSquare, PhoneCall, Sparkles, Clock, Calendar, CheckCircle2 } from 'lucide-react';
 import { chefInfo, programInfo } from '../data/mockData';
 import { menuStore } from '../services/menuStore';
@@ -13,6 +14,16 @@ export default function NotificationModal({
   participantName = "Nutrióloga Karla" 
 }) {
   const [activeTab, setActiveTab] = useState('whatsapp'); // 'whatsapp' | 'email'
+
+  useEffect(() => {
+    if (isOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -36,30 +47,41 @@ export default function NotificationModal({
     };
   });
 
-  return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(17, 24, 39, 0.65)',
-      backdropFilter: 'blur(8px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 100,
-      padding: '1rem',
-      animation: 'fadeIn 0.25s ease-out'
-    }}>
+  return createPortal(
+    <div 
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        background: 'rgba(15, 23, 42, 0.75)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 999999,
+        padding: '1.25rem',
+        overflowY: 'auto'
+      }}
+    >
       <div style={{
         background: '#FFFFFF',
-        borderRadius: '20px',
+        borderRadius: '24px',
         maxWidth: '720px',
         width: '100%',
         maxHeight: '90vh',
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: '0 25px 60px -15px rgba(0,0,0,0.3)',
-        overflow: 'hidden',
-        border: '1px solid var(--border-subtle)'
+        boxShadow: '0 25px 60px -15px rgba(0,0,0,0.35)',
+        border: '1px solid #E2E8F0',
+        animation: 'scaleIn 0.2s ease-out',
       }}>
         
         {/* Modal Header */}
@@ -357,6 +379,7 @@ export default function NotificationModal({
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

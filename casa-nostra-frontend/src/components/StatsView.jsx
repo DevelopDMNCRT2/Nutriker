@@ -19,7 +19,8 @@ import {
   roundNumber, 
   formatSupplyDisplay, 
   calculateSupplyYield, 
-  extractDishNutritionSafe 
+  extractDishNutritionSafe,
+  getEstimatedSupplyUnitPrice
 } from '../utils/suppliesBalance';
 
 const EMPTY_DAYS = [];
@@ -554,7 +555,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
   }, [days, servingsByDay, census, purchasedSupplies]);
 
   // Manejador para guardar compras capturadas en el modal con clave estable y soporte de precio
-  const handleSavePurchaseItem = (itemKey, field, val) => {
+  const handleSavePurchaseItem = (itemKey, field, val, unitInfo = {}) => {
     setPurchasedSupplies(prev => {
       const current = prev[itemKey] || { amount: null, unitPrice: null, totalCost: null };
       let updatedItem = { ...current };
@@ -564,20 +565,30 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
         updatedItem.amount = num;
         if (num !== null && updatedItem.unitPrice !== null) {
           updatedItem.totalCost = roundNumber(num * updatedItem.unitPrice, 2);
+          updatedItem.cost = updatedItem.totalCost;
         }
       } else if (field === 'unitPrice') {
         const price = val === '' ? null : Math.max(0, parseFloat(val) || 0);
         updatedItem.unitPrice = price;
         if (price !== null && updatedItem.amount !== null) {
           updatedItem.totalCost = roundNumber(updatedItem.amount * price, 2);
+          updatedItem.cost = updatedItem.totalCost;
         }
       } else if (field === 'totalCost') {
         const total = val === '' ? null : Math.max(0, parseFloat(val) || 0);
         updatedItem.totalCost = total;
+        updatedItem.cost = total;
         if (total !== null && updatedItem.amount && updatedItem.amount > 0) {
           updatedItem.unitPrice = roundNumber(total / updatedItem.amount, 2);
         }
       }
+
+      if (unitInfo) {
+        if (unitInfo.displayUnit) updatedItem.unit = unitInfo.displayUnit;
+        if (unitInfo.name) updatedItem.name = unitInfo.name;
+      }
+      if (!updatedItem.unit && current.unit) updatedItem.unit = current.unit;
+      if (!updatedItem.name && current.name) updatedItem.name = current.name;
 
       updatedItem.updatedAt = new Date().toISOString();
 
@@ -587,6 +598,9 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
       };
       localStorage.setItem(`casanostra_purchases_${statsWeekInfo.weekKey}`, JSON.stringify(updated));
       localStorage.setItem(`casanostra_purchases_w${statsWeekInfo.weekNumber}`, JSON.stringify(updated));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('casanostra_purchases_updated'));
+      }
       return updated;
     });
   };
@@ -595,8 +609,35 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
     setPurchasedSupplies({});
     localStorage.removeItem(`casanostra_purchases_${statsWeekInfo.weekKey}`);
     localStorage.removeItem(`casanostra_purchases_w${statsWeekInfo.weekNumber}`);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('casanostra_purchases_updated'));
+    }
     showToast('Se limpiaron los registros de compras capturadas.');
   };
+
+  // Cálculo del costo total de facturas para la semana activa considerando la unidad de medida
+  const currentWeekInvoiceTotal = useMemo(() => {
+    let sum = 0;
+    Object.entries(purchasedSupplies).forEach(([key, item]) => {
+      if (!item) return;
+      const totalCost = item.totalCost !== undefined && item.totalCost !== null ? item.totalCost : item.cost;
+      if (totalCost !== undefined && totalCost !== null && !isNaN(totalCost)) {
+        sum += parseFloat(totalCost);
+      } else if (item.amount && !isNaN(item.amount) && item.amount > 0) {
+        if (item.unitPrice !== undefined && item.unitPrice !== null && !isNaN(item.unitPrice)) {
+          sum += parseFloat(item.amount) * parseFloat(item.unitPrice);
+        } else {
+          const matchingSupply = computedData?.suppliesList?.find(s => s.key === key || s.name.toLowerCase() === key.toLowerCase());
+          const displayUnit = item.unit || matchingSupply?.displayUnit || (key.includes('volume') ? 'L' : (key.includes('piece') ? 'pza' : (item.amount >= 100 ? 'g' : 'kg')));
+          const unitType = matchingSupply?.unitType || (displayUnit === 'g' || displayUnit === 'kg' ? 'mass' : (displayUnit === 'pza' ? 'piece' : 'volume'));
+          const itemName = item.name || matchingSupply?.name || key.split('|')[0];
+          const p = getEstimatedSupplyUnitPrice(itemName, unitType, displayUnit);
+          sum += item.amount * p;
+        }
+      }
+    });
+    return roundNumber(sum, 2) || 0;
+  }, [purchasedSupplies, computedData]);
 
   // Filtrado de insumos con soporte para subcompra / faltante
   const filteredSupplies = computedData.suppliesList.filter(item => {
@@ -2084,8 +2125,8 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
 
               </div>
 
-              {/* Indicador de conteo */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', padding: '0 0.2rem' }}>
+              {/* Indicador de conteo y Total de Factura */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', padding: '0 0.2rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <span style={{ fontSize: '0.82rem', color: '#64748B' }}>
                   {modalSearchTerm ? (
                     <>Mostrando <strong>{modalFilteredSupplies.length}</strong> de {computedData.suppliesList.length} insumos</>
@@ -2093,22 +2134,40 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                     <>Total Insumos a Controlar: <strong>{computedData.suppliesList.length}</strong></>
                   )}
                 </span>
-                {modalSearchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => setModalSearchTerm('')}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#2563EB',
-                      fontSize: '0.78rem',
-                      cursor: 'pointer',
-                      fontWeight: '600'
-                    }}
-                  >
-                    Ver todos los {computedData.suppliesList.length}
-                  </button>
-                )}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <div style={{
+                    background: '#ECFDF5',
+                    border: '1px solid #A7F3D0',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#065F46' }}>Total Factura:</span>
+                    <span style={{ fontSize: '0.88rem', fontWeight: '900', color: '#065F46' }}>
+                      ${currentWeekInvoiceTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+
+                  {modalSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setModalSearchTerm('')}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#2563EB',
+                        fontSize: '0.78rem',
+                        cursor: 'pointer',
+                        fontWeight: '600'
+                      }}
+                    >
+                      Ver todos
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
@@ -2121,7 +2180,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                     const rec = purchasedSupplies[item.key] || purchasedSupplies[item.name.toLowerCase()] || {};
                     const currentPurchased = rec.amount !== undefined && rec.amount !== null ? rec.amount : '';
                     const currentUnitPrice = rec.unitPrice !== undefined && rec.unitPrice !== null ? rec.unitPrice : '';
-                    const currentTotalCost = rec.totalCost !== undefined && rec.totalCost !== null ? rec.totalCost : '';
+                    const currentTotalCost = rec.totalCost !== undefined && rec.totalCost !== null ? rec.totalCost : (rec.cost !== undefined && rec.cost !== null ? rec.cost : '');
 
                     return (
                       <div 
@@ -2155,7 +2214,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                               type="number"
                               placeholder="0"
                               value={currentPurchased}
-                              onChange={(e) => handleSavePurchaseItem(item.key, 'amount', e.target.value)}
+                              onChange={(e) => handleSavePurchaseItem(item.key, 'amount', e.target.value, { displayUnit: item.displayUnit, name: item.name })}
                               style={{
                                 width: '85px',
                                 padding: '0.4rem 0.5rem',
@@ -2180,7 +2239,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                               type="number"
                               placeholder="0.00"
                               value={currentUnitPrice}
-                              onChange={(e) => handleSavePurchaseItem(item.key, 'unitPrice', e.target.value)}
+                              onChange={(e) => handleSavePurchaseItem(item.key, 'unitPrice', e.target.value, { displayUnit: item.displayUnit, name: item.name })}
                               style={{
                                 width: '85px',
                                 padding: '0.4rem 0.5rem',
@@ -2205,7 +2264,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                               type="number"
                               placeholder="0.00"
                               value={currentTotalCost}
-                              onChange={(e) => handleSavePurchaseItem(item.key, 'totalCost', e.target.value)}
+                              onChange={(e) => handleSavePurchaseItem(item.key, 'totalCost', e.target.value, { displayUnit: item.displayUnit, name: item.name })}
                               style={{
                                 width: '95px',
                                 padding: '0.4rem 0.5rem',
