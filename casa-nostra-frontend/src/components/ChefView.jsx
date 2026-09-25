@@ -71,8 +71,10 @@ function ChefViewContent({ selectedWeek, serviceProfileKey = 'casa_nostra' }) {
   const [currentDayIndex, setCurrentDayIndex] = useState(() => getInitialDayIndex(daysList));
   const [refreshOrders, setRefreshOrders] = useState(0);
 
+  const [activeTabSoup, setActiveTabSoup] = useState('ingredients');
   const [activeTabA, setActiveTabA] = useState('ingredients'); // 'ingredients' | 'nutrition'
   const [activeTabB, setActiveTabB] = useState('ingredients');
+  const [activeTabC, setActiveTabC] = useState('ingredients');
   const [editingDish, setEditingDish] = useState(null);
 
   const handleSaveIngredients = (newIngredients) => {
@@ -155,6 +157,8 @@ function ChefViewContent({ selectedWeek, serviceProfileKey = 'casa_nostra' }) {
   const totalPortions = metrics.totalPortions;
   const countA = metrics.countA;
   const countB = metrics.countB;
+  const countC = metrics.countC || 0;
+  const countSoup = metrics.countSoup || 0;
   const confirmedCount = metrics.confirmedCount;
 
   // Sincronización en tiempo real de raciones oficiales asignadas por Administración
@@ -169,9 +173,11 @@ function ChefViewContent({ selectedWeek, serviceProfileKey = 'casa_nostra' }) {
         if (parsed && typeof parsed === 'object' && currentDay?.dayName) {
           const dayData = parsed[currentDay.dayName];
           if (dayData) {
+            const servSoup = dayData.soup !== '' && dayData.soup !== null && dayData.soup !== undefined ? parseInt(dayData.soup, 10) : null;
             const servA = dayData.optionA !== '' && dayData.optionA !== null && dayData.optionA !== undefined ? parseInt(dayData.optionA, 10) : null;
             const servB = dayData.optionB !== '' && dayData.optionB !== null && dayData.optionB !== undefined ? parseInt(dayData.optionB, 10) : null;
-            return { servA, servB };
+            const servC = dayData.optionC !== '' && dayData.optionC !== null && dayData.optionC !== undefined ? parseInt(dayData.optionC, 10) : null;
+            return { servSoup, servA, servB, servC };
           }
         }
       }
@@ -182,15 +188,23 @@ function ChefViewContent({ selectedWeek, serviceProfileKey = 'casa_nostra' }) {
   }, [chefWeekInfo.weekKey, chefWeekInfo.weekNumber, currentDay?.dayName, refreshOrders]);
 
   // Raciones oficiales determinadas por la administracion (solo lectura en cocina)
+  const portionsSoup = adminServings && adminServings.servSoup !== null && !isNaN(adminServings.servSoup) ? adminServings.servSoup : (countSoup || activeCensus || 0);
   const portionsA = adminServings && adminServings.servA !== null && !isNaN(adminServings.servA) ? adminServings.servA : (countA || 0);
   const portionsB = adminServings && adminServings.servB !== null && !isNaN(adminServings.servB) ? adminServings.servB : (countB || 0);
+  const portionsC = adminServings && adminServings.servC !== null && !isNaN(adminServings.servC) ? adminServings.servC : (countC || 0);
 
   // Cálculos automáticos escalados de recetas e información nutricional
+  const scaledSoup = scaleIngredients(currentDay?.soup?.recipe?.ingredients, portionsSoup);
+  const nutritionSoup = scaleNutrition(currentDay?.soup || {}, portionsSoup);
+
   const scaledA = scaleIngredients(currentDay?.optionA?.recipe?.ingredients, portionsA);
   const nutritionA = scaleNutrition(currentDay?.optionA || {}, portionsA);
 
   const scaledB = scaleIngredients(currentDay?.optionB?.recipe?.ingredients, portionsB);
   const nutritionB = scaleNutrition(currentDay?.optionB || {}, portionsB);
+
+  const scaledC = scaleIngredients(currentDay?.optionC?.recipe?.ingredients, portionsC);
+  const nutritionC = scaleNutrition(currentDay?.optionC || {}, portionsC);
 
   const handleNextDay = () => {
     if (safeDayIndex < daysList.length - 1) setCurrentDayIndex(safeDayIndex + 1);
@@ -202,8 +216,22 @@ function ChefViewContent({ selectedWeek, serviceProfileKey = 'casa_nostra' }) {
 
   // Helper para renderizar tabla de insumos escalados o tabla nutricional (solo lectura)
   const renderOptionContent = (optionKey, optionData, portions, activeTab, setActiveTab, brandColor, lightBg, borderCol) => {
-    const scaledList = optionKey === 'A' ? scaledA : scaledB;
-    const nutritionInfo = optionKey === 'A' ? nutritionA : nutritionB;
+    let scaledList = [];
+    let nutritionInfo = { totalProduction: { calories: 0, protein: 0, carbs: 0, fats: 0 }, unit: { calories: 0, protein: 0, carbs: 0, fats: 0 } };
+
+    if (optionKey === 'soup') {
+      scaledList = scaledSoup;
+      nutritionInfo = nutritionSoup;
+    } else if (optionKey === 'A') {
+      scaledList = scaledA;
+      nutritionInfo = nutritionA;
+    } else if (optionKey === 'B') {
+      scaledList = scaledB;
+      nutritionInfo = nutritionB;
+    } else if (optionKey === 'C') {
+      scaledList = scaledC;
+      nutritionInfo = nutritionC;
+    }
 
     return (
       <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -502,7 +530,7 @@ function ChefViewContent({ selectedWeek, serviceProfileKey = 'casa_nostra' }) {
                 📋 {daysList.length} Días en Menú Oficial
               </span>
               <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#16A34A', background: '#F0FDF4', padding: '0.3rem 0.75rem', borderRadius: '6px', border: '1px solid #BBF7D0' }}>
-                👥 {(portionsA || 0) + (portionsB || 0)} {((portionsA || 0) + (portionsB || 0)) === 1 ? 'Ración Asignada' : 'Raciones Asignadas'} • Censo: {activeCensus} Residentes
+                👥 {(portionsA || 0) + (portionsB || 0) + (portionsC || 0)} {((portionsA || 0) + (portionsB || 0) + (portionsC || 0)) === 1 ? 'Ración Principal' : 'Raciones Principales'} • {portionsSoup || 0} Sopas • Censo: {activeCensus} Residentes
               </span>
               {activeMenu?.humanVerification?.isVerified && (
                 <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#15803D', background: '#F0FDF4', padding: '0.3rem 0.75rem', borderRadius: '6px', border: '1px solid #86EFAC', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -515,45 +543,125 @@ function ChefViewContent({ selectedWeek, serviceProfileKey = 'casa_nostra' }) {
           {/* Recipes Cards */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             
-            {/* OPTION A */}
-            <div style={{ background: '#FFFFFF', border: '2px solid #BFDBFE', borderRadius: '20px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.1)' }}>
-              <div style={{ background: '#EFF6FF', padding: '1.25rem 1.5rem', borderBottom: '1px solid #BFDBFE', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                  <span className="badge-tag" style={{ background: '#DBEAFE', color: '#1E40AF', fontSize: '0.75rem', marginBottom: '0.4rem' }}>
-                    Opción A • {currentDay?.optionA?.category || 'Menú Tradicional'}
-                  </span>
-                  <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#1E3A8A', margin: 0 }}>
-                    {currentDay?.optionA?.name || 'Platillo A'}
-                  </h3>
+            {/* SOPA DEL DÍA */}
+            {currentDay?.soup && (
+              <div style={{ background: '#FFFFFF', border: '2px solid #FDE68A', borderRadius: '20px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(245, 158, 11, 0.1)' }}>
+                <div style={{ background: '#FFFBEB', padding: '1.25rem 1.5rem', borderBottom: '1px solid #FDE68A', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                  <div>
+                    <span className="badge-tag" style={{ background: '#FEF3C7', color: '#92400E', fontSize: '0.75rem', marginBottom: '0.4rem', border: '1px solid #FDE68A' }}>
+                      Enfoque 1 • Sopa / Primer Tiempo (Fijo)
+                    </span>
+                    <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#B45309', margin: 0 }}>
+                      {currentDay.soup.name || 'Sopa del Día'}
+                    </h3>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <button
+                      onClick={() => setEditingDish({ dish: currentDay.soup, optionKey: 'soup' })}
+                      style={{ background: '#FFFFFF', color: '#B45309', border: '1px solid #FDE68A', padding: '0.5rem 0.85rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <Edit3 size={14} /> Ajustar Insumos
+                    </button>
+                    <div style={{ background: '#D97706', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: '600', opacity: 0.9 }}>RACIONES DE PRODUCCIÓN</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '800' }}>{portionsSoup} {portionsSoup === 1 ? 'Porción' : 'Porciones'}</div>
+                    </div>
+                  </div>
                 </div>
-                <div style={{ background: '#2563EB', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: '600', opacity: 0.9 }}>PEDIDOS CONFIRMADOS</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '800' }}>{portionsA} {portionsA === 1 ? 'Porción' : 'Porciones'}</div>
-                </div>
+                
+                {renderOptionContent('soup', currentDay.soup, portionsSoup, activeTabSoup, setActiveTabSoup, '#D97706', '#FFFBEB', '#FDE68A')}
               </div>
-              
-              {renderOptionContent('A', currentDay.optionA, portionsA, activeTabA, setActiveTabA, '#2563EB', '#EFF6FF', '#BFDBFE')}
-            </div>
+            )}
+
+            {/* OPTION A */}
+            {currentDay?.optionA && (
+              <div style={{ background: '#FFFFFF', border: '2px solid #BFDBFE', borderRadius: '20px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.1)' }}>
+                <div style={{ background: '#EFF6FF', padding: '1.25rem 1.5rem', borderBottom: '1px solid #BFDBFE', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                  <div>
+                    <span className="badge-tag" style={{ background: '#DBEAFE', color: '#1E40AF', fontSize: '0.75rem', marginBottom: '0.4rem', border: '1px solid #BFDBFE' }}>
+                      Opción A • {currentDay?.optionA?.category || 'Menú Tradicional'}
+                    </span>
+                    <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#1E3A8A', margin: 0 }}>
+                      {currentDay?.optionA?.name || 'Platillo A'}
+                    </h3>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <button
+                      onClick={() => setEditingDish({ dish: currentDay.optionA, optionKey: 'A' })}
+                      style={{ background: '#FFFFFF', color: '#2563EB', border: '1px solid #BFDBFE', padding: '0.5rem 0.85rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <Edit3 size={14} /> Ajustar Insumos
+                    </button>
+                    <div style={{ background: '#2563EB', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: '600', opacity: 0.9 }}>PEDIDOS CONFIRMADOS</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '800' }}>{portionsA} {portionsA === 1 ? 'Porción' : 'Porciones'}</div>
+                    </div>
+                  </div>
+                </div>
+                
+                {renderOptionContent('A', currentDay.optionA, portionsA, activeTabA, setActiveTabA, '#2563EB', '#EFF6FF', '#BFDBFE')}
+              </div>
+            )}
 
             {/* OPTION B */}
-            <div style={{ background: '#FFFFFF', border: '2px solid #BBF7D0', borderRadius: '20px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(34, 197, 94, 0.1)' }}>
-              <div style={{ background: '#F0FDF4', padding: '1.25rem 1.5rem', borderBottom: '1px solid #BBF7D0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                  <span className="badge-tag" style={{ background: '#DCFCE7', color: '#166534', fontSize: '0.75rem', marginBottom: '0.4rem' }}>
-                    Opción B • {currentDay?.optionB?.category || 'Textura Suave'}
-                  </span>
-                  <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#14532D', margin: 0 }}>
-                    {currentDay?.optionB?.name || 'Platillo B'}
-                  </h3>
+            {currentDay?.optionB && (
+              <div style={{ background: '#FFFFFF', border: '2px solid #BBF7D0', borderRadius: '20px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(34, 197, 94, 0.1)' }}>
+                <div style={{ background: '#F0FDF4', padding: '1.25rem 1.5rem', borderBottom: '1px solid #BBF7D0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                  <div>
+                    <span className="badge-tag" style={{ background: '#DCFCE7', color: '#166534', fontSize: '0.75rem', marginBottom: '0.4rem', border: '1px solid #BBF7D0' }}>
+                      Opción B • {currentDay?.optionB?.category || 'Textura Suave'}
+                    </span>
+                    <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#14532D', margin: 0 }}>
+                      {currentDay?.optionB?.name || 'Platillo B'}
+                    </h3>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <button
+                      onClick={() => setEditingDish({ dish: currentDay.optionB, optionKey: 'B' })}
+                      style={{ background: '#FFFFFF', color: '#16A34A', border: '1px solid #BBF7D0', padding: '0.5rem 0.85rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <Edit3 size={14} /> Ajustar Insumos
+                    </button>
+                    <div style={{ background: '#16A34A', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: '600', opacity: 0.9 }}>PEDIDOS CONFIRMADOS</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '800' }}>{portionsB} {portionsB === 1 ? 'Porción' : 'Porciones'}</div>
+                    </div>
+                  </div>
                 </div>
-                <div style={{ background: '#16A34A', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: '600', opacity: 0.9 }}>PEDIDOS CONFIRMADOS</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: '800' }}>{portionsB} {portionsB === 1 ? 'Porción' : 'Porciones'}</div>
-                </div>
+                
+                {renderOptionContent('B', currentDay.optionB, portionsB, activeTabB, setActiveTabB, '#16A34A', '#F0FDF4', '#BBF7D0')}
               </div>
-              
-              {renderOptionContent('B', currentDay.optionB, portionsB, activeTabB, setActiveTabB, '#16A34A', '#F0FDF4', '#BBF7D0')}
-            </div>
+            )}
+
+            {/* OPTION C */}
+            {currentDay?.optionC && (
+              <div style={{ background: '#FFFFFF', border: '2px solid #E9D5FF', borderRadius: '20px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.1)' }}>
+                <div style={{ background: '#FAF5FF', padding: '1.25rem 1.5rem', borderBottom: '1px solid #E9D5FF', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                  <div>
+                    <span className="badge-tag" style={{ background: '#F3E8FF', color: '#7E22CE', fontSize: '0.75rem', marginBottom: '0.4rem', border: '1px solid #E9D5FF' }}>
+                      Opción C • {currentDay?.optionC?.category || 'Especial & Saludable'}
+                    </span>
+                    <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#6B21A8', margin: 0 }}>
+                      {currentDay?.optionC?.name || 'Platillo C'}
+                    </h3>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <button
+                      onClick={() => setEditingDish({ dish: currentDay.optionC, optionKey: 'C' })}
+                      style={{ background: '#FFFFFF', color: '#8B5CF6', border: '1px solid #E9D5FF', padding: '0.5rem 0.85rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <Edit3 size={14} /> Ajustar Insumos
+                    </button>
+                    <div style={{ background: '#8B5CF6', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: '600', opacity: 0.9 }}>PEDIDOS CONFIRMADOS</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '800' }}>{portionsC} {portionsC === 1 ? 'Porción' : 'Porciones'}</div>
+                    </div>
+                  </div>
+                </div>
+                
+                {renderOptionContent('C', currentDay.optionC, portionsC, activeTabC, setActiveTabC, '#8B5CF6', '#FAF5FF', '#E9D5FF')}
+              </div>
+            )}
 
           </div>
         </>

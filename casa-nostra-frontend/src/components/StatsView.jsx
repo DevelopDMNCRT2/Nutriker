@@ -15,6 +15,7 @@ import AdministracionView from './AdministracionView';
 import { 
   UNIT_TYPES, 
   getUnitMetadata, 
+  getCommercialUnitInfo,
   toBaseAmount, 
   roundNumber, 
   formatSupplyDisplay, 
@@ -119,8 +120,10 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
     const initial = {};
     daysList.forEach(day => {
       initial[day.dayName] = {
+        soup: '',
         optionA: '',
         optionB: '',
+        optionC: '',
         savedAt: null
       };
     });
@@ -196,7 +199,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
   // Actualizar raciones de un día y opción
   const handleServingChange = (dayName, optionKey, delta) => {
     setServingsByDay(prev => {
-      const current = prev[dayName] || { optionA: '', optionB: '' };
+      const current = prev[dayName] || { soup: '', optionA: '', optionB: '', optionC: '' };
       const currentVal = parseInt(current[optionKey], 10) || 0;
       const newVal = Math.max(0, currentVal + delta);
       const updated = {
@@ -219,7 +222,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
   const handleServingDirectInput = (dayName, optionKey, value) => {
     const num = value === '' ? '' : Math.max(0, parseInt(value, 10) || 0);
     setServingsByDay(prev => {
-      const current = prev[dayName] || { optionA: '', optionB: '' };
+      const current = prev[dayName] || { soup: '', optionA: '', optionB: '', optionC: '' };
       const updated = {
         ...prev,
         [dayName]: {
@@ -265,8 +268,11 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
 
   const computedData = useMemo(() => {
     let totalServingsWeek = 0;
+    let totalServingsSoup = 0;
     let totalServingsA = 0;
     let totalServingsB = 0;
+    let totalServingsC = 0;
+    let totalServingsMain = 0;
 
     // Acumuladores de nutrientes ponderados consumidos (solo de días con datos reales)
     let sumCaloriesConsumed = 0;
@@ -289,64 +295,103 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
 
     days.forEach(day => {
       const dayServing = servingsByDay[day.dayName] || { 
+        soup: '',
         optionA: '', 
-        optionB: '' 
+        optionB: '',
+        optionC: ''
       };
+      const servSoup = dayServing.soup !== '' && dayServing.soup !== null && dayServing.soup !== undefined ? Number(dayServing.soup) : 0;
       const servA = dayServing.optionA !== '' && dayServing.optionA !== null && dayServing.optionA !== undefined ? Number(dayServing.optionA) : 0;
       const servB = dayServing.optionB !== '' && dayServing.optionB !== null && dayServing.optionB !== undefined ? Number(dayServing.optionB) : 0;
-      const totalDayServings = servA + servB;
+      const servC = dayServing.optionC !== '' && dayServing.optionC !== null && dayServing.optionC !== undefined ? Number(dayServing.optionC) : 0;
+      const totalDayMain = servA + servB + servC;
+      const totalDayServings = servSoup + totalDayMain;
 
       totalServingsWeek += totalDayServings;
+      totalServingsSoup += servSoup;
       totalServingsA += servA;
       totalServingsB += servB;
+      totalServingsC += servC;
+      totalServingsMain += totalDayMain;
 
       // Nutrición de platillos segura (sin inventar datos con ??)
+      const nutSoup = getDishNutrition(day.soup);
       const nutA = getDishNutrition(day.optionA);
       const nutB = getDishNutrition(day.optionB);
+      const nutC = getDishNutrition(day.optionC);
 
-      const hasCal = nutA.calories !== null || nutB.calories !== null;
-      const dayCal = hasCal ? (((nutA.calories || 0) * servA) + ((nutB.calories || 0) * servB)) : null;
+      const hasCal = nutSoup.calories !== null || nutA.calories !== null || nutB.calories !== null || nutC.calories !== null;
+      const dayCal = hasCal ? (
+        ((nutSoup.calories || 0) * servSoup) +
+        ((nutA.calories || 0) * servA) +
+        ((nutB.calories || 0) * servB) +
+        ((nutC.calories || 0) * servC)
+      ) : null;
 
-      const hasProt = nutA.protein !== null || nutB.protein !== null;
-      const dayProt = hasProt ? (((nutA.protein || 0) * servA) + ((nutB.protein || 0) * servB)) : null;
+      const hasProt = nutSoup.protein !== null || nutA.protein !== null || nutB.protein !== null || nutC.protein !== null;
+      const dayProt = hasProt ? (
+        ((nutSoup.protein || 0) * servSoup) +
+        ((nutA.protein || 0) * servA) +
+        ((nutB.protein || 0) * servB) +
+        ((nutC.protein || 0) * servC)
+      ) : null;
 
-      const hasCarbs = nutA.carbs !== null || nutB.carbs !== null;
-      const dayCarbs = hasCarbs ? (((nutA.carbs || 0) * servA) + ((nutB.carbs || 0) * servB)) : null;
+      const hasCarbs = nutSoup.carbs !== null || nutA.carbs !== null || nutB.carbs !== null || nutC.carbs !== null;
+      const dayCarbs = hasCarbs ? (
+        ((nutSoup.carbs || 0) * servSoup) +
+        ((nutA.carbs || 0) * servA) +
+        ((nutB.carbs || 0) * servB) +
+        ((nutC.carbs || 0) * servC)
+      ) : null;
 
-      const hasFats = nutA.fats !== null || nutB.fats !== null;
-      const dayFats = hasFats ? (((nutA.fats || 0) * servA) + ((nutB.fats || 0) * servB)) : null;
+      const hasFats = nutSoup.fats !== null || nutA.fats !== null || nutB.fats !== null || nutC.fats !== null;
+      const dayFats = hasFats ? (
+        ((nutSoup.fats || 0) * servSoup) +
+        ((nutA.fats || 0) * servA) +
+        ((nutB.fats || 0) * servB) +
+        ((nutC.fats || 0) * servC)
+      ) : null;
 
       // El sodio solo se evalúa si los platillos servidos cuentan con el dato (no inventar 420mg)
-      const hasSodium = (nutA.sodium !== null || servA === 0) && (nutB.sodium !== null || servB === 0) && (nutA.sodium !== null || nutB.sodium !== null);
-      const daySod = hasSodium ? (((nutA.sodium || 0) * servA) + ((nutB.sodium || 0) * servB)) : null;
+      const hasSodium = (nutSoup.sodium !== null || servSoup === 0) &&
+                        (nutA.sodium !== null || servA === 0) &&
+                        (nutB.sodium !== null || servB === 0) &&
+                        (nutC.sodium !== null || servC === 0) &&
+                        (nutSoup.sodium !== null || nutA.sodium !== null || nutB.sodium !== null || nutC.sodium !== null);
+      const daySod = hasSodium ? (
+        ((nutSoup.sodium || 0) * servSoup) +
+        ((nutA.sodium || 0) * servA) +
+        ((nutB.sodium || 0) * servB) +
+        ((nutC.sodium || 0) * servC)
+      ) : null;
 
-      const avgFactor = totalDayServings > 0 ? totalDayServings : 1;
+      const residentCountFactor = totalDayMain > 0 ? totalDayMain : (servSoup > 0 ? servSoup : 1);
 
-      const avgCaloriesPerResident = dayCal !== null ? Math.round(dayCal / avgFactor) : null;
-      const avgProteinPerResident = dayProt !== null ? roundNumber(dayProt / avgFactor, 1) : null;
-      const avgCarbsPerResident = dayCarbs !== null ? roundNumber(dayCarbs / avgFactor, 1) : null;
-      const avgFatsPerResident = dayFats !== null ? roundNumber(dayFats / avgFactor, 1) : null;
-      const avgSodiumPerResident = daySod !== null ? Math.round(daySod / avgFactor) : null;
+      const avgCaloriesPerResident = dayCal !== null ? Math.round(dayCal / residentCountFactor) : null;
+      const avgProteinPerResident = dayProt !== null ? roundNumber(dayProt / residentCountFactor, 1) : null;
+      const avgCarbsPerResident = dayCarbs !== null ? roundNumber(dayCarbs / residentCountFactor, 1) : null;
+      const avgFatsPerResident = dayFats !== null ? roundNumber(dayFats / residentCountFactor, 1) : null;
+      const avgSodiumPerResident = daySod !== null ? Math.round(daySod / residentCountFactor) : null;
 
       if (avgCaloriesPerResident !== null) {
         sumCaloriesConsumed += dayCal;
-        countCalServings += totalDayServings;
+        countCalServings += residentCountFactor;
       }
       if (avgProteinPerResident !== null) {
         sumProteinConsumed += dayProt;
-        countProtServings += totalDayServings;
+        countProtServings += residentCountFactor;
       }
       if (avgCarbsPerResident !== null) {
         sumCarbsConsumed += dayCarbs;
-        countCarbServings += totalDayServings;
+        countCarbServings += residentCountFactor;
       }
       if (avgFatsPerResident !== null) {
         sumFatsConsumed += dayFats;
-        countFatServings += totalDayServings;
+        countFatServings += residentCountFactor;
       }
       if (avgSodiumPerResident !== null) {
         sumSodiumConsumed += daySod;
-        countSodiumServings += totalDayServings;
+        countSodiumServings += residentCountFactor;
       }
 
       // Evaluación geriátrica rigurosa
@@ -373,11 +418,16 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
       dailyNutritionSummary.push({
         dayName: day.dayName,
         dateLabel: day.dateLabel || day.dateInfo,
+        dishSoup: day.soup?.name,
+        servingsSoup: servSoup,
         dishA: day.optionA?.name || 'Opción A',
         servingsA: servA,
         dishB: day.optionB?.name || 'Opción B',
         servingsB: servB,
+        dishC: day.optionC?.name,
+        servingsC: servC,
         totalDayServings,
+        totalDayMain,
         avgCaloriesPerResident,
         avgProteinPerResident,
         avgCarbsPerResident,
@@ -390,7 +440,32 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
       });
 
       // Cálculo de Insumos según raciones reales servidas con normalización de unidades
-      if (servA > 0) {
+      if (servSoup > 0 && day.soup) {
+        const ingsSoup = getDishIngredientsBase(day.soup);
+        ingsSoup.forEach(ing => {
+          const typeKey = ing.unitMeta.type === UNIT_TYPES.OTHER ? ing.unitMeta.standardUnit : ing.unitMeta.type;
+          const key = `${ing.name.toLowerCase()}|${typeKey}`;
+          const amountInBase = toBaseAmount(ing.amountBase, ing.unitBase) * servSoup;
+
+          if (!suppliesMap[key]) {
+            suppliesMap[key] = {
+              key,
+              name: ing.name,
+              unitType: ing.unitMeta.type,
+              baseUnit: ing.unitMeta.baseUnit,
+              standardUnit: ing.unitMeta.standardUnit,
+              requiredBase: 0,
+              dishSources: []
+            };
+          }
+          suppliesMap[key].requiredBase += amountInBase;
+          if (!suppliesMap[key].dishSources.includes(day.soup?.name)) {
+            suppliesMap[key].dishSources.push(day.soup?.name);
+          }
+        });
+      }
+
+      if (servA > 0 && day.optionA) {
         const ingsA = getDishIngredientsBase(day.optionA);
         ingsA.forEach(ing => {
           const typeKey = ing.unitMeta.type === UNIT_TYPES.OTHER ? ing.unitMeta.standardUnit : ing.unitMeta.type;
@@ -415,7 +490,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
         });
       }
 
-      if (servB > 0) {
+      if (servB > 0 && day.optionB) {
         const ingsB = getDishIngredientsBase(day.optionB);
         ingsB.forEach(ing => {
           const typeKey = ing.unitMeta.type === UNIT_TYPES.OTHER ? ing.unitMeta.standardUnit : ing.unitMeta.type;
@@ -439,12 +514,38 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
           }
         });
       }
+
+      if (servC > 0 && day.optionC) {
+        const ingsC = getDishIngredientsBase(day.optionC);
+        ingsC.forEach(ing => {
+          const typeKey = ing.unitMeta.type === UNIT_TYPES.OTHER ? ing.unitMeta.standardUnit : ing.unitMeta.type;
+          const key = `${ing.name.toLowerCase()}|${typeKey}`;
+          const amountInBase = toBaseAmount(ing.amountBase, ing.unitBase) * servC;
+
+          if (!suppliesMap[key]) {
+            suppliesMap[key] = {
+              key,
+              name: ing.name,
+              unitType: ing.unitMeta.type,
+              baseUnit: ing.unitMeta.baseUnit,
+              standardUnit: ing.unitMeta.standardUnit,
+              requiredBase: 0,
+              dishSources: []
+            };
+          }
+          suppliesMap[key].requiredBase += amountInBase;
+          if (!suppliesMap[key].dishSources.includes(day.optionC?.name)) {
+            suppliesMap[key].dishSources.push(day.optionC?.name);
+          }
+        });
+      }
     });
 
     // Formatear Lista de Insumos y Balance de Aprovechamiento con helper unificado
     const suppliesList = Object.values(suppliesMap).map(item => {
       // Formato homogéneo para la cantidad requerida
       const reqDisplay = formatSupplyDisplay(item.requiredBase, item.unitType, item.standardUnit);
+      const commercialInfo = getCommercialUnitInfo(reqDisplay.unit, item.unitType);
 
       // Compras capturadas (clave exacta o fallback de nombre)
       const purchasedRecord = purchasedSupplies[item.key] || purchasedSupplies[item.name.toLowerCase()];
@@ -456,9 +557,18 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
         ? Number(purchasedRecord.unitPrice)
         : null;
 
-      const totalCost = purchasedRecord?.totalCost !== undefined && purchasedRecord?.totalCost !== null && purchasedRecord?.totalCost !== ''
-        ? Number(purchasedRecord.totalCost)
-        : (unitPrice !== null && purchasedAmountRaw !== null ? roundNumber(unitPrice * purchasedAmountRaw, 2) : null);
+      // Cantidad comercial (ej. 270 g -> 0.27 kg; 5 L -> 5 L)
+      const commercialPurchasedAmount = purchasedAmountRaw !== null ? purchasedAmountRaw * commercialInfo.ratioToCommercial : null;
+
+      // Calcular costo total priorizando coherencia comercial si existen precio unitario y cantidad
+      let totalCost = null;
+      if (unitPrice !== null && commercialPurchasedAmount !== null) {
+        totalCost = roundNumber(unitPrice * commercialPurchasedAmount, 2);
+      } else if (purchasedRecord?.totalCost !== undefined && purchasedRecord?.totalCost !== null && purchasedRecord?.totalCost !== '') {
+        totalCost = Number(purchasedRecord.totalCost);
+      } else if (purchasedRecord?.cost !== undefined && purchasedRecord?.cost !== null && purchasedRecord?.cost !== '') {
+        totalCost = Number(purchasedRecord.cost);
+      }
       
       const purchasedBase = purchasedAmountRaw !== null
         ? toBaseAmount(purchasedAmountRaw, reqDisplay.unit)
@@ -473,6 +583,8 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
         purchasedAmountRaw,
         purchasedBase,
         unitPrice,
+        commercialUnit: commercialInfo.commercialUnit,
+        commercialPriceLabel: commercialInfo.label,
         totalCost,
         displayRequired: reqDisplay.amount,
         displayPurchased: purDisplay.amount,
@@ -530,11 +642,15 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
 
     return {
       totalServingsWeek,
+      totalServingsSoup,
       totalServingsA,
       totalServingsB,
+      totalServingsC,
+      totalServingsMain,
       expectedWeekServings: days.length * census,
-      percentA: totalServingsWeek > 0 ? Math.round((totalServingsA / totalServingsWeek) * 100) : 0,
-      percentB: totalServingsWeek > 0 ? Math.round((totalServingsB / totalServingsWeek) * 100) : 0,
+      percentA: totalServingsMain > 0 ? Math.round((totalServingsA / totalServingsMain) * 100) : 0,
+      percentB: totalServingsMain > 0 ? Math.round((totalServingsB / totalServingsMain) * 100) : 0,
+      percentC: totalServingsMain > 0 ? Math.round((totalServingsC / totalServingsMain) * 100) : 0,
       dailyNutritionSummary,
       suppliesList,
       capturedCount: capturedSupplies.length,
@@ -554,38 +670,54 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
     };
   }, [days, servingsByDay, census, purchasedSupplies]);
 
-  // Manejador para guardar compras capturadas en el modal con clave estable y soporte de precio
+  // Manejador para guardar compras capturadas en el modal con clave estable y soporte de precio comercial (/kg o /L)
   const handleSavePurchaseItem = (itemKey, field, val, unitInfo = {}) => {
     setPurchasedSupplies(prev => {
       const current = prev[itemKey] || { amount: null, unitPrice: null, totalCost: null };
       let updatedItem = { ...current };
 
+      const displayUnit = unitInfo.displayUnit || updatedItem.unit || current.unit || '';
+      const unitType = unitInfo.unitType || (displayUnit === 'g' || displayUnit === 'kg' ? 'mass' : (displayUnit === 'ml' || displayUnit === 'L' ? 'volume' : 'piece'));
+      const commercialInfo = getCommercialUnitInfo(displayUnit, unitType);
+
       if (field === 'amount') {
         const num = val === '' ? null : Math.max(0, parseFloat(val) || 0);
         updatedItem.amount = num;
         if (num !== null && updatedItem.unitPrice !== null) {
-          updatedItem.totalCost = roundNumber(num * updatedItem.unitPrice, 2);
+          const commercialQty = num * commercialInfo.ratioToCommercial;
+          updatedItem.totalCost = roundNumber(commercialQty * updatedItem.unitPrice, 2);
           updatedItem.cost = updatedItem.totalCost;
+        } else if (num === null) {
+          updatedItem.totalCost = null;
+          updatedItem.cost = null;
         }
       } else if (field === 'unitPrice') {
         const price = val === '' ? null : Math.max(0, parseFloat(val) || 0);
         updatedItem.unitPrice = price;
         if (price !== null && updatedItem.amount !== null) {
-          updatedItem.totalCost = roundNumber(updatedItem.amount * price, 2);
+          const commercialQty = updatedItem.amount * commercialInfo.ratioToCommercial;
+          updatedItem.totalCost = roundNumber(commercialQty * price, 2);
           updatedItem.cost = updatedItem.totalCost;
+        } else if (price === null) {
+          updatedItem.totalCost = null;
+          updatedItem.cost = null;
         }
       } else if (field === 'totalCost') {
         const total = val === '' ? null : Math.max(0, parseFloat(val) || 0);
         updatedItem.totalCost = total;
         updatedItem.cost = total;
         if (total !== null && updatedItem.amount && updatedItem.amount > 0) {
-          updatedItem.unitPrice = roundNumber(total / updatedItem.amount, 2);
+          const commercialQty = updatedItem.amount * commercialInfo.ratioToCommercial;
+          if (commercialQty > 0) {
+            updatedItem.unitPrice = roundNumber(total / commercialQty, 2);
+          }
         }
       }
 
       if (unitInfo) {
         if (unitInfo.displayUnit) updatedItem.unit = unitInfo.displayUnit;
         if (unitInfo.name) updatedItem.name = unitInfo.name;
+        if (unitInfo.unitType) updatedItem.unitType = unitInfo.unitType;
       }
       if (!updatedItem.unit && current.unit) updatedItem.unit = current.unit;
       if (!updatedItem.name && current.name) updatedItem.name = current.name;
@@ -615,24 +747,28 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
     showToast('Se limpiaron los registros de compras capturadas.');
   };
 
-  // Cálculo del costo total de facturas para la semana activa considerando la unidad de medida
+  // Cálculo del costo total de facturas para la semana activa considerando la unidad de medida comercial
   const currentWeekInvoiceTotal = useMemo(() => {
     let sum = 0;
     Object.entries(purchasedSupplies).forEach(([key, item]) => {
       if (!item) return;
-      const totalCost = item.totalCost !== undefined && item.totalCost !== null ? item.totalCost : item.cost;
-      if (totalCost !== undefined && totalCost !== null && !isNaN(totalCost)) {
-        sum += parseFloat(totalCost);
-      } else if (item.amount && !isNaN(item.amount) && item.amount > 0) {
-        if (item.unitPrice !== undefined && item.unitPrice !== null && !isNaN(item.unitPrice)) {
-          sum += parseFloat(item.amount) * parseFloat(item.unitPrice);
-        } else {
-          const matchingSupply = computedData?.suppliesList?.find(s => s.key === key || s.name.toLowerCase() === key.toLowerCase());
-          const displayUnit = item.unit || matchingSupply?.displayUnit || (key.includes('volume') ? 'L' : (key.includes('piece') ? 'pza' : (item.amount >= 100 ? 'g' : 'kg')));
-          const unitType = matchingSupply?.unitType || (displayUnit === 'g' || displayUnit === 'kg' ? 'mass' : (displayUnit === 'pza' ? 'piece' : 'volume'));
+      const matchingSupply = computedData?.suppliesList?.find(s => s.key === key || s.name.toLowerCase() === key.toLowerCase());
+      const displayUnit = item.unit || matchingSupply?.displayUnit || (key.includes('volume') ? 'L' : (key.includes('piece') ? 'pza' : (item.amount >= 100 ? 'g' : 'kg')));
+      const unitType = matchingSupply?.unitType || (displayUnit === 'g' || displayUnit === 'kg' ? 'mass' : (displayUnit === 'pza' ? 'piece' : 'volume'));
+      const commercialInfo = getCommercialUnitInfo(displayUnit, unitType);
+      const amount = item.amount !== undefined && item.amount !== null && !isNaN(item.amount) ? parseFloat(item.amount) : 0;
+      const commercialQty = amount * commercialInfo.ratioToCommercial;
+
+      if (item.unitPrice !== undefined && item.unitPrice !== null && !isNaN(item.unitPrice) && commercialQty > 0) {
+        sum += commercialQty * parseFloat(item.unitPrice);
+      } else {
+        const totalCost = item.totalCost !== undefined && item.totalCost !== null ? item.totalCost : item.cost;
+        if (totalCost !== undefined && totalCost !== null && !isNaN(totalCost)) {
+          sum += parseFloat(totalCost);
+        } else if (commercialQty > 0) {
           const itemName = item.name || matchingSupply?.name || key.split('|')[0];
-          const p = getEstimatedSupplyUnitPrice(itemName, unitType, displayUnit);
-          sum += item.amount * p;
+          const p = getEstimatedSupplyUnitPrice(itemName, unitType, commercialInfo.commercialUnit);
+          sum += commercialQty * p;
         }
       }
     });
@@ -674,22 +810,27 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
 
       // Encabezados limpios y compactos idénticos a la tabla del sistema
       const nutritionHeaders = [
-        "Día", "Fecha", "Platillo Principal (A)", "Platillo Ligero (B)", "Raciones", 
+        "Día", "Fecha", "Sopa (Fijo)", "Opción A", "Opción B", "Opción C", "Raciones Principales", "Raciones Sopa",
         "Calorías (kcal)", "Proteína (g)", "Carbohidratos (g)", "Lípidos (g)", 
         "Sodio (mg)", "Evaluación Geriátrica"
       ];
       csvLines.push(nutritionHeaders.map(h => `"${h}"`).join(','));
 
-      // 7 días del ciclo de menú
+      // Días del ciclo de menú
       computedData.dailyNutritionSummary.forEach(item => {
+        const dishSoupText = item.dishSoup ? `${item.dishSoup} (${item.servingsSoup})` : (item.servingsSoup ? `Sopa (${item.servingsSoup})` : 'N/D');
         const dishAText = item.dishA ? `${item.dishA} (${item.servingsA})` : `Opción A (${item.servingsA})`;
         const dishBText = item.dishB ? `${item.dishB} (${item.servingsB})` : `Opción B (${item.servingsB})`;
+        const dishCText = item.dishC ? `${item.dishC} (${item.servingsC})` : (item.servingsC ? `Opción C (${item.servingsC})` : 'N/D');
         const row = [
           `"${item.dayName}"`,
           `"${item.dateLabel}"`,
+          `"${dishSoupText.replace(/"/g, '""')}"`,
           `"${dishAText.replace(/"/g, '""')}"`,
           `"${dishBText.replace(/"/g, '""')}"`,
-          item.totalDayServings,
+          `"${dishCText.replace(/"/g, '""')}"`,
+          item.totalDayMain || item.totalDayServings,
+          item.servingsSoup || 0,
           item.avgCaloriesPerResident !== null ? item.avgCaloriesPerResident : 'N/D',
           item.avgProteinPerResident !== null ? item.avgProteinPerResident : 'N/D',
           item.avgCarbsPerResident !== null ? item.avgCarbsPerResident : 'N/D',
@@ -704,9 +845,12 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
       const avgRow = [
         '"PROMEDIO DIARIO"',
         '""',
+        `"Sopa: ${Math.round(computedData.totalServingsSoup / (computedData.dailyNutritionSummary.length || 7))} rac"`,
         `"A: ${Math.round(computedData.totalServingsA / (computedData.dailyNutritionSummary.length || 7))} rac"`,
         `"B: ${Math.round(computedData.totalServingsB / (computedData.dailyNutritionSummary.length || 7))} rac"`,
+        `"C: ${Math.round(computedData.totalServingsC / (computedData.dailyNutritionSummary.length || 7))} rac"`,
         census,
+        Math.round(computedData.totalServingsSoup / (computedData.dailyNutritionSummary.length || 7)),
         computedData.weeklyAvgPerResident.calories !== null ? computedData.weeklyAvgPerResident.calories : 'N/D',
         computedData.weeklyAvgPerResident.protein !== null ? computedData.weeklyAvgPerResident.protein : 'N/D',
         computedData.weeklyAvgPerResident.carbs !== null ? computedData.weeklyAvgPerResident.carbs : 'N/D',
@@ -1103,9 +1247,6 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                 <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', color: '#1E293B', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Utensils size={20} color="#B45309" /> Registro Diario de Raciones Servidas por el Chef
                 </h3>
-                <p style={{ margin: '0.2rem 0 0 0', color: '#64748B', fontSize: '0.85rem' }}>
-                  Ajuste en tiempo real de comensales que optaron por Menú Tradicional vs. Textura Suave/Colación.
-                </p>
               </div>
 
               {/* Indicador de captura manual de raciones */}
@@ -1138,33 +1279,36 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
 
             {/* Grid de KPIs de Raciones */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-              <div style={{ background: '#F8FAFC', padding: '1rem', borderRadius: '14px', border: '1px solid #E2E8F0' }}>
-                <span style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: '700', textTransform: 'uppercase' }}>Total Raciones Servidas</span>
+              <div style={{ background: '#FFFBEB', padding: '1rem', borderRadius: '14px', border: '1px solid #FDE68A' }}>
+                <span style={{ fontSize: '0.78rem', color: '#92400E', fontWeight: '700', textTransform: 'uppercase' }}>Sopas Servidas</span>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginTop: '0.2rem' }}>
-                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#B45309' }}>{computedData.totalServingsWeek}</span>
-                  <span style={{ fontSize: '0.85rem', color: '#64748B' }}>de {computedData.expectedWeekServings} planificadas</span>
-                </div>
-                <div style={{ fontSize: '0.75rem', color: computedData.totalServingsWeek >= computedData.expectedWeekServings ? '#10B981' : '#F59E0B', fontWeight: '700', marginTop: '0.3rem' }}>
-                  {computedData.totalServingsWeek === computedData.expectedWeekServings ? '✓ 100% Cobertura exacta del censo' : `${Math.round((computedData.totalServingsWeek / (computedData.expectedWeekServings || 1)) * 100)}% de asistencia registrada`}
+                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#D97706' }}>{computedData.totalServingsSoup}</span>
+                  <span style={{ fontSize: '0.85rem', color: '#B45309', fontWeight: '800' }}>raciones</span>
                 </div>
               </div>
 
-              <div style={{ background: '#F8FAFC', padding: '1rem', borderRadius: '14px', border: '1px solid #E2E8F0' }}>
-                <span style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: '700', textTransform: 'uppercase' }}>Opción A (Menú Principal)</span>
+              <div style={{ background: '#EFF6FF', padding: '1rem', borderRadius: '14px', border: '1px solid #BFDBFE' }}>
+                <span style={{ fontSize: '0.78rem', color: '#1E40AF', fontWeight: '700', textTransform: 'uppercase' }}>Opción A (Tradicional)</span>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginTop: '0.2rem' }}>
-                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#1E293B' }}>{computedData.totalServingsA}</span>
-                  <span style={{ fontSize: '0.85rem', color: '#B45309', fontWeight: '800' }}>({computedData.percentA}%)</span>
+                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#1E3A8A' }}>{computedData.totalServingsA}</span>
+                  <span style={{ fontSize: '0.85rem', color: '#2563EB', fontWeight: '800' }}>({computedData.percentA}%)</span>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '0.3rem' }}>Textura regular y fácil masticación</div>
               </div>
 
-              <div style={{ background: '#F8FAFC', padding: '1rem', borderRadius: '14px', border: '1px solid #E2E8F0' }}>
-                <span style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: '700', textTransform: 'uppercase' }}>Opción B (Suave / Suplementada)</span>
+              <div style={{ background: '#F0FDF4', padding: '1rem', borderRadius: '14px', border: '1px solid #BBF7D0' }}>
+                <span style={{ fontSize: '0.78rem', color: '#166534', fontWeight: '700', textTransform: 'uppercase' }}>Opción B (Suave)</span>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginTop: '0.2rem' }}>
-                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#2563EB' }}>{computedData.totalServingsB}</span>
-                  <span style={{ fontSize: '0.85rem', color: '#2563EB', fontWeight: '800' }}>({computedData.percentB}%)</span>
+                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#14532D' }}>{computedData.totalServingsB}</span>
+                  <span style={{ fontSize: '0.85rem', color: '#16A34A', fontWeight: '800' }}>({computedData.percentB}%)</span>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '0.3rem' }}>Purés, papillas o colaciones proteicas</div>
+              </div>
+
+              <div style={{ background: '#FAF5FF', padding: '1rem', borderRadius: '14px', border: '1px solid #E9D5FF' }}>
+                <span style={{ fontSize: '0.78rem', color: '#7E22CE', fontWeight: '700', textTransform: 'uppercase' }}>Opción C (Saludable)</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginTop: '0.2rem' }}>
+                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#6B21A8' }}>{computedData.totalServingsC}</span>
+                  <span style={{ fontSize: '0.85rem', color: '#8B5CF6', fontWeight: '800' }}>({computedData.percentC}%)</span>
+                </div>
               </div>
             </div>
           </div>
@@ -1173,19 +1317,27 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {days.map((day, idx) => {
               const dayServing = servingsByDay[day.dayName] || { 
+                soup: '',
                 optionA: '', 
-                optionB: '' 
+                optionB: '',
+                optionC: ''
               };
+              const servSoup = dayServing.soup !== undefined && dayServing.soup !== null ? dayServing.soup : '';
               const servA = dayServing.optionA !== undefined && dayServing.optionA !== null ? dayServing.optionA : '';
               const servB = dayServing.optionB !== undefined && dayServing.optionB !== null ? dayServing.optionB : '';
-              const hasCapture = servA !== '' || servB !== '';
+              const servC = dayServing.optionC !== undefined && dayServing.optionC !== null ? dayServing.optionC : '';
+              const hasCapture = servSoup !== '' || servA !== '' || servB !== '' || servC !== '';
+              const numSoup = parseInt(servSoup, 10) || 0;
               const numA = parseInt(servA, 10) || 0;
               const numB = parseInt(servB, 10) || 0;
-              const totalDay = numA + numB;
-              const diffFromCensus = totalDay - census;
+              const numC = parseInt(servC, 10) || 0;
+              const totalDayMain = numA + numB + numC;
+              const diffFromCensus = totalDayMain - census;
 
+              const nutSoup = getDishNutrition(day.soup);
               const nutA = getDishNutrition(day.optionA);
               const nutB = getDishNutrition(day.optionB);
+              const nutC = getDishNutrition(day.optionC);
 
               return (
                 <div 
@@ -1225,133 +1377,259 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                         border: !hasCapture ? '1px solid #CBD5E1' : (diffFromCensus === 0 ? '1px solid #A7F3D0' : (diffFromCensus > 0 ? '1px solid #BFDBFE' : '1px solid #FDE68A'))
                       }}>
                         {!hasCapture && 'Pendiente de capturar'}
-                        {hasCapture && diffFromCensus === 0 && `✓ Cubierto exacto: ${totalDay} raciones`}
-                        {hasCapture && diffFromCensus > 0 && `+${diffFromCensus} raciones extra (${totalDay} / ${census})`}
-                        {hasCapture && diffFromCensus < 0 && `${diffFromCensus} raciones (${totalDay} / ${census})`}
+                        {hasCapture && diffFromCensus === 0 && `✓ Cubierto exacto: ${totalDayMain} platos fuertes (${numSoup} sopas)`}
+                        {hasCapture && diffFromCensus > 0 && `+${diffFromCensus} raciones extra (${totalDayMain} / ${census} censo, ${numSoup} sopas)`}
+                        {hasCapture && diffFromCensus < 0 && `${diffFromCensus} raciones (${totalDayMain} / ${census} censo, ${numSoup} sopas)`}
                       </span>
                     </div>
                   </div>
 
-                  {/* Fila de Platillos A y B con Controles de Raciones del Chef */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
+                  {/* Fila de los 4 Platillos con Controles de Raciones del Chef */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
                     
-                    {/* Tarjeta Opción A */}
-                    <div style={{
-                      background: '#FFFBEB',
-                      border: '1px solid #FDE68A',
-                      borderRadius: '14px',
-                      padding: '1rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between'
-                    }}>
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
-                          <span style={{ fontSize: '0.7rem', fontWeight: '800', color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            OPCIÓN A • {day.optionA?.category || 'Menú Tradicional'}
-                          </span>
-                          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#92400E' }}>
-                            {hasCapture && totalDay > 0 && servA !== '' ? `${Math.round((numA / totalDay) * 100)}% preferencia` : '---'}
-                          </span>
+                    {/* Tarjeta Sopa del Día */}
+                    {day.soup && (
+                      <div style={{
+                        background: '#FFFBEB',
+                        border: '1px solid #FDE68A',
+                        borderRadius: '14px',
+                        padding: '1rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between'
+                      }}>
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: '800', color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                              SOPA • PRIMER TIEMPO (FIJO)
+                            </span>
+                            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#92400E' }}>
+                              {hasCapture && servSoup !== '' ? `${numSoup} raciones` : '---'}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.98rem', fontWeight: '700', color: '#1E293B', marginBottom: '0.4rem', lineHeight: '1.3' }}>
+                            {day.soup?.name || 'Sopa del Día'}
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: '#78350F', display: 'flex', gap: '0.6rem', marginBottom: '0.85rem' }}>
+                            <span><strong>{nutSoup.calories !== null ? nutSoup.calories : 'N/D'}</strong> kcal</span>
+                            <span>•</span>
+                            <span><strong>{nutSoup.protein !== null ? `${nutSoup.protein}g` : 'N/D'}</strong> prot</span>
+                            <span>•</span>
+                            <span><strong>{nutSoup.sodium !== null ? `${nutSoup.sodium}mg` : 'N/D'}</strong> sodio</span>
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.98rem', fontWeight: '700', color: '#1E293B', marginBottom: '0.4rem', lineHeight: '1.3' }}>
-                          {day.optionA?.name || 'Platillo A'}
-                        </div>
-                        <div style={{ fontSize: '0.78rem', color: '#78350F', display: 'flex', gap: '0.6rem', marginBottom: '0.85rem' }}>
-                          <span><strong>{nutA.calories}</strong> kcal</span>
-                          <span>•</span>
-                          <span><strong>{nutA.protein}g</strong> prot</span>
-                          <span>•</span>
-                          <span><strong>{nutA.sodium}mg</strong> sodio</span>
-                        </div>
-                      </div>
 
-                      {/* Controles de Raciones Opción A */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFFFF', padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #FDE68A' }}>
-                        <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#78350F' }}>Raciones Servidas:</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <button
-                            onClick={() => handleServingChange(day.dayName, 'optionA', -1)}
-                            style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #CBD5E1', background: '#F8FAFC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
-                          >
-                            <Minus size={13} />
-                          </button>
-                          <input 
-                            type="number"
-                            value={servA}
-                            placeholder="0"
-                            onChange={(e) => handleServingDirectInput(day.dayName, 'optionA', e.target.value)}
-                            style={{ width: '50px', padding: '0.25rem', borderRadius: '6px', border: '1px solid #CBD5E1', textAlign: 'center', fontWeight: '800', fontSize: '0.95rem', color: '#1E293B' }}
-                            min="0"
-                          />
-                          <button
-                            onClick={() => handleServingChange(day.dayName, 'optionA', 1)}
-                            style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #B45309', background: '#B45309', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
-                          >
-                            <Plus size={13} />
-                          </button>
+                        {/* Controles de Raciones Sopa */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFFFF', padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #FDE68A' }}>
+                          <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#78350F' }}>Raciones Servidas:</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <button
+                              onClick={() => handleServingChange(day.dayName, 'soup', -1)}
+                              style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #CBD5E1', background: '#F8FAFC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+                            >
+                              <Minus size={13} />
+                            </button>
+                            <input 
+                              type="number"
+                              value={servSoup}
+                              placeholder="0"
+                              onChange={(e) => handleServingDirectInput(day.dayName, 'soup', e.target.value)}
+                              style={{ width: '50px', padding: '0.25rem', borderRadius: '6px', border: '1px solid #CBD5E1', textAlign: 'center', fontWeight: '800', fontSize: '0.95rem', color: '#1E293B' }}
+                              min="0"
+                            />
+                            <button
+                              onClick={() => handleServingChange(day.dayName, 'soup', 1)}
+                              style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #B45309', background: '#B45309', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+                            >
+                              <Plus size={13} />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
+
+                    {/* Tarjeta Opción A */}
+                    {day.optionA && (
+                      <div style={{
+                        background: '#EFF6FF',
+                        border: '1px solid #BFDBFE',
+                        borderRadius: '14px',
+                        padding: '1rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between'
+                      }}>
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: '800', color: '#2563EB', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                              OPCIÓN A • {day.optionA?.category || 'Menú Tradicional'}
+                            </span>
+                            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#1E40AF' }}>
+                              {hasCapture && totalDayMain > 0 && servA !== '' ? `${Math.round((numA / totalDayMain) * 100)}% preferencia` : '---'}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.98rem', fontWeight: '700', color: '#1E293B', marginBottom: '0.4rem', lineHeight: '1.3' }}>
+                            {day.optionA?.name || 'Platillo A'}
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: '#1E40AF', display: 'flex', gap: '0.6rem', marginBottom: '0.85rem' }}>
+                            <span><strong>{nutA.calories !== null ? nutA.calories : 'N/D'}</strong> kcal</span>
+                            <span>•</span>
+                            <span><strong>{nutA.protein !== null ? `${nutA.protein}g` : 'N/D'}</strong> prot</span>
+                            <span>•</span>
+                            <span><strong>{nutA.sodium !== null ? `${nutA.sodium}mg` : 'N/D'}</strong> sodio</span>
+                          </div>
+                        </div>
+
+                        {/* Controles de Raciones Opción A */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFFFF', padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #BFDBFE' }}>
+                          <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#1E40AF' }}>Raciones Servidas:</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <button
+                              onClick={() => handleServingChange(day.dayName, 'optionA', -1)}
+                              style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #CBD5E1', background: '#F8FAFC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+                            >
+                              <Minus size={13} />
+                            </button>
+                            <input 
+                              type="number"
+                              value={servA}
+                              placeholder="0"
+                              onChange={(e) => handleServingDirectInput(day.dayName, 'optionA', e.target.value)}
+                              style={{ width: '50px', padding: '0.25rem', borderRadius: '6px', border: '1px solid #CBD5E1', textAlign: 'center', fontWeight: '800', fontSize: '0.95rem', color: '#1E293B' }}
+                              min="0"
+                            />
+                            <button
+                              onClick={() => handleServingChange(day.dayName, 'optionA', 1)}
+                              style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #2563EB', background: '#2563EB', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+                            >
+                              <Plus size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Tarjeta Opción B */}
-                    <div style={{
-                      background: '#EFF6FF',
-                      border: '1px solid #BFDBFE',
-                      borderRadius: '14px',
-                      padding: '1rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between'
-                    }}>
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
-                          <span style={{ fontSize: '0.7rem', fontWeight: '800', color: '#2563EB', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            OPCIÓN B • {day.optionB?.category || 'Suave / Papilla'}
-                          </span>
-                          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#1E40AF' }}>
-                            {hasCapture && totalDay > 0 && servB !== '' ? `${Math.round((numB / totalDay) * 100)}% preferencia` : '---'}
-                          </span>
+                    {day.optionB && (
+                      <div style={{
+                        background: '#F0FDF4',
+                        border: '1px solid #BBF7D0',
+                        borderRadius: '14px',
+                        padding: '1rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between'
+                      }}>
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: '800', color: '#16A34A', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                              OPCIÓN B • {day.optionB?.category || 'Textura Suave'}
+                            </span>
+                            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#166534' }}>
+                              {hasCapture && totalDayMain > 0 && servB !== '' ? `${Math.round((numB / totalDayMain) * 100)}% preferencia` : '---'}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.98rem', fontWeight: '700', color: '#1E293B', marginBottom: '0.4rem', lineHeight: '1.3' }}>
+                            {day.optionB?.name || 'Platillo B'}
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: '#166534', display: 'flex', gap: '0.6rem', marginBottom: '0.85rem' }}>
+                            <span><strong>{nutB.calories !== null ? nutB.calories : 'N/D'}</strong> kcal</span>
+                            <span>•</span>
+                            <span><strong>{nutB.protein !== null ? `${nutB.protein}g` : 'N/D'}</strong> prot</span>
+                            <span>•</span>
+                            <span><strong>{nutB.sodium !== null ? `${nutB.sodium}mg` : 'N/D'}</strong> sodio</span>
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.98rem', fontWeight: '700', color: '#1E293B', marginBottom: '0.4rem', lineHeight: '1.3' }}>
-                          {day.optionB?.name || 'Platillo B'}
-                        </div>
-                        <div style={{ fontSize: '0.78rem', color: '#1E40AF', display: 'flex', gap: '0.6rem', marginBottom: '0.85rem' }}>
-                          <span><strong>{nutB.calories}</strong> kcal</span>
-                          <span>•</span>
-                          <span><strong>{nutB.protein}g</strong> prot</span>
-                          <span>•</span>
-                          <span><strong>{nutB.sodium}mg</strong> sodio</span>
-                        </div>
-                      </div>
 
-                      {/* Controles de Raciones Opción B */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFFFF', padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #BFDBFE' }}>
-                        <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#1E40AF' }}>Raciones Servidas:</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <button
-                            onClick={() => handleServingChange(day.dayName, 'optionB', -1)}
-                            style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #CBD5E1', background: '#F8FAFC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
-                          >
-                            <Minus size={13} />
-                          </button>
-                          <input 
-                            type="number"
-                            value={servB}
-                            placeholder="0"
-                            onChange={(e) => handleServingDirectInput(day.dayName, 'optionB', e.target.value)}
-                            style={{ width: '50px', padding: '0.25rem', borderRadius: '6px', border: '1px solid #CBD5E1', textAlign: 'center', fontWeight: '800', fontSize: '0.95rem', color: '#1E293B' }}
-                            min="0"
-                          />
-                          <button
-                            onClick={() => handleServingChange(day.dayName, 'optionB', 1)}
-                            style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #2563EB', background: '#2563EB', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
-                          >
-                            <Plus size={13} />
-                          </button>
+                        {/* Controles de Raciones Opción B */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFFFF', padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #BBF7D0' }}>
+                          <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#166534' }}>Raciones Servidas:</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <button
+                              onClick={() => handleServingChange(day.dayName, 'optionB', -1)}
+                              style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #CBD5E1', background: '#F8FAFC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+                            >
+                              <Minus size={13} />
+                            </button>
+                            <input 
+                              type="number"
+                              value={servB}
+                              placeholder="0"
+                              onChange={(e) => handleServingDirectInput(day.dayName, 'optionB', e.target.value)}
+                              style={{ width: '50px', padding: '0.25rem', borderRadius: '6px', border: '1px solid #CBD5E1', textAlign: 'center', fontWeight: '800', fontSize: '0.95rem', color: '#1E293B' }}
+                              min="0"
+                            />
+                            <button
+                              onClick={() => handleServingChange(day.dayName, 'optionB', 1)}
+                              style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #16A34A', background: '#16A34A', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+                            >
+                              <Plus size={13} />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
+
+                    {/* Tarjeta Opción C */}
+                    {day.optionC && (
+                      <div style={{
+                        background: '#FAF5FF',
+                        border: '1px solid #E9D5FF',
+                        borderRadius: '14px',
+                        padding: '1rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between'
+                      }}>
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: '800', color: '#8B5CF6', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                              OPCIÓN C • {day.optionC?.category || 'Especial & Saludable'}
+                            </span>
+                            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#6B21A8' }}>
+                              {hasCapture && totalDayMain > 0 && servC !== '' ? `${Math.round((numC / totalDayMain) * 100)}% preferencia` : '---'}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.98rem', fontWeight: '700', color: '#1E293B', marginBottom: '0.4rem', lineHeight: '1.3' }}>
+                            {day.optionC?.name || 'Platillo C'}
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: '#6B21A8', display: 'flex', gap: '0.6rem', marginBottom: '0.85rem' }}>
+                            <span><strong>{nutC.calories !== null ? nutC.calories : 'N/D'}</strong> kcal</span>
+                            <span>•</span>
+                            <span><strong>{nutC.protein !== null ? `${nutC.protein}g` : 'N/D'}</strong> prot</span>
+                            <span>•</span>
+                            <span><strong>{nutC.sodium !== null ? `${nutC.sodium}mg` : 'N/D'}</strong> sodio</span>
+                          </div>
+                        </div>
+
+                        {/* Controles de Raciones Opción C */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFFFF', padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #E9D5FF' }}>
+                          <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#6B21A8' }}>Raciones Servidas:</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <button
+                              onClick={() => handleServingChange(day.dayName, 'optionC', -1)}
+                              style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #CBD5E1', background: '#F8FAFC', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+                            >
+                              <Minus size={13} />
+                            </button>
+                            <input 
+                              type="number"
+                              value={servC}
+                              placeholder="0"
+                              onChange={(e) => handleServingDirectInput(day.dayName, 'optionC', e.target.value)}
+                              style={{ width: '50px', padding: '0.25rem', borderRadius: '6px', border: '1px solid #CBD5E1', textAlign: 'center', fontWeight: '800', fontSize: '0.95rem', color: '#1E293B' }}
+                              min="0"
+                            />
+                            <button
+                              onClick={() => handleServingChange(day.dayName, 'optionC', 1)}
+                              style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #8B5CF6', background: '#8B5CF6', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+                            >
+                              <Plus size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                   </div>
                 </div>
@@ -1608,7 +1886,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                           {item.unitPrice !== null ? (
                             <div>
                               <div style={{ fontWeight: '700', color: '#1E293B', fontSize: '0.85rem' }}>
-                                ${Number(item.unitPrice).toFixed(2)} <span style={{ fontSize: '0.72rem', color: '#64748B' }}>/ {item.displayUnit}</span>
+                                ${Number(item.unitPrice).toFixed(2)} <span style={{ fontSize: '0.72rem', color: '#64748B' }}>/ {item.commercialUnit || item.displayUnit}</span>
                               </div>
                               {item.totalCost !== null && (
                                 <div style={{ fontSize: '0.72rem', color: '#166534', fontWeight: '600' }}>
@@ -1903,15 +2181,26 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                         <div style={{ fontSize: '0.72rem', color: '#64748B' }}>{item.dateLabel}</div>
                       </td>
                       <td style={{ padding: '0.65rem 0.5rem' }}>
-                        <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#1E293B', wordBreak: 'break-word' }}>
+                        {item.dishSoup && (
+                          <div style={{ fontSize: '0.78rem', color: '#D97706', fontWeight: '700', wordBreak: 'break-word' }}>
+                            Sopa: {item.dishSoup} ({item.servingsSoup})
+                          </div>
+                        )}
+                        <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#1E293B', marginTop: '0.1rem', wordBreak: 'break-word' }}>
                           A: {item.dishA} ({item.servingsA})
                         </div>
-                        <div style={{ fontSize: '0.8rem', color: '#2563EB', marginTop: '0.15rem', wordBreak: 'break-word' }}>
+                        <div style={{ fontSize: '0.8rem', color: '#16A34A', marginTop: '0.1rem', wordBreak: 'break-word' }}>
                           B: {item.dishB} ({item.servingsB})
                         </div>
+                        {item.dishC && (
+                          <div style={{ fontSize: '0.8rem', color: '#8B5CF6', marginTop: '0.1rem', wordBreak: 'break-word' }}>
+                            C: {item.dishC} ({item.servingsC})
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '0.65rem 0.4rem', fontWeight: '800', color: '#1E293B', textAlign: 'center' }}>
-                        {item.totalDayServings}
+                        <div>{item.totalDayMain} platos</div>
+                        {item.servingsSoup > 0 && <div style={{ fontSize: '0.7rem', color: '#D97706', fontWeight: '600' }}>({item.servingsSoup} sopas)</div>}
                       </td>
                       <td style={{ padding: '0.65rem 0.4rem', fontWeight: '700', color: '#1E293B' }}>
                         {item.avgCaloriesPerResident !== null ? `${item.avgCaloriesPerResident} kcal` : 'N/D'}
@@ -2178,9 +2467,9 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                 ) : (
                   modalFilteredSupplies.map((item) => {
                     const rec = purchasedSupplies[item.key] || purchasedSupplies[item.name.toLowerCase()] || {};
-                    const currentPurchased = rec.amount !== undefined && rec.amount !== null ? rec.amount : '';
-                    const currentUnitPrice = rec.unitPrice !== undefined && rec.unitPrice !== null ? rec.unitPrice : '';
-                    const currentTotalCost = rec.totalCost !== undefined && rec.totalCost !== null ? rec.totalCost : (rec.cost !== undefined && rec.cost !== null ? rec.cost : '');
+                    const currentPurchased = item.purchasedAmountRaw !== null && item.purchasedAmountRaw !== undefined ? item.purchasedAmountRaw : (rec.amount !== undefined && rec.amount !== null ? rec.amount : '');
+                    const currentUnitPrice = item.unitPrice !== null && item.unitPrice !== undefined ? item.unitPrice : (rec.unitPrice !== undefined && rec.unitPrice !== null ? rec.unitPrice : '');
+                    const currentTotalCost = item.totalCost !== null && item.totalCost !== undefined ? item.totalCost : (rec.totalCost !== undefined && rec.totalCost !== null ? rec.totalCost : (rec.cost !== undefined && rec.cost !== null ? rec.cost : ''));
 
                     return (
                       <div 
@@ -2214,7 +2503,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                               type="number"
                               placeholder="0"
                               value={currentPurchased}
-                              onChange={(e) => handleSavePurchaseItem(item.key, 'amount', e.target.value, { displayUnit: item.displayUnit, name: item.name })}
+                              onChange={(e) => handleSavePurchaseItem(item.key, 'amount', e.target.value, { displayUnit: item.displayUnit, unitType: item.unitType, name: item.name })}
                               style={{
                                 width: '85px',
                                 padding: '0.4rem 0.5rem',
@@ -2230,16 +2519,16 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                             />
                           </div>
 
-                          {/* Precio Unitario */}
+                          {/* Precio Unitario Comercial (/kg o /L) */}
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                             <label style={{ fontSize: '0.68rem', fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>
-                              Precio Unit. ($)
+                              {item.commercialPriceLabel || 'PRECIO UNIT. ($)'}
                             </label>
                             <input 
                               type="number"
                               placeholder="0.00"
                               value={currentUnitPrice}
-                              onChange={(e) => handleSavePurchaseItem(item.key, 'unitPrice', e.target.value, { displayUnit: item.displayUnit, name: item.name })}
+                              onChange={(e) => handleSavePurchaseItem(item.key, 'unitPrice', e.target.value, { displayUnit: item.displayUnit, unitType: item.unitType, name: item.name })}
                               style={{
                                 width: '85px',
                                 padding: '0.4rem 0.5rem',
@@ -2264,7 +2553,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                               type="number"
                               placeholder="0.00"
                               value={currentTotalCost}
-                              onChange={(e) => handleSavePurchaseItem(item.key, 'totalCost', e.target.value, { displayUnit: item.displayUnit, name: item.name })}
+                              onChange={(e) => handleSavePurchaseItem(item.key, 'totalCost', e.target.value, { displayUnit: item.displayUnit, unitType: item.unitType, name: item.name })}
                               style={{
                                 width: '95px',
                                 padding: '0.4rem 0.5rem',
