@@ -320,8 +320,8 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
       currentDish: ''
     }));
 
-    // Persistir menú en menuStore para la semana seleccionada en calendario con los 4 enfoques
-    const published = menuStore.publishMenu({
+    // Persistir menú en menuStore para la semana seleccionada en calendario con los 4 enfoques (esperar persistencia en base de datos)
+    const published = await menuStore.publishMenu({
       weekInput: targetWeekInfo,
       daysPerWeek: String(activeDays.length),
       dietOptionA,
@@ -1221,37 +1221,37 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#92400E' }}>Calorías</div>
                               <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#B45309' }}>
-                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.calories} kcal` : `${nutritionSoup?.unit.calories || currentDay.soup?.calories || 220} kcal`}
+                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.calories} kcal` : (nutritionSoup?.unit.calories ? `${nutritionSoup.unit.calories} kcal` : (currentDay.soup?.calories ? `${currentDay.soup.calories} kcal` : '--'))}
                               </div>
                             </div>
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#92400E' }}>Proteína</div>
                               <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#B45309' }}>
-                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.protein}g` : `${nutritionSoup?.unit.protein || 12}g`}
+                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.protein}g` : (nutritionSoup?.unit.protein ? `${nutritionSoup.unit.protein}g` : (currentDay.soup?.protein ? `${String(currentDay.soup.protein).replace('g','')}g` : '--'))}
                               </div>
                             </div>
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#92400E' }}>Carbos</div>
                               <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#B45309' }}>
-                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.carbs}g` : `${nutritionSoup?.unit.carbs || 24}g`}
+                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.carbs}g` : (nutritionSoup?.unit.carbs ? `${nutritionSoup.unit.carbs}g` : (currentDay.soup?.carbs ? `${String(currentDay.soup.carbs).replace('g','')}g` : '--'))}
                               </div>
                             </div>
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#92400E' }}>Grasas</div>
                               <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#B45309' }}>
-                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.fats}g` : `${nutritionSoup?.unit.fats || 6}g`}
+                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.fats}g` : (nutritionSoup?.unit.fats ? `${nutritionSoup.unit.fats}g` : (currentDay.soup?.fats ? `${String(currentDay.soup.fats).replace('g','')}g` : '--'))}
                               </div>
                             </div>
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#92400E' }}>Sodio</div>
-                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.soup?.sodium || currentDay.soup?.sodio_mg || 260) <= 500 ? '#065F46' : '#991B1B' }}>
-                                {currentDay.soup?.sodium || currentDay.soup?.sodio_mg || 260}mg
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.soup?.sodium || currentDay.soup?.sodio_mg) ? ((currentDay.soup?.sodium || currentDay.soup?.sodio_mg) <= 500 ? '#065F46' : '#991B1B') : '#92400E' }}>
+                                {(currentDay.soup?.sodium || currentDay.soup?.sodio_mg) ? `${currentDay.soup?.sodium || currentDay.soup?.sodio_mg}mg` : '--'}
                               </div>
                             </div>
                           </div>
 
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                            <strong>Perfil Clínico:</strong> {currentDay.soup?.clinicalProfile || 'Caldo natural rico en electrolitos, favorece vaciado gástrico y deglución suave.'}
+                            <strong>Perfil Clínico:</strong> {currentDay.soup?.clinicalProfile || 'Calculando perfil clínico con IA...'}
                           </div>
 
                           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
@@ -1313,37 +1313,37 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
                             <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--primary)' }}>
-                              {auditMode === 'production' ? `${nutritionA?.totalProduction.calories} kcal` : `${nutritionA?.unit.calories || currentDay.optionA?.calories || 480} kcal`}
+                              {auditMode === 'production' ? `${nutritionA?.totalProduction.calories} kcal` : (nutritionA?.unit.calories ? `${nutritionA.unit.calories} kcal` : (currentDay.optionA?.calories ? `${currentDay.optionA.calories} kcal` : '--'))}
                             </div>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
                             <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#2563EB' }}>
-                              {auditMode === 'production' ? `${nutritionA?.totalProduction.protein}g` : `${nutritionA?.unit.protein || 35}g`}
+                              {auditMode === 'production' ? `${nutritionA?.totalProduction.protein}g` : (nutritionA?.unit.protein ? `${nutritionA.unit.protein}g` : (currentDay.optionA?.protein ? `${String(currentDay.optionA.protein).replace('g','')}g` : '--'))}
                             </div>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
                             <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
-                              {auditMode === 'production' ? `${nutritionA?.totalProduction.carbs}g` : `${nutritionA?.unit.carbs || 40}g`}
+                              {auditMode === 'production' ? `${nutritionA?.totalProduction.carbs}g` : (nutritionA?.unit.carbs ? `${nutritionA.unit.carbs}g` : (currentDay.optionA?.carbs ? `${String(currentDay.optionA.carbs).replace('g','')}g` : '--'))}
                             </div>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
                             <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
-                              {auditMode === 'production' ? `${nutritionA?.totalProduction.fats}g` : `${nutritionA?.unit.fats || 14}g`}
+                              {auditMode === 'production' ? `${nutritionA?.totalProduction.fats}g` : (nutritionA?.unit.fats ? `${nutritionA.unit.fats}g` : (currentDay.optionA?.fats ? `${String(currentDay.optionA.fats).replace('g','')}g` : '--'))}
                             </div>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Sodio</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.optionA?.sodium || currentDay.optionA?.sodio_mg || 340) <= 500 ? '#065F46' : '#991B1B' }}>
-                              {currentDay.optionA?.sodium || currentDay.optionA?.sodio_mg || 340}mg
+                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.optionA?.sodium || currentDay.optionA?.sodio_mg) ? ((currentDay.optionA?.sodium || currentDay.optionA?.sodio_mg) <= 500 ? '#065F46' : '#991B1B') : '#475569' }}>
+                              {(currentDay.optionA?.sodium || currentDay.optionA?.sodio_mg) ? `${currentDay.optionA?.sodium || currentDay.optionA?.sodio_mg}mg` : '--'}
                             </div>
                           </div>
                         </div>
 
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                          <strong>Perfil Clínico:</strong> {currentDay.optionA?.clinicalProfile || 'Índice glucémico controlado, digestión ágil en oficina sin causar pesadez post-almuerzo.'}
+                          <strong>Perfil Clínico:</strong> {currentDay.optionA?.clinicalProfile || 'Calculando perfil clínico con IA...'}
                         </div>
 
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
@@ -1404,37 +1404,37 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
                             <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--primary)' }}>
-                              {auditMode === 'production' ? `${nutritionB?.totalProduction.calories} kcal` : `${nutritionB?.unit.calories || currentDay.optionB?.calories || 430} kcal`}
+                              {auditMode === 'production' ? `${nutritionB?.totalProduction.calories} kcal` : (nutritionB?.unit.calories ? `${nutritionB.unit.calories} kcal` : (currentDay.optionB?.calories ? `${currentDay.optionB.calories} kcal` : '--'))}
                             </div>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
                             <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#2563EB' }}>
-                              {auditMode === 'production' ? `${nutritionB?.totalProduction.protein}g` : `${nutritionB?.unit.protein || 18}g`}
+                              {auditMode === 'production' ? `${nutritionB?.totalProduction.protein}g` : (nutritionB?.unit.protein ? `${nutritionB.unit.protein}g` : (currentDay.optionB?.protein ? `${String(currentDay.optionB.protein).replace('g','')}g` : '--'))}
                             </div>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
                             <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
-                              {auditMode === 'production' ? `${nutritionB?.totalProduction.carbs}g` : `${nutritionB?.unit.carbs || 50}g`}
+                              {auditMode === 'production' ? `${nutritionB?.totalProduction.carbs}g` : (nutritionB?.unit.carbs ? `${nutritionB.unit.carbs}g` : (currentDay.optionB?.carbs ? `${String(currentDay.optionB.carbs).replace('g','')}g` : '--'))}
                             </div>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
                             <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-dark)' }}>
-                              {auditMode === 'production' ? `${nutritionB?.totalProduction.fats}g` : `${nutritionB?.unit.fats || 16}g`}
+                              {auditMode === 'production' ? `${nutritionB?.totalProduction.fats}g` : (nutritionB?.unit.fats ? `${nutritionB.unit.fats}g` : (currentDay.optionB?.fats ? `${String(currentDay.optionB.fats).replace('g','')}g` : '--'))}
                             </div>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Sodio</div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.optionB?.sodium || currentDay.optionB?.sodio_mg || 320) <= 500 ? '#065F46' : '#991B1B' }}>
-                              {currentDay.optionB?.sodium || currentDay.optionB?.sodio_mg || 320}mg
+                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.optionB?.sodium || currentDay.optionB?.sodio_mg) ? ((currentDay.optionB?.sodium || currentDay.optionB?.sodio_mg) <= 500 ? '#065F46' : '#991B1B') : '#475569' }}>
+                              {(currentDay.optionB?.sodium || currentDay.optionB?.sodio_mg) ? `${currentDay.optionB?.sodium || currentDay.optionB?.sodio_mg}mg` : '--'}
                             </div>
                           </div>
                         </div>
 
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                          <strong>Perfil Clínico:</strong> {currentDay.optionB?.clinicalProfile || 'Alto contenido de fibra vegetal e ingredientes antioxidantes antiinflamatorios.'}
+                          <strong>Perfil Clínico:</strong> {currentDay.optionB?.clinicalProfile || 'Calculando perfil clínico con IA...'}
                         </div>
 
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
@@ -1496,37 +1496,37 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#7C3AED' }}>Calorías</div>
                               <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#7C3AED' }}>
-                                {auditMode === 'production' ? `${nutritionC?.totalProduction.calories} kcal` : `${nutritionC?.unit.calories || currentDay.optionC?.calories || 390} kcal`}
+                                {auditMode === 'production' ? `${nutritionC?.totalProduction.calories} kcal` : (nutritionC?.unit.calories ? `${nutritionC.unit.calories} kcal` : (currentDay.optionC?.calories ? `${currentDay.optionC.calories} kcal` : '--'))}
                               </div>
                             </div>
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#7C3AED' }}>Proteína</div>
                               <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#7C3AED' }}>
-                                {auditMode === 'production' ? `${nutritionC?.totalProduction.protein}g` : `${nutritionC?.unit.protein || 28}g`}
+                                {auditMode === 'production' ? `${nutritionC?.totalProduction.protein}g` : (nutritionC?.unit.protein ? `${nutritionC.unit.protein}g` : (currentDay.optionC?.protein ? `${String(currentDay.optionC.protein).replace('g','')}g` : '--'))}
                               </div>
                             </div>
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#7C3AED' }}>Carbos</div>
                               <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#7C3AED' }}>
-                                {auditMode === 'production' ? `${nutritionC?.totalProduction.carbs}g` : `${nutritionC?.unit.carbs || 38}g`}
+                                {auditMode === 'production' ? `${nutritionC?.totalProduction.carbs}g` : (nutritionC?.unit.carbs ? `${nutritionC.unit.carbs}g` : (currentDay.optionC?.carbs ? `${String(currentDay.optionC.carbs).replace('g','')}g` : '--'))}
                               </div>
                             </div>
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#7C3AED' }}>Grasas</div>
                               <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#7C3AED' }}>
-                                {auditMode === 'production' ? `${nutritionC?.totalProduction.fats}g` : `${nutritionC?.unit.fats || 12}g`}
+                                {auditMode === 'production' ? `${nutritionC?.totalProduction.fats}g` : (nutritionC?.unit.fats ? `${nutritionC.unit.fats}g` : (currentDay.optionC?.fats ? `${String(currentDay.optionC.fats).replace('g','')}g` : '--'))}
                               </div>
                             </div>
                             <div>
                               <div style={{ fontSize: '0.68rem', color: '#7C3AED' }}>Sodio</div>
-                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.optionC?.sodium || currentDay.optionC?.sodio_mg || 280) <= 500 ? '#065F46' : '#991B1B' }}>
-                                {currentDay.optionC?.sodium || currentDay.optionC?.sodio_mg || 280}mg
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: (currentDay.optionC?.sodium || currentDay.optionC?.sodio_mg) ? ((currentDay.optionC?.sodium || currentDay.optionC?.sodio_mg) <= 500 ? '#065F46' : '#991B1B') : '#7C3AED' }}>
+                                {(currentDay.optionC?.sodium || currentDay.optionC?.sodio_mg) ? `${currentDay.optionC?.sodium || currentDay.optionC?.sodio_mg}mg` : '--'}
                               </div>
                             </div>
                           </div>
 
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                            <strong>Perfil Clínico:</strong> {currentDay.optionC?.clinicalProfile || 'Formulación balanceada, control estricto de sodio e ingredientes digestivos.'}
+                            <strong>Perfil Clínico:</strong> {currentDay.optionC?.clinicalProfile || 'Calculando perfil clínico con IA...'}
                           </div>
 
                           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
