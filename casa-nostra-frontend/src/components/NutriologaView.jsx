@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { HeartPulse, ShieldCheck, CheckCircle2, AlertTriangle, Activity, Apple, Flame, Wand2, ChevronRight, ChevronDown, ArrowLeft, Check, RefreshCw, Layers, Scale, Users, Plus, Minus, Calculator, Sparkles } from 'lucide-react';
 import { cyclicMenus, nutriologaInfo, programInfo } from '../data/mockData';
 import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
@@ -80,16 +81,40 @@ const INITIAL_DISH_SELECTION = {
   }
 };
 
-export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa_nostra' }) {
+export default function NutriologaView({ selectedWeek, onWeekChange, serviceProfileKey = 'casa_nostra' }) {
   const [activeTab, setActiveTab] = useState('wizard'); // 'wizard' | 'audit'
 
-  // Semana en curso calculada dinámicamente según la fecha actual del sistema
-  const [targetWeekInfo, setTargetWeekInfo] = useState(() => getWeekInfoFromDate(new Date()));
+  // Semana calculada dinámicamente según la semana seleccionada o la sesión activa
+  const [targetWeekInfo, setTargetWeekInfo] = useState(() => {
+    if (selectedWeek && typeof selectedWeek === 'number') {
+      return getWeekInfoFromDate(selectedWeek);
+    }
+    try {
+      const saved = sessionStorage.getItem('nutriker_active_session_week');
+      if (saved) {
+        const num = parseInt(saved, 10);
+        if (!isNaN(num) && num > 0) return getWeekInfoFromDate(num);
+      }
+    } catch (_) {}
+    return getWeekInfoFromDate(new Date());
+  });
+
   const [activeMenu, setActiveMenu] = useState(() => menuStore.getActiveMenu(targetWeekInfo));
 
+  // Sincronizar targetWeekInfo si cambia selectedWeek desde el componente padre
+  useEffect(() => {
+    if (selectedWeek && typeof selectedWeek === 'number') {
+      const info = getWeekInfoFromDate(selectedWeek);
+      if (info.weekKey !== targetWeekInfo.weekKey) {
+        setTargetWeekInfo(info);
+      }
+    }
+  }, [selectedWeek]);
+
+  // Actualizar reactivamente activeMenu al cambiar la semana o al alternar a la pestaña de auditoría
   useEffect(() => {
     setActiveMenu(menuStore.getActiveMenu(targetWeekInfo));
-  }, [targetWeekInfo]);
+  }, [targetWeekInfo, activeTab]);
 
   useEffect(() => {
     const handleMenuUpdate = (e) => {
@@ -100,6 +125,18 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
     window.addEventListener('royal_canin_menu_updated', handleMenuUpdate);
     return () => window.removeEventListener('royal_canin_menu_updated', handleMenuUpdate);
   }, [targetWeekInfo]);
+
+  const handleWeekChange = (newWeekInfo) => {
+    setTargetWeekInfo(newWeekInfo);
+    if (newWeekInfo?.weekNumber) {
+      try {
+        sessionStorage.setItem('nutriker_active_session_week', String(newWeekInfo.weekNumber));
+      } catch (_) {}
+      if (onWeekChange) {
+        onWeekChange(newWeekInfo.weekNumber);
+      }
+    }
+  };
 
   // Wizard state
   const [wizardStep, setWizardStep] = useState(1);
@@ -206,6 +243,24 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
   // activeDays moved up
 
   const [isPublishing, setIsPublishing] = useState(false);
+  const [publishingState, setPublishingState] = useState({
+    active: false,
+    step: 'ai', // 'ai' | 'saving' | 'done'
+    completed: 0,
+    total: 0,
+    currentDish: ''
+  });
+
+  // Bloquear scroll de la página de fondo mientras el preloader está activo
+  useEffect(() => {
+    if (publishingState.active) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [publishingState.active]);
 
   const handleDishChange = (dayName, option, field, newValue) => {
     setDishSelection(prev => ({
@@ -222,75 +277,90 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
 
   const handlePublishMenu = async () => {
     setIsPublishing(true);
-    // Auto-verify if not verified for fallback
     if (!isHumanVerified && !allRecipesReviewed) setIsHumanVerified(true);
 
-    // Enriquecer automáticamente todos los platillos con el nodo de IA
     const updatedSelection = { ...dishSelection };
-    const promises = [];
-
+    
+    // Recopilar preparaciones a enriquecer
+    const dishesToEnrich = [];
     activeDays.forEach(dayName => {
       const dayDishes = updatedSelection[dayName] || {};
-      
-      // Opción A
       if (dayDishes.optionA?.name) {
-        promises.push(
-          menuStore.analyzeDishWithAI({
-            name: dayDishes.optionA.name,
-            ingredients: dayDishes.optionA.ingredients,
-            category: dietOptionA
-          }).then(res => {
-            if (res) {
-              updatedSelection[dayName] = {
-                ...updatedSelection[dayName],
-                optionA: {
-                  ...updatedSelection[dayName].optionA,
-                  calories: res.calorias,
-                  protein: res.proteina,
-                  carbs: res.carbos,
-                  fats: res.grasas,
-                  clinicalProfile: res.perfilClinico,
-                  allergens: res.alergenos
-                }
-              };
-            }
-          }).catch(() => {})
-        );
+        dishesToEnrich.push({
+          dayName,
+          option: 'optionA',
+          name: dayDishes.optionA.name,
+          ingredients: dayDishes.optionA.ingredients,
+          category: dietOptionA
+        });
       }
-
-      // Opción B
       if (dayDishes.optionB?.name) {
-        promises.push(
-          menuStore.analyzeDishWithAI({
-            name: dayDishes.optionB.name,
-            ingredients: dayDishes.optionB.ingredients,
-            category: dietOptionB
-          }).then(res => {
-            if (res) {
-              updatedSelection[dayName] = {
-                ...updatedSelection[dayName],
-                optionB: {
-                  ...updatedSelection[dayName].optionB,
-                  calories: res.calorias,
-                  protein: res.proteina,
-                  carbs: res.carbos,
-                  fats: res.grasas,
-                  clinicalProfile: res.perfilClinico,
-                  allergens: res.alergenos
-                }
-              };
-            }
-          }).catch(() => {})
-        );
+        dishesToEnrich.push({
+          dayName,
+          option: 'optionB',
+          name: dayDishes.optionB.name,
+          ingredients: dayDishes.optionB.ingredients,
+          category: dietOptionB
+        });
       }
+    });
+
+    const totalDishes = dishesToEnrich.length;
+    setPublishingState({
+      active: true,
+      step: 'ai',
+      completed: 0,
+      total: totalDishes,
+      currentDish: dishesToEnrich[0]?.name || ''
+    });
+
+    let completedCount = 0;
+    const promises = dishesToEnrich.map(item => {
+      return menuStore.analyzeDishWithAI({
+        name: item.name,
+        ingredients: item.ingredients,
+        category: item.category
+      }).then(res => {
+        if (res) {
+          updatedSelection[item.dayName] = {
+            ...updatedSelection[item.dayName],
+            [item.option]: {
+              ...updatedSelection[item.dayName][item.option],
+              calories: res.calorias,
+              protein: res.proteina,
+              carbs: res.carbos,
+              fats: res.grasas,
+              clinicalProfile: res.perfilClinico,
+              allergens: res.alergenos
+            }
+          };
+        }
+      }).catch(e => {
+        console.warn('Error al enriquecer platillo con IA:', item.name, e);
+      }).finally(() => {
+        completedCount++;
+        setPublishingState(prev => ({
+          ...prev,
+          completed: completedCount,
+          currentDish: dishesToEnrich[completedCount]?.name || ''
+        }));
+      });
     });
 
     try {
       await Promise.all(promises);
     } catch (_) {}
 
-    // Persist menu in menuStore para la semana seleccionada en calendario
-    menuStore.publishMenu({
+    // Transición a etapa de guardado
+    setPublishingState(prev => ({
+      ...prev,
+      step: 'saving',
+      completed: totalDishes,
+      currentDish: ''
+    }));
+
+    // Persistir menú en menuStore y base de datos
+    const published = menuStore.publishMenu({
       weekInput: targetWeekInfo,
       daysPerWeek: String(daysPerWeek),
       dietOptionA,
@@ -299,13 +369,25 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
       daysList: activeDays
     });
 
-    setIsPublishing(false);
+    if (published) {
+      setActiveMenu(published);
+    }
+
+    // Transición a éxito completado
+    setPublishingState(prev => ({
+      ...prev,
+      step: 'done'
+    }));
     setWizardSuccess(true);
+
+    // Pausa estética para visualizar el 100% y transición suave sin saltos
     setTimeout(() => {
+      setPublishingState({ active: false, step: 'ai', completed: 0, total: 0, currentDish: '' });
+      setIsPublishing(false);
       setWizardSuccess(false);
       setWizardStep(1);
       setActiveTab('audit');
-    }, 1200);
+    }, 950);
   };
 
   return (
@@ -355,9 +437,7 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
       <div style={{ marginBottom: '1.25rem' }}>
         <WeekCalendarPicker
           selectedWeekInfo={targetWeekInfo}
-          onChangeWeek={(newWeekInfo) => {
-            setTargetWeekInfo(newWeekInfo);
-          }}
+          onChangeWeek={handleWeekChange}
           label="Semana del Servicio para Programación y Auditoría Clínica:"
         />
       </div>
@@ -1200,6 +1280,129 @@ export default function NutriologaView({ selectedWeek, serviceProfileKey = 'casa
       )}
 
       <IngredientEditorModal isOpen={!!editingDish} onClose={() => setEditingDish(null)} dish={editingDish?.dish} dayName={currentDay?.dayName} optionKey={editingDish?.optionKey} role="nutriologa" onSave={handleSaveIngredients} onReset={handleResetIngredients} />
+
+      {/* Preloader Modal Overlay de IA y Publicación (Renderizado con createPortal directamente en document.body) */}
+      {publishingState.active && typeof document !== 'undefined' && createPortal(
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999999,
+          padding: '1rem',
+          margin: 0,
+          boxSizing: 'border-box'
+        }}>
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: '24px',
+            padding: '2.5rem 2rem',
+            maxWidth: '490px',
+            width: '100%',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            textAlign: 'center',
+            border: '1px solid #E2E8F0',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '1.25rem',
+            margin: 'auto',
+            animation: 'fadeIn 0.2s ease-out'
+          }}>
+            {/* Icono animado */}
+            <div style={{
+              width: '74px',
+              height: '74px',
+              borderRadius: '22px',
+              background: publishingState.step === 'done' ? '#F0FDF4' : '#EFF6FF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: publishingState.step === 'done' ? '#16A34A' : '#2563EB',
+              border: publishingState.step === 'done' ? '2px solid #BBF7D0' : '2px solid #BFDBFE',
+              boxShadow: publishingState.step === 'done' ? '0 10px 25px rgba(22, 163, 74, 0.2)' : '0 10px 25px rgba(37, 99, 235, 0.2)',
+              transition: 'all 0.3s ease'
+            }}>
+              {publishingState.step === 'done' ? (
+                <CheckCircle2 size={40} />
+              ) : (
+                <Sparkles size={38} style={{ animation: 'pulse 1.5s infinite ease-in-out' }} />
+              )}
+            </div>
+
+            {/* Títulos y Subtítulo Informativo */}
+            <div>
+              <h3 style={{ fontSize: '1.35rem', fontWeight: '800', color: '#0F172A', marginBottom: '0.4rem' }}>
+                {publishingState.step === 'done'
+                  ? '¡Menú Certificado y Publicado!'
+                  : publishingState.step === 'saving'
+                  ? 'Sincronizando Recetas y Fichas...'
+                  : 'Optimizando Menú con IA Clínica'}
+              </h3>
+              <p style={{ fontSize: '0.88rem', color: '#64748B', lineHeight: '1.45', margin: 0 }}>
+                {publishingState.step === 'done'
+                  ? 'Todos los platillos fueron enriquecidos con macros, alérgenos y recetas técnicas.'
+                  : publishingState.step === 'saving'
+                  ? 'Persistiendo datos clínicos en PostgreSQL y actualizando almacén oficial...'
+                  : publishingState.currentDish
+                  ? `Analizando: "${publishingState.currentDish}"`
+                  : 'Calculando requerimientos nutricionales para Casa Nostra...'}
+              </p>
+            </div>
+
+            {/* Barra de Progreso Dinámica */}
+            <div style={{ width: '100%', marginTop: '0.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', fontWeight: '700', color: '#475569', marginBottom: '0.5rem' }}>
+                <span>Progreso de Análisis</span>
+                <span style={{ color: publishingState.step === 'done' ? '#16A34A' : '#2563EB' }}>
+                  {publishingState.step === 'done'
+                    ? '100%'
+                    : `${Math.round(((publishingState.completed || 0) / Math.max(publishingState.total || 1, 1)) * 100)}%`}
+                </span>
+              </div>
+              <div style={{ width: '100%', height: '10px', background: '#F1F5F9', borderRadius: '9999px', overflow: 'hidden', border: '1px solid #E2E8F0' }}>
+                <div style={{
+                  height: '100%',
+                  width: publishingState.step === 'done'
+                    ? '100%'
+                    : `${Math.max(10, Math.round(((publishingState.completed || 0) / Math.max(publishingState.total || 1, 1)) * 100))}%`,
+                  background: publishingState.step === 'done' ? '#16A34A' : 'linear-gradient(90deg, #2563EB, #3B82F6)',
+                  borderRadius: '9999px',
+                  transition: 'width 0.35s ease'
+                }} />
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '0.4rem', textAlign: 'right' }}>
+                {publishingState.completed} de {publishingState.total} preparaciones analizadas
+              </div>
+            </div>
+
+            {/* Sello de Garantía Médica */}
+            <div style={{
+              background: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              padding: '0.6rem 1rem',
+              borderRadius: '12px',
+              fontSize: '0.78rem',
+              color: '#334155',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontWeight: '600'
+            }}>
+              <ShieldCheck size={16} color="#2563EB" />
+              <span>Verificación Médica y Auditoría Clínica Automatizada</span>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

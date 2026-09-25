@@ -49,7 +49,16 @@ export default function App() {
     return saved || 'nutriologa';
   });
 
-  const [selectedWeek, setSelectedWeek] = useState(() => getWeekInfoFromDate(new Date()).weekNumber);
+  const [selectedWeek, setSelectedWeek] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('nutriker_active_session_week');
+      if (saved) {
+        const num = parseInt(saved, 10);
+        if (!isNaN(num) && num > 0) return num;
+      }
+    } catch (_) {}
+    return getWeekInfoFromDate(new Date()).weekNumber;
+  });
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notificationTarget, setNotificationTarget] = useState(null);
 
@@ -111,6 +120,9 @@ export default function App() {
     localStorage.removeItem('royal_role');
     localStorage.removeItem('royal_user');
     localStorage.removeItem('token');
+    try {
+      sessionStorage.removeItem('nutriker_active_session_week');
+    } catch (_) {}
     setIsLoggedIn(false);
   };
 
@@ -233,6 +245,12 @@ export default function App() {
         {currentView === 'nutriologa' && (
           <NutriologaView
             selectedWeek={selectedWeek}
+            onWeekChange={(newWeekNum) => {
+              setSelectedWeek(newWeekNum);
+              try {
+                sessionStorage.setItem('nutriker_active_session_week', String(newWeekNum));
+              } catch (_) {}
+            }}
             serviceProfileKey={serviceProfileKey}
           />
         )}

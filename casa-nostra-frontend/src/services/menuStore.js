@@ -175,6 +175,17 @@ export const menuStore = {
           const currentStored = localStorage.getItem(`${MENU_STORAGE_PREFIX}${weekInfo.weekKey}`);
           const stringified = JSON.stringify(formattedMenu);
           if (currentStored !== stringified) {
+            // Protección contra sobreescritura con datos obsoletos del backend
+            if (currentStored) {
+              try {
+                const parsedStored = JSON.parse(currentStored);
+                if (parsedStored && parsedStored.publishedAt && formattedMenu.publishedAt) {
+                  if (new Date(parsedStored.publishedAt).getTime() > new Date(formattedMenu.publishedAt).getTime()) {
+                    return parsedStored;
+                  }
+                }
+              } catch (_) {}
+            }
             localStorage.setItem(`${MENU_STORAGE_PREFIX}${weekInfo.weekKey}`, stringified);
             localStorage.setItem(`${MENU_STORAGE_PREFIX}w${weekInfo.weekNumber}`, stringified);
             if (weekInfo.weekNumber === 1) {
@@ -430,6 +441,12 @@ export const menuStore = {
         activeMenu
       }
     }));
+
+    // Invalidar caché de sincronización para que las consultas subsecuentes no usen respuestas anteriores
+    const syncCacheKey = `menu_${weekInfo.weekKey}`;
+    if (this._syncMenuCache && this._syncMenuCache[syncCacheKey]) {
+      delete this._syncMenuCache[syncCacheKey];
+    }
 
     // Persistir asíncronamente en backend PostgreSQL (3FN)
     fetch(`${API_BASE_URL}/api/royal/menu`, {
