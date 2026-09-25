@@ -107,7 +107,8 @@ export function scaleIngredientLine(line, portions = 1) {
     };
   }
 
-  const scaledTotal = baseAmount * (portions || 1);
+  const portionsCount = (typeof portions === 'number' && !isNaN(portions)) ? Math.max(0, portions) : (portions !== '' && portions !== null && portions !== undefined ? Math.max(0, parseInt(portions, 10) || 0) : 1);
+  const scaledTotal = baseAmount * portionsCount;
   const normalizedBase = normalizeUnitAndAmount(baseAmount, rawUnit);
   const normalizedScaled = normalizeUnitAndAmount(scaledTotal, rawUnit);
 
@@ -171,13 +172,14 @@ export function extractMacroNumber(val) {
  * @returns {Object} Desglose unitario y consolidado
  */
 export function scaleNutrition(nutritionData = {}, portions = 1) {
-  const count = Math.max(1, parseInt(portions, 10) || 1);
+  const data = nutritionData || {};
+  const count = (typeof portions === 'number' && !isNaN(portions)) ? Math.max(0, portions) : (portions !== '' && portions !== null && portions !== undefined ? Math.max(0, parseInt(portions, 10) || 0) : 1);
 
-  const calBase = extractMacroNumber(nutritionData.calories ?? nutritionData.calorias ?? nutritionData.kcal);
-  const protBase = extractMacroNumber(nutritionData.protein ?? nutritionData.proteina ?? nutritionData.proteinas_g);
-  const carbsBase = extractMacroNumber(nutritionData.carbs ?? nutritionData.carbohidratos ?? nutritionData.carbohidratos_g);
-  const fatsBase = extractMacroNumber(nutritionData.fats ?? nutritionData.grasas ?? nutritionData.grasas_g);
-  const fiberBase = extractMacroNumber(nutritionData.fiber ?? nutritionData.fibra ?? nutritionData.fibra_g);
+  const calBase = extractMacroNumber(data.calories ?? data.calorias ?? data.kcal);
+  const protBase = extractMacroNumber(data.protein ?? data.proteina ?? data.proteinas_g);
+  const carbsBase = extractMacroNumber(data.carbs ?? data.carbohidratos ?? data.carbohidratos_g);
+  const fatsBase = extractMacroNumber(data.fats ?? data.grasas ?? data.grasas_g);
+  const fiberBase = extractMacroNumber(data.fiber ?? data.fibra ?? data.fibra_g);
 
   return {
     portions: count,

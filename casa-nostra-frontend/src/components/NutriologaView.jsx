@@ -1,84 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { HeartPulse, ShieldCheck, CheckCircle2, AlertTriangle, Activity, Apple, Flame, Wand2, ChevronRight, ChevronDown, ArrowLeft, Check, RefreshCw, Layers, Scale, Users, Plus, Minus, Calculator, Sparkles } from 'lucide-react';
+import { HeartPulse, ShieldCheck, CheckCircle2, AlertTriangle, Activity, Apple, Flame, Wand2, ChevronRight, ChevronDown, ArrowLeft, Check, RefreshCw, Layers, Scale, Users, Plus, Minus, Calculator, Lock, Soup, Sparkles } from 'lucide-react';
 import { cyclicMenus, nutriologaInfo, programInfo } from '../data/mockData';
 import { menuStore, getWeekInfoFromDate } from '../services/menuStore';
 import { scaleIngredients, scaleNutrition } from '../utils/recipeScaler';
 import WeekCalendarPicker from './WeekCalendarPicker';
 import IngredientEditorModal from './IngredientEditorModal';
 
-const GET_ACTIVE_DAYS = (numDays) => {
-  const n = parseInt(numDays, 10) || 5;
-  if (n === 1) return ['Lunes'];
-  if (n === 2) return ['Lunes', 'Miércoles'];
-  if (n === 3) return ['Lunes', 'Miércoles', 'Viernes'];
-  if (n === 4) return ['Lunes', 'Martes', 'Miércoles', 'Jueves'];
-  if (n === 5) return ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-  if (n === 6) return ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-  return ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-};
+const DAY_BUTTONS = [
+  { key: 'Lunes', label: 'L', full: 'Lunes' },
+  { key: 'Martes', label: 'M', full: 'Martes' },
+  { key: 'Miércoles', label: 'I', full: 'Miércoles' },
+  { key: 'Jueves', label: 'J', full: 'Jueves' },
+  { key: 'Viernes', label: 'V', full: 'Viernes' },
+  { key: 'Sábado', label: 'S', full: 'Sábado' },
+  { key: 'Domingo', label: 'D', full: 'Domingo' }
+];
 
-const INITIAL_DISH_SELECTION = {
-  Lunes: {
-    optionA: {
-      name: "Pechuga Grill con Crosta de Hierbas y Quinoa",
-      ingredients: "150g Pechuga de Pollo, 50g Quinoa tricolor, 80g Calabacitas, 10ml Aceite, 2g Sal, 3g Romero",
-      method: "1. Macerar pollo con romero, aceite y sal.\n2. Cocinar a la plancha a 180°C por 6 mins por lado.\n3. Hervir quinoa.\n4. Saltear calabacitas en cubos."
-    },
-    optionB: {
-      name: "Bowl Mediterráneo de Garbanzos Rostizados",
-      ingredients: "100g Garbanzos cocidos, 50g Pepino persa, 50g Jitomates cherry, 20g Aceitunas, 30g Aderezo tahini",
-      method: "1. Rostizar garbanzos con paprika a 200°C por 15 mins.\n2. Cortar vegetales frescos.\n3. Mezclar con aderezo."
-    }
-  },
-  Martes: {
-    optionA: {
-      name: "Salmón Noruego a la Plancha con Miel de Mostaza",
-      ingredients: "150g Salmón fresco, 100g Camote en cubos, 80g Espárragos al vapor, 15ml Mostaza-miel",
-      method: "1. Sellar salmón en plancha a 200°C por 4 mins por lado.\n2. Hornear cubos de camote.\n3. Servir con espárragos al vapor."
-    },
-    optionB: {
-      name: "Curry Cremoso de Lentejas Amarillas y Espinacas",
-      ingredients: "120g Lentejas amarillas, 60ml Leche de coco light, 50g Espinacas baby, 50g Cuscús perlado",
-      method: "1. Cocer lentejas con curry y cúrcuma.\n2. Añadir leche de coco y espinacas al final.\n3. Acompañar con cuscús."
-    }
-  },
-  Miércoles: {
-    optionA: {
-      name: "Wrap Ejecutivo de Pechuga de Pavo y Hummus",
-      ingredients: "1 Tortilla espinaca, 100g Pavo, 40g Hummus, 40g Aguacate, 30g Pimientos",
-      method: "1. Untar hummus como base.\n2. Colocar pavo y vegetales.\n3. Enrollar y cortar en dos."
-    },
-    optionB: {
-      name: "Wok de Tofu Marinado y Edamames",
-      ingredients: "120g Tofu firme, 60g Edamames, 70g Arroz integral, 40g Brócoli, 15ml Soya",
-      method: "1. Prensar y sellar tofu en wok.\n2. Glasear vegetales con soya.\n3. Servir sobre arroz."
-    }
-  },
-  Jueves: {
-    optionA: {
-      name: "Fajitas de Pollo Orgánico con Trilogía de Pimientos",
-      ingredients: "150g Pechuga en tiras, 60g Pimiento rojo, 60g Pimiento verde, 40g Cebolla morada, 2 Tortillas maíz",
-      method: "1. Saltear pollo a la plancha con cebolla y pimientos.\n2. Sazonar con orégano y sal marina.\n3. Servir caliente."
-    },
-    optionB: {
-      name: "Bowl de Frijol Negro, Quinoa y Guacamole Fresco",
-      ingredients: "100g Frijol negro cocido, 60g Quinoa cocida, 40g Guacamole casero, 30g Pico de gallo",
-      method: "1. Estofar frijol negro con epazote.\n2. Montar cama de quinoa y frijoles.\n3. Coronar con guacamole y pico de gallo."
-    }
-  },
-  Viernes: {
-    optionA: {
-      name: "Medallones de Cerdo Magro al Romero",
-      ingredients: "150g Cerdo magro, 100g Camote horneado, 50g Espinaca baby, 15g Nuez",
-      method: "1. Hornear cerdo marinado a 190°C por 20 mins.\n2. Machacar camote rústicamente."
-    },
-    optionB: {
-      name: "Curry Verde Ligero de Lentejas Coral",
-      ingredients: "100g Lentejas coral, 80ml Leche coco light, 40g Calabacita, 30g Espinaca, 5g Curry verde",
-      method: "1. Sofreír curry, añadir lentejas.\n2. Hervir 15 mins.\n3. Agregar leche coco y vegetales."
-    }
-  }
+const createEmptyDishGrid = () => {
+  const grid = {};
+  DAY_BUTTONS.forEach(({ key }) => {
+    grid[key] = {
+      soup: { name: '', ingredients: '', method: '' },
+      optionA: { name: '', ingredients: '', method: '' },
+      optionB: { name: '', ingredients: '', method: '' },
+      optionC: { name: '', ingredients: '', method: '' }
+    };
+  });
+  return grid;
 };
 
 export default function NutriologaView({ selectedWeek, onWeekChange, serviceProfileKey = 'casa_nostra' }) {
@@ -138,29 +87,60 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
     }
   };
 
-  // Wizard state
+  // Wizard state: Selector de Días L M I J V S D
   const [wizardStep, setWizardStep] = useState(1);
-  const [daysPerWeek, setDaysPerWeek] = useState(7); // 1 to 7
+  const [selectedDays, setSelectedDays] = useState(['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']);
+  const activeDays = DAY_BUTTONS.map(d => d.key).filter(k => selectedDays.includes(k));
+
+  const toggleDay = (dayKey) => {
+    setSelectedDays(prev => {
+      if (prev.includes(dayKey)) {
+        if (prev.length === 1) return prev; // Mantener al menos 1 día
+        return prev.filter(d => d !== dayKey);
+      } else {
+        return [...prev, dayKey];
+      }
+    });
+  };
+
+  // 4 Enfoques: Enfoque 1 (Sopa) es fijo e inmutable
+  const DIET_SOUP = 'Sopa';
   const [dietOptionA, setDietOptionA] = useState(() => serviceProfileKey === 'senior_care' ? 'Fácil Masticación (IDDSI 6)' : 'Balance Proteico');
   const [dietOptionB, setDietOptionB] = useState(() => serviceProfileKey === 'senior_care' ? 'Papilla & Puré Suave (IDDSI 4)' : 'Plant-Based & Digestión Ligera');
+  const [dietOptionC, setDietOptionC] = useState(() => serviceProfileKey === 'senior_care' ? 'Control Hiposódico & Sarcopenia' : 'Especial & Saludable');
   const [wizardSuccess, setWizardSuccess] = useState(false);
 
   useEffect(() => {
     if (serviceProfileKey === 'senior_care') {
       setDietOptionA('Fácil Masticación (IDDSI 6)');
       setDietOptionB('Papilla & Puré Suave (IDDSI 4)');
+      setDietOptionC('Control Hiposódico & Sarcopenia');
     } else {
       setDietOptionA('Balance Proteico');
       setDietOptionB('Plant-Based & Digestión Ligera');
+      setDietOptionC('Especial & Saludable');
     }
   }, [serviceProfileKey]);
 
-  // Dishes selection for manual grid filling
-  const [dishSelection, setDishSelection] = useState(INITIAL_DISH_SELECTION);
-  const [expandedRecipe, setExpandedRecipe] = useState(null); // track which recipe is expanded e.g. "Lunes-optionA"
+  // Rejilla Manual de platillos inicializada en blanco (sin mockdata)
+  const [dishSelection, setDishSelection] = useState(createEmptyDishGrid);
+  const [expandedRecipe, setExpandedRecipe] = useState(null); // track which recipe is expanded e.g. "Lunes-soup"
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
+
+  // Validación de completitud de todos los platillos requeridos
+  const totalDishesRequired = activeDays.length * 4;
+  const completedDishesCount = activeDays.reduce((acc, dayName) => {
+    const d = dishSelection[dayName] || {};
+    let count = 0;
+    if (d.soup?.name?.trim()) count++;
+    if (d.optionA?.name?.trim()) count++;
+    if (d.optionB?.name?.trim()) count++;
+    if (d.optionC?.name?.trim()) count++;
+    return acc + count;
+  }, 0);
+  const areAllDishesFilled = completedDishesCount === totalDishesRequired && totalDishesRequired > 0;
 
   // Estado para cálculo automático de Tabla Nutricional y Recetas Técnicas
   const [auditMode, setAuditMode] = useState('unit'); // 'unit' | 'production'
@@ -233,14 +213,6 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
   }, [currentDay, targetWeekInfo]);
   const [isHumanVerified, setIsHumanVerified] = useState(false);
   const [humanAuditNotes, setHumanAuditNotes] = useState('');
-  const [expandedRecipes, setExpandedRecipes] = useState({});
-  const [reviewedRecipes, setReviewedRecipes] = useState({});
-  const activeDays = GET_ACTIVE_DAYS(daysPerWeek);
-  const requiredRecipeKeys = activeDays.flatMap(day => [`${day}-A`, `${day}-B`]);
-  const reviewedCount = requiredRecipeKeys.filter(key => reviewedRecipes[key]).length;
-  const allRecipesReviewed = requiredRecipeKeys.length > 0 && reviewedCount === requiredRecipeKeys.length;
-
-  // activeDays moved up
 
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishingState, setPublishingState] = useState({
@@ -277,14 +249,27 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
 
   const handlePublishMenu = async () => {
     setIsPublishing(true);
-    if (!isHumanVerified && !allRecipesReviewed) setIsHumanVerified(true);
+    setIsHumanVerified(true);
 
     const updatedSelection = { ...dishSelection };
     
-    // Recopilar preparaciones a enriquecer
+    // Recopilar preparaciones a enriquecer (Sopa fija + 3 enfoques)
     const dishesToEnrich = [];
     activeDays.forEach(dayName => {
       const dayDishes = updatedSelection[dayName] || {};
+      
+      // Sopa fija obligatoria
+      if (dayDishes.soup?.name) {
+        dishesToEnrich.push({
+          dayName,
+          option: 'soup',
+          name: dayDishes.soup.name,
+          ingredients: dayDishes.soup.ingredients,
+          category: 'Sopa'
+        });
+      }
+
+      // Opción A
       if (dayDishes.optionA?.name) {
         dishesToEnrich.push({
           dayName,
@@ -294,6 +279,8 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
           category: dietOptionA
         });
       }
+
+      // Opción B
       if (dayDishes.optionB?.name) {
         dishesToEnrich.push({
           dayName,
@@ -301,6 +288,17 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
           name: dayDishes.optionB.name,
           ingredients: dayDishes.optionB.ingredients,
           category: dietOptionB
+        });
+      }
+
+      // Opción C
+      if (dayDishes.optionC?.name) {
+        dishesToEnrich.push({
+          dayName,
+          option: 'optionC',
+          name: dayDishes.optionC.name,
+          ingredients: dayDishes.optionC.ingredients,
+          category: dietOptionC
         });
       }
     });
@@ -359,12 +357,13 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
       currentDish: ''
     }));
 
-    // Persistir menú en menuStore y base de datos
+    // Persistir menú en menuStore para la semana seleccionada en calendario con los 4 enfoques
     const published = menuStore.publishMenu({
       weekInput: targetWeekInfo,
-      daysPerWeek: String(daysPerWeek),
+      daysPerWeek: String(activeDays.length),
       dietOptionA,
       dietOptionB,
+      dietOptionC,
       dishSelection: updatedSelection,
       daysList: activeDays
     });
@@ -502,73 +501,137 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
             
             {/* Step Indicators */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: '700', color: wizardStep >= 1 ? '#2563EB' : '#94A3B8' }}>1. Frecuencia</span>
+              <span style={{ fontSize: '0.82rem', fontWeight: '700', color: wizardStep >= 1 ? '#2563EB' : '#94A3B8' }}>1. Dias</span>
               <ChevronRight size={14} color="#CBD5E1" />
-              <span style={{ fontSize: '0.8rem', fontWeight: '700', color: wizardStep >= 2 ? '#2563EB' : '#94A3B8' }}>2. Dietas</span>
+              <span style={{ fontSize: '0.82rem', fontWeight: '700', color: wizardStep >= 2 ? '#2563EB' : '#94A3B8' }}>2. Enfoques</span>
               <ChevronRight size={14} color="#CBD5E1" />
-              <span style={{ fontSize: '0.8rem', fontWeight: '700', color: wizardStep >= 3 ? '#2563EB' : '#94A3B8' }}>3. Rejilla Manual</span>
+              <span style={{ fontSize: '0.82rem', fontWeight: '700', color: wizardStep >= 3 ? '#2563EB' : '#94A3B8' }}>3. Rejilla Manual</span>
             </div>
           </div>
 
-          {/* STEP 1: FREQUENCY */}
+          {/* STEP 1: DAYS SELECTION (L M I J V S D) */}
           {wizardStep === 1 && (
-            <div className="animate-fade-in" style={{ maxWidth: '640px', margin: '0 auto' }}>
-              <h4 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                Paso 1: ¿Cuántos días a la semana se entregará el servicio?
+            <div className="animate-fade-in" style={{ maxWidth: '680px', margin: '0 auto' }}>
+              <h4 style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
+                Paso 1: Selecciona los días de entrega del servicio
               </h4>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-                Selecciona la frecuencia de entregas programadas para la empresa Retodali.
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                Haz clic en cualquiera de los botones para habilitar o deshabilitar los días que requieras (Lunes a Domingo):
               </p>
 
-              <div style={{ display: 'flex', gap: '1rem', marginBottom: '2.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-                {[1, 2, 3, 4, 5].map((dayNum) => (
-                  <button
-                    key={dayNum}
-                    onClick={() => setDaysPerWeek(dayNum)}
-                    style={{
-                      width: '64px',
-                      height: '64px',
-                      borderRadius: '16px',
-                      background: daysPerWeek === dayNum ? '#2563EB' : '#FFFFFF',
-                      color: daysPerWeek === dayNum ? '#FFFFFF' : '#475569',
-                      border: daysPerWeek === dayNum ? 'none' : '2px solid #E2E8F0',
-                      fontSize: '1.5rem',
-                      fontWeight: '800',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      boxShadow: daysPerWeek === dayNum ? '0 6px 16px rgba(37, 99, 235, 0.3)' : 'none',
-                      transition: 'all 0.2s ease',
-                      transform: daysPerWeek === dayNum ? 'translateY(-2px)' : 'none'
-                    }}
-                  >
-                    {dayNum}
-                  </button>
-                ))}
+              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                {DAY_BUTTONS.map((day) => {
+                  const isSelected = selectedDays.includes(day.key);
+                  return (
+                    <button
+                      key={day.key}
+                      type="button"
+                      onClick={() => toggleDay(day.key)}
+                      style={{
+                        width: '64px',
+                        height: '68px',
+                        borderRadius: '16px',
+                        background: isSelected ? '#2563EB' : '#FFFFFF',
+                        color: isSelected ? '#FFFFFF' : '#475569',
+                        border: isSelected ? '2.5px solid #1D4ED8' : '2px solid #E2E8F0',
+                        fontSize: '1.45rem',
+                        fontWeight: '800',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        boxShadow: isSelected ? '0 8px 18px rgba(37, 99, 235, 0.3)' : '0 1px 3px rgba(0,0,0,0.03)',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        transform: isSelected ? 'translateY(-2px)' : 'none'
+                      }}
+                      title={day.full}
+                    >
+                      <span>{day.label}</span>
+                      <span style={{ fontSize: '0.62rem', fontWeight: '700', opacity: isSelected ? 0.95 : 0.6, marginTop: '-2px' }}>
+                        {day.full.slice(0, 3)}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
-              <button onClick={() => setWizardStep(2)} className="btn-uber-primary" style={{ width: '100%', justifyContent: 'center', background: '#2563EB' }}>
-                Siguiente: Definir Tipos de Dieta <ChevronRight size={16} />
+              <button
+                onClick={() => setWizardStep(2)}
+                disabled={activeDays.length === 0}
+                className="btn-uber-primary"
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  background: activeDays.length > 0 ? '#2563EB' : '#94A3B8',
+                  cursor: activeDays.length > 0 ? 'pointer' : 'not-allowed'
+                }}
+              >
+                Siguiente: Configurar 4 Enfoques <ChevronRight size={16} />
               </button>
             </div>
           )}
 
-          {/* STEP 2: DIET TYPES */}
+          {/* STEP 2: 4 ENFOQUES (SOPA FIJA + 3 OPCIONES CON 3 SELECCIONES CADA UNA) */}
           {wizardStep === 2 && (
-            <div className="animate-fade-in" style={{ maxWidth: '640px', margin: '0 auto' }}>
-              <h4 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
-                Paso 2: Define los 2 enfoques de dieta para las Opciones A y B
+            <div className="animate-fade-in" style={{ maxWidth: '680px', margin: '0 auto' }}>
+              <h4 style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
+                Paso 2: Define los 4 enfoques de menú
               </h4>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-                Los empleados podrán elegir entre estas 2 vertientes gastronómicas balanceadas.
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                El Enfoque 1 es obligatoriamente Sopa. Selecciona entre las 3 opciones disponibles para cada uno de los demás enfoques:
               </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1.75rem' }}>
+                
+                {/* ENFOQUE 1: SOPA (MISMO ASPECTO QUE LOS DEMÁS PERO SIN PODER SELECCIONAR NADA) */}
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#B45309', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
+                    <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#F59E0B' }}></span>
+                    Enfoque 1: Sopa (Nutritiva / Inicio):
+                  </label>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <select
+                      disabled
+                      value="Sopa"
+                      style={{
+                        width: '100%',
+                        padding: '0.8rem 2.75rem 0.8rem 1rem',
+                        borderRadius: '12px',
+                        border: '1.5px solid #E2E8F0',
+                        background: '#FFFFFF',
+                        color: '#0F172A',
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        fontFamily: 'inherit',
+                        outline: 'none',
+                        cursor: 'not-allowed',
+                        appearance: 'none',
+                        WebkitAppearance: 'none',
+                        MozAppearance: 'none',
+                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)',
+                        transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
+                      }}
+                    >
+                      <option value="Sopa">Sopa</option>
+                    </select>
+                    <ChevronDown
+                      size={18}
+                      style={{
+                        position: 'absolute',
+                        right: '1rem',
+                        color: '#64748B',
+                        pointerEvents: 'none'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* ENFOQUE 2: OPCIÓN A (3 SELECCIONES DIFERENTES) */}
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#1D4ED8', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
                     <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#2563EB' }}></span>
-                    Enfoque para la Opción A (Proteica / Balance):
+                    Enfoque 2: Opción A (Proteica / Balance):
                   </label>
                   <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <select
@@ -601,20 +664,9 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                         e.target.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.04)';
                       }}
                     >
-                      {serviceProfileKey === 'senior_care' ? (
-                        <>
-                          <option value="Fácil Masticación (IDDSI 6)">Fácil Masticación (IDDSI Nivel 6 - Blanda Suave)</option>
-                          <option value="Puré & Papilla Nutritiva (IDDSI 4)">Papilla Nutritiva (IDDSI Nivel 4 - Sin grumos)</option>
-                          <option value="Control Hiposódico & Sarcopenia">Enriquecida en Proteína & Hiposódica (&lt;1,500mg)</option>
-                          <option value="Balance Proteico">Balance Proteico Geriátrico</option>
-                        </>
-                      ) : (
-                        <>
-                          <option value="Balance Proteico">Balance Proteico (Pollo magro / Pavo / Sirloin)</option>
-                          <option value="Low Carb Keto">Low Carb / Keto Friendly (Bajo en carbohidratos)</option>
-                          <option value="Gourmet Saludable">Gourmet Saludable de Estación</option>
-                        </>
-                      )}
+                      <option value="Balance Proteico">Balance Proteico</option>
+                      <option value="Fácil Masticación (IDDSI 6)">Fácil Masticación (IDDSI 6)</option>
+                      <option value="Gourmet Saludable">Gourmet Saludable</option>
                     </select>
                     <ChevronDown
                       size={18}
@@ -628,10 +680,11 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                   </div>
                 </div>
 
+                {/* ENFOQUE 3: OPCIÓN B (3 SELECCIONES DIFERENTES) */}
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#15803D', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
                     <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#16A34A' }}></span>
-                    {serviceProfileKey === 'senior_care' ? 'Enfoque para la Opción B (Texturas Asistidas / Papillas):' : 'Enfoque para la Opción B (Plant-Based / Light):'}
+                    Enfoque 3: Opción B (Plant-Based / Texturas Asistidas):
                   </label>
                   <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <select
@@ -664,20 +717,9 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                         e.target.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.04)';
                       }}
                     >
-                      {serviceProfileKey === 'senior_care' ? (
-                        <>
-                          <option value="Papilla & Puré Suave (IDDSI 4)">Papilla & Puré Suave (IDDSI Nivel 4)</option>
-                          <option value="Picada & Húmeda (IDDSI 5)">Picada y Húmeda con salsa (IDDSI Nivel 5)</option>
-                          <option value="Dieta Renal & Líquidos Controlados">Control Renal e Hídrico Estricto</option>
-                          <option value="Plant-Based & Digestión Ligera">Plant-Based Geriátrico & Digestión Ligera</option>
-                        </>
-                      ) : (
-                        <>
-                          <option value="Plant-Based & Digestión Ligera">Plant-Based & Vegano (Garbanzo / Tofu / Lenteja)</option>
-                          <option value="Vegetariano Balance">Vegetariano con Quesos Artesanales Magros</option>
-                          <option value="Superfoods & Antiinflamatorio">Superfoods Antiinflamatorios & Ensaladas</option>
-                        </>
-                      )}
+                      <option value="Plant-Based & Digestión Ligera">Plant-Based & Digestión Ligera</option>
+                      <option value="Papilla & Puré Suave (IDDSI 4)">Papilla & Puré Suave (IDDSI 4)</option>
+                      <option value="Vegetariano Balance">Vegetariano Balance</option>
                     </select>
                     <ChevronDown
                       size={18}
@@ -690,6 +732,60 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                     />
                   </div>
                 </div>
+
+                {/* ENFOQUE 4: OPCIÓN C (3 SELECCIONES DIFERENTES) */}
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#7C3AED', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
+                    <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#8B5CF6' }}></span>
+                    Enfoque 4: Opción C (Especial / Hiposódica / Menú Alternativo):
+                  </label>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <select
+                      value={dietOptionC}
+                      onChange={(e) => setDietOptionC(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.8rem 2.75rem 0.8rem 1rem',
+                        borderRadius: '12px',
+                        border: '1.5px solid #E2E8F0',
+                        background: '#FFFFFF',
+                        color: '#0F172A',
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        fontFamily: 'inherit',
+                        outline: 'none',
+                        cursor: 'pointer',
+                        appearance: 'none',
+                        WebkitAppearance: 'none',
+                        MozAppearance: 'none',
+                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)',
+                        transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#8B5CF6';
+                        e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.15)';
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#E2E8F0';
+                        e.target.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.04)';
+                      }}
+                    >
+                      <option value="Control Hiposódico & Sarcopenia">Control Hiposódico & Sarcopenia</option>
+                      <option value="Picada & Húmeda (IDDSI 5)">Picada & Húmeda (IDDSI 5)</option>
+                      <option value="Low Carb / Keto Friendly">Low Carb / Keto Friendly</option>
+                    </select>
+                    <ChevronDown
+                      size={18}
+                      style={{
+                        position: 'absolute',
+                        right: '1rem',
+                        color: '#64748B',
+                        pointerEvents: 'none'
+                      }}
+                    />
+                  </div>
+                </div>
+
               </div>
 
               <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -727,50 +823,83 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
             </div>
           )}
 
-          {/* STEP 3: MANUAL GRID ASSISTANT */}
+          {/* STEP 3: REJILLA MANUAL EN BLANCO (SIN EMOJIS, CAPTURA LIMPIA A MANO) */}
           {wizardStep === 3 && (
             <div className="animate-fade-in">
-              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '1.1rem 1.25rem', borderRadius: '14px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563EB' }}>
-                    <Layers size={22} />
-                  </div>
-                  <div>
-                    <strong style={{ color: 'var(--text-dark)', fontSize: '1rem' }}>Asistente de Menú: Rejilla Manual de Platillos</strong>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                      Ingresa y ajusta directamente las opciones y recetas técnicas para cada día del servicio.
-                    </div>
-                  </div>
-                </div>
-                <span className="badge-tag" style={{ background: '#EFF6FF', color: '#2563EB', fontWeight: '800', fontSize: '0.85rem' }}>
-                  {activeDays.length} {activeDays.length === 1 ? 'Día' : 'Días'} • {activeDays.length * 2} Platillos
-                </span>
-              </div>
 
               {/* Distributed Days Catalog (Active Days Grid) */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
                 {activeDays.map((dayName) => {
                   const dayDishes = dishSelection[dayName] || {
+                    soup: { name: '', ingredients: '', method: '' },
                     optionA: { name: '', ingredients: '', method: '' },
-                    optionB: { name: '', ingredients: '', method: '' }
+                    optionB: { name: '', ingredients: '', method: '' },
+                    optionC: { name: '', ingredients: '', method: '' }
                   };
                   return (
-                    <div key={dayName} style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-                      <div style={{ fontWeight: '800', fontSize: '1.05rem', color: 'var(--text-dark)', marginBottom: '0.75rem', borderBottom: '1px solid #F1F5F9', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div key={dayName} style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                      <div style={{ fontWeight: '800', fontSize: '1.1rem', color: 'var(--text-dark)', marginBottom: '1rem', borderBottom: '1.5px solid #F1F5F9', paddingBottom: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span>{dayName}</span>
-                        <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)' }}>Entrega en Oficina</span>
+                        <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#2563EB', background: '#EFF6FF', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
+                          4 Enfoques
+                        </span>
                       </div>
 
-                      <div style={{ background: '#EFF6FF', padding: '0.75rem', borderRadius: '10px', marginBottom: '0.75rem', border: '1px solid #BFDBFE' }}>
-                        <div style={{ fontSize: '0.72rem', fontWeight: '700', color: '#2563EB', marginBottom: '0.2rem' }}>Opción A ({dietOptionA}):</div>
+                      {/* 1. SOPA (OBLIGATORIA) */}
+                      <div style={{ background: '#FFFBEB', padding: '0.85rem', borderRadius: '12px', marginBottom: '0.85rem', border: '1px solid #FDE68A' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#B45309' }}>
+                            Enfoque 1: Sopa (Fijo)
+                          </span>
+                          <span style={{ fontSize: '0.68rem', fontWeight: '700', color: '#92400E' }}>Obligatorio</span>
+                        </div>
+                        <input 
+                          type="text" 
+                          placeholder="Nombre de la sopa (Ej. Caldo de pollo suave)"
+                          value={dayDishes.soup ? dayDishes.soup.name : ''}
+                          onChange={(e) => handleDishChange(dayName, 'soup', 'name', e.target.value)}
+                          style={{ width: '100%', fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #FCD34D', borderRadius: '8px', outline: 'none', marginBottom: '0.4rem', background: '#FFFFFF' }}
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => setExpandedRecipe(expandedRecipe === `${dayName}-soup` ? null : `${dayName}-soup`)}
+                          style={{ background: 'none', border: 'none', color: '#B45309', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
+                        >
+                          {expandedRecipe === `${dayName}-soup` ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
+                        </button>
+
+                        {expandedRecipe === `${dayName}-soup` && (
+                          <div className="animate-fade-in" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            <textarea
+                              value={dayDishes.soup ? dayDishes.soup.ingredients : ''}
+                              onChange={(e) => handleDishChange(dayName, 'soup', 'ingredients', e.target.value)}
+                              placeholder="Ingredientes y gramajes (Ej. 100ml Fondo de ave, 40g Zanahoria, 30g Calabacita)"
+                              style={{ width: '100%', fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #FCD34D', borderRadius: '8px', outline: 'none', resize: 'vertical', minHeight: '65px', background: '#FFFFFF', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}
+                            />
+                            <textarea
+                              value={dayDishes.soup ? dayDishes.soup.method : ''}
+                              onChange={(e) => handleDishChange(dayName, 'soup', 'method', e.target.value)}
+                              placeholder="Método de preparación técnica"
+                              style={{ width: '100%', fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #FCD34D', borderRadius: '8px', outline: 'none', resize: 'vertical', minHeight: '55px', background: '#FFFFFF', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 2. OPCIÓN A */}
+                      <div style={{ background: '#EFF6FF', padding: '0.85rem', borderRadius: '12px', marginBottom: '0.85rem', border: '1px solid #BFDBFE' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#2563EB', marginBottom: '0.3rem' }}>
+                          Opción A ({dietOptionA}):
+                        </div>
                         <input 
                           type="text" 
                           placeholder="Nombre del platillo Opción A"
                           value={dayDishes.optionA ? dayDishes.optionA.name : ''}
                           onChange={(e) => handleDishChange(dayName, 'optionA', 'name', e.target.value)}
-                          style={{ width: '100%', fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-dark)', padding: '0.45rem', border: '1px solid #93C5FD', borderRadius: '6px', outline: 'none', marginBottom: '0.4rem', background: '#FFFFFF' }}
+                          style={{ width: '100%', fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #93C5FD', borderRadius: '8px', outline: 'none', marginBottom: '0.4rem', background: '#FFFFFF' }}
                         />
                         <button 
+                          type="button"
                           onClick={() => setExpandedRecipe(expandedRecipe === `${dayName}-A` ? null : `${dayName}-A`)}
                           style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
                         >
@@ -782,29 +911,33 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                             <textarea
                               value={dayDishes.optionA ? dayDishes.optionA.ingredients : ''}
                               onChange={(e) => handleDishChange(dayName, 'optionA', 'ingredients', e.target.value)}
-                              placeholder="Ingredientes y gramajes (Ej. 150g Pollo, 50g Quinoa)"
-                              style={{ width: '100%', fontSize: '0.75rem', color: 'var(--text-dark)', padding: '0.4rem', border: '1px solid #BFDBFE', borderRadius: '6px', outline: 'none', resize: 'vertical', minHeight: '45px', background: '#FFFFFF' }}
+                              placeholder="Ingredientes y gramajes (Ej. 150g Pollo deshebrado, 50g Quinoa suave, 80g Calabacitas)"
+                              style={{ width: '100%', fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #BFDBFE', borderRadius: '8px', outline: 'none', resize: 'vertical', minHeight: '65px', background: '#FFFFFF', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}
                             />
                             <textarea
                               value={dayDishes.optionA ? dayDishes.optionA.method : ''}
                               onChange={(e) => handleDishChange(dayName, 'optionA', 'method', e.target.value)}
                               placeholder="Método de preparación técnica"
-                              style={{ width: '100%', fontSize: '0.75rem', color: 'var(--text-dark)', padding: '0.4rem', border: '1px solid #BFDBFE', borderRadius: '6px', outline: 'none', resize: 'vertical', minHeight: '60px', background: '#FFFFFF' }}
+                              style={{ width: '100%', fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #BFDBFE', borderRadius: '8px', outline: 'none', resize: 'vertical', minHeight: '55px', background: '#FFFFFF', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}
                             />
                           </div>
                         )}
                       </div>
 
-                      <div style={{ background: '#F0FDF4', padding: '0.75rem', borderRadius: '10px', border: '1px solid #BBF7D0' }}>
-                        <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'var(--green-dark)', marginBottom: '0.2rem' }}>Opción B ({dietOptionB}):</div>
+                      {/* 3. OPCIÓN B */}
+                      <div style={{ background: '#F0FDF4', padding: '0.85rem', borderRadius: '12px', marginBottom: '0.85rem', border: '1px solid #BBF7D0' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--green-dark)', marginBottom: '0.3rem' }}>
+                          Opción B ({dietOptionB}):
+                        </div>
                         <input 
                           type="text" 
                           placeholder="Nombre del platillo Opción B"
                           value={dayDishes.optionB ? dayDishes.optionB.name : ''}
                           onChange={(e) => handleDishChange(dayName, 'optionB', 'name', e.target.value)}
-                          style={{ width: '100%', fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-dark)', padding: '0.45rem', border: '1px solid #86EFAC', borderRadius: '6px', outline: 'none', marginBottom: '0.4rem', background: '#FFFFFF' }}
+                          style={{ width: '100%', fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #86EFAC', borderRadius: '8px', outline: 'none', marginBottom: '0.4rem', background: '#FFFFFF' }}
                         />
                         <button 
+                          type="button"
                           onClick={() => setExpandedRecipe(expandedRecipe === `${dayName}-B` ? null : `${dayName}-B`)}
                           style={{ background: 'none', border: 'none', color: '#15803D', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
                         >
@@ -816,18 +949,57 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                             <textarea
                               value={dayDishes.optionB ? dayDishes.optionB.ingredients : ''}
                               onChange={(e) => handleDishChange(dayName, 'optionB', 'ingredients', e.target.value)}
-                              placeholder="Ingredientes y gramajes (Ej. 120g Tofu, 80g Vegetales)"
-                              style={{ width: '100%', fontSize: '0.75rem', color: 'var(--text-dark)', padding: '0.4rem', border: '1px solid #BBF7D0', borderRadius: '6px', outline: 'none', resize: 'vertical', minHeight: '45px', background: '#FFFFFF' }}
+                              placeholder="Ingredientes y gramajes (Ej. 120g Tofu o Legumbre, 80g Vegetales cocidos)"
+                              style={{ width: '100%', fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #BBF7D0', borderRadius: '8px', outline: 'none', resize: 'vertical', minHeight: '65px', background: '#FFFFFF', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}
                             />
                             <textarea
                               value={dayDishes.optionB ? dayDishes.optionB.method : ''}
                               onChange={(e) => handleDishChange(dayName, 'optionB', 'method', e.target.value)}
                               placeholder="Método de preparación técnica"
-                              style={{ width: '100%', fontSize: '0.75rem', color: 'var(--text-dark)', padding: '0.4rem', border: '1px solid #BBF7D0', borderRadius: '6px', outline: 'none', resize: 'vertical', minHeight: '60px', background: '#FFFFFF' }}
+                              style={{ width: '100%', fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #BBF7D0', borderRadius: '8px', outline: 'none', resize: 'vertical', minHeight: '55px', background: '#FFFFFF', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}
                             />
                           </div>
                         )}
                       </div>
+
+                      {/* 4. OPCIÓN C */}
+                      <div style={{ background: '#FAF5FF', padding: '0.85rem', borderRadius: '12px', border: '1px solid #E9D5FF' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#7C3AED', marginBottom: '0.3rem' }}>
+                          Opción C ({dietOptionC}):
+                        </div>
+                        <input 
+                          type="text" 
+                          placeholder="Nombre del platillo Opción C"
+                          value={dayDishes.optionC ? dayDishes.optionC.name : ''}
+                          onChange={(e) => handleDishChange(dayName, 'optionC', 'name', e.target.value)}
+                          style={{ width: '100%', fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #D8B4FE', borderRadius: '8px', outline: 'none', marginBottom: '0.4rem', background: '#FFFFFF' }}
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => setExpandedRecipe(expandedRecipe === `${dayName}-C` ? null : `${dayName}-C`)}
+                          style={{ background: 'none', border: 'none', color: '#7C3AED', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
+                        >
+                          {expandedRecipe === `${dayName}-C` ? '- Ocultar Receta Técnica' : '+ Ver / Editar Receta Técnica'}
+                        </button>
+
+                        {expandedRecipe === `${dayName}-C` && (
+                          <div className="animate-fade-in" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            <textarea
+                              value={dayDishes.optionC ? dayDishes.optionC.ingredients : ''}
+                              onChange={(e) => handleDishChange(dayName, 'optionC', 'ingredients', e.target.value)}
+                              placeholder="Ingredientes y gramajes (Ej. 100g Proteína magra, 60g Guarnición hiposódica)"
+                              style={{ width: '100%', fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #E9D5FF', borderRadius: '8px', outline: 'none', resize: 'vertical', minHeight: '65px', background: '#FFFFFF', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}
+                            />
+                            <textarea
+                              value={dayDishes.optionC ? dayDishes.optionC.method : ''}
+                              onChange={(e) => handleDishChange(dayName, 'optionC', 'method', e.target.value)}
+                              placeholder="Método de preparación técnica"
+                              style={{ width: '100%', fontSize: '0.8rem', color: 'var(--text-dark)', padding: '0.5rem', border: '1px solid #E9D5FF', borderRadius: '8px', outline: 'none', resize: 'vertical', minHeight: '55px', background: '#FFFFFF', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}
+                            />
+                          </div>
+                        )}
+                      </div>
+
                     </div>
                   );
                 })}
@@ -874,7 +1046,7 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
                     <button
                       onClick={() => setWizardStep(2)}
                       style={{
@@ -900,11 +1072,11 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                       onClick={handlePublishMenu} 
                       className="btn-uber-primary" 
                       style={{ 
-                        background: isCaptchaVerified ? '#2563EB' : '#94A3B8',
-                        cursor: (isCaptchaVerified && !isPublishing) ? 'pointer' : 'not-allowed',
-                        opacity: (isCaptchaVerified && !isPublishing) ? 1 : 0.7
+                        background: (isCaptchaVerified && areAllDishesFilled && !isPublishing) ? '#2563EB' : '#94A3B8',
+                        cursor: (isCaptchaVerified && areAllDishesFilled && !isPublishing) ? 'pointer' : 'not-allowed',
+                        opacity: (isCaptchaVerified && areAllDishesFilled && !isPublishing) ? 1 : 0.6
                       }}
-                      disabled={!isCaptchaVerified || isPublishing}
+                      disabled={!isCaptchaVerified || !areAllDishesFilled || isPublishing}
                     >
                       <CheckCircle2 size={18} /> {isPublishing ? 'Analizando con IA y Certificando...' : 'Certificar y Publicar Menú'}
                     </button>
@@ -981,10 +1153,15 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
               {/* Control de Cálculo Automático: Porción Unitaria vs Lote de Producción */}
               {(() => {
                 const portionsToScale = auditMode === 'production' ? Math.max(1, auditPortions) : 1;
+                const nutritionSoup = currentDay?.soup ? scaleNutrition(currentDay.soup, portionsToScale) : null;
                 const nutritionA = currentDay?.optionA ? scaleNutrition(currentDay.optionA, portionsToScale) : null;
                 const nutritionB = currentDay?.optionB ? scaleNutrition(currentDay.optionB, portionsToScale) : null;
+                const nutritionC = currentDay?.optionC ? scaleNutrition(currentDay.optionC, portionsToScale) : null;
+
+                const scaledSoup = currentDay?.soup?.recipe?.ingredients ? scaleIngredients(currentDay.soup.recipe.ingredients, portionsToScale) : [];
                 const scaledA = currentDay?.optionA?.recipe?.ingredients ? scaleIngredients(currentDay.optionA.recipe.ingredients, portionsToScale) : [];
                 const scaledB = currentDay?.optionB?.recipe?.ingredients ? scaleIngredients(currentDay.optionB.recipe.ingredients, portionsToScale) : [];
+                const scaledC = currentDay?.optionC?.recipe?.ingredients ? scaleIngredients(currentDay.optionC.recipe.ingredients, portionsToScale) : [];
 
                 return (
                   <>
@@ -992,7 +1169,7 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#2563EB', fontWeight: '700', fontSize: '0.85rem' }}>
                           <Calculator size={18} />
-                          <span>Cálculo Nutricional & Recetas:</span>
+                          <span>Cálculo Nutricional & Recetas (4 Enfoques):</span>
                         </div>
                         <div style={{ display: 'flex', background: '#F1F5F9', padding: '0.2rem', borderRadius: '8px', gap: '0.2rem' }}>
                           <button
@@ -1057,51 +1234,132 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                       )}
                     </div>
 
-                    {/* Comparative Clinical Cards */}
-                    <div className="comparative-grid">
+                    {/* Comparative Clinical Cards (Sopa, Opción A, Opción B, Opción C) */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
                       
-                      {/* OPTION A AUDIT */}
-                      <div className="uber-card" style={{ padding: '1.5rem' }}>
+                      {/* 1. SOPA AUDIT */}
+                      {currentDay.soup && (
+                        <div className="uber-card" style={{ padding: '1.5rem', borderTop: '4px solid #F59E0B' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                            <span className="badge-tag" style={{ background: '#FEF3C7', color: '#92400E', fontWeight: '800' }}>
+                              Enfoque 1 • Sopa (Fijo)
+                            </span>
+                            <span style={{ fontSize: '0.72rem', color: '#92400E', fontWeight: '700', background: '#FFFBEB', padding: '0.2rem 0.6rem', borderRadius: '6px', border: '1px solid #FCD34D' }}>
+                              Obligatorio
+                            </span>
+                          </div>
+
+                          <h4 style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
+                            {currentDay.soup?.name || 'Sopa Nutritiva'}
+                          </h4>
+
+                          {/* Clinical Macro Breakdown Grid */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#FFFBEB', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '0.85rem 0', border: '1px solid #FDE68A' }}>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: '#92400E' }}>Calorías</div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#B45309' }}>
+                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.calories} kcal` : `${nutritionSoup?.unit.calories || currentDay.soup?.calories || 220} kcal`}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: '#92400E' }}>Proteína</div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#B45309' }}>
+                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.protein}g` : `${nutritionSoup?.unit.protein || 12}g`}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: '#92400E' }}>Carbos</div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#B45309' }}>
+                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.carbs}g` : `${nutritionSoup?.unit.carbs || 24}g`}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: '#92400E' }}>Grasas</div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#B45309' }}>
+                                {auditMode === 'production' ? `${nutritionSoup?.totalProduction.fats}g` : `${nutritionSoup?.unit.fats || 6}g`}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
+                            <strong>Perfil Clínico:</strong> Caldo natural rico en electrolitos, favorece vaciado gástrico y deglución suave.
+                          </div>
+
+                          {/* Receta Técnica Escalada Desplegable */}
+                          <div style={{ borderTop: '1px solid #FEF3C7', paddingTop: '0.75rem' }}>
+                            <button
+                              onClick={() => setExpandedAuditRecipe(expandedAuditRecipe === 'soup' ? null : 'soup')}
+                              style={{ background: 'none', border: 'none', color: '#B45309', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', padding: 0 }}
+                            >
+                              <Scale size={14} />
+                              {expandedAuditRecipe === 'soup' ? 'Ocultar Insumos' : `Ver Insumos y Receta Escalada (${portionsToScale}p)`}
+                            </button>
+                            {expandedAuditRecipe === 'soup' && (
+                              <div className="animate-fade-in" style={{ marginTop: '0.6rem' }}>
+                                {scaledSoup.length > 0 ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                    {scaledSoup.map((item, idx) => (
+                                      <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '0.45rem 0.65rem', background: '#FFFDF5', borderRadius: '6px', border: '1px solid #FDE68A', fontSize: '0.78rem' }}>
+                                        <div style={{ fontWeight: '600', color: 'var(--text-dark)', flex: 1, minWidth: 0, wordBreak: 'break-word', whiteSpace: 'normal', lineHeight: '1.4' }}>
+                                          {item.name}
+                                        </div>
+                                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                          <div style={{ fontWeight: '800', color: '#B45309', fontSize: '0.82rem' }}>
+                                            {item.amountScaled !== null ? `${item.amountScaled} ${item.unitScaled}` : item.displayScaled}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sin ingredientes técnicos cargados.</div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 2. OPTION A AUDIT */}
+                      <div className="uber-card" style={{ padding: '1.5rem', borderTop: '4px solid #2563EB' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                          <span className="badge-tag badge-red">Opción A • {currentDay.optionA?.category || dietOptionA}</span>
-                          <span style={{ fontSize: '0.75rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
-                            ✓ Aprobado por Nutrición
+                          <span className="badge-tag" style={{ background: '#EFF6FF', color: '#2563EB', fontWeight: '800' }}>
+                            Opción A • {currentDay.optionA?.category || dietOptionA}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
+                            ✓ Aprobado
                           </span>
                         </div>
 
-                        <h4 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
+                        <h4 style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
                           {currentDay.optionA?.name || 'Platillo A'}
                         </h4>
 
                         {/* Clinical Macro Breakdown Grid */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '0.85rem 0', border: '1px solid #E2E8F0' }}>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
                             <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--primary)' }}>
                               {auditMode === 'production' ? `${nutritionA?.totalProduction.calories} kcal` : `${nutritionA?.unit.calories || currentDay.optionA?.calories || 480} kcal`}
                             </div>
-                            {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionA?.unit.calories} kcal/p)</div>}
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
                             <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#2563EB' }}>
                               {auditMode === 'production' ? `${nutritionA?.totalProduction.protein}g` : `${nutritionA?.unit.protein || 35}g`}
                             </div>
-                            {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionA?.unit.protein}g/p)</div>}
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
                             <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>
                               {auditMode === 'production' ? `${nutritionA?.totalProduction.carbs}g` : `${nutritionA?.unit.carbs || 40}g`}
                             </div>
-                            {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionA?.unit.carbs}g/p)</div>}
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
                             <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>
                               {auditMode === 'production' ? `${nutritionA?.totalProduction.fats}g` : `${nutritionA?.unit.fats || 14}g`}
                             </div>
-                            {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionA?.unit.fats}g/p)</div>}
                           </div>
                         </div>
 
@@ -1120,39 +1378,21 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                             style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', padding: 0 }}
                           >
                             <Scale size={14} />
-                            {expandedAuditRecipe === 'A' ? 'Ocultar Receta Técnica Escalada' : `Ver Insumos y Receta Escalada (${portionsToScale}p)`}
+                            {expandedAuditRecipe === 'A' ? 'Ocultar Insumos' : `Ver Insumos y Receta Escalada (${portionsToScale}p)`}
                           </button>
                           {expandedAuditRecipe === 'A' && (
                             <div className="animate-fade-in" style={{ marginTop: '0.6rem' }}>
                               {scaledA.length > 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginBottom: '0.5rem' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                                   {scaledA.map((item, idx) => (
-                                    <div
-                                      key={idx}
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        gap: '0.5rem',
-                                        padding: '0.45rem 0.65rem',
-                                        background: idx % 2 === 0 ? '#F8FAFC' : '#FFFFFF',
-                                        borderRadius: '6px',
-                                        border: '1px solid #E2E8F0',
-                                        fontSize: '0.78rem'
-                                      }}
-                                    >
-                                      <div style={{ fontWeight: '600', color: 'var(--text-dark)', flex: 1, minWidth: 0, wordBreak: 'break-word' }}>
+                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '0.45rem 0.65rem', background: idx % 2 === 0 ? '#F8FAFC' : '#FFFFFF', borderRadius: '6px', border: '1px solid #E2E8F0', fontSize: '0.78rem' }}>
+                                      <div style={{ fontWeight: '600', color: 'var(--text-dark)', flex: 1, minWidth: 0, wordBreak: 'break-word', whiteSpace: 'normal', lineHeight: '1.4' }}>
                                         {item.name}
                                       </div>
                                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                         <div style={{ fontWeight: '800', color: '#2563EB', fontSize: '0.82rem' }}>
                                           {item.amountScaled !== null ? `${item.amountScaled} ${item.unitScaled}` : item.displayScaled}
                                         </div>
-                                        {item.amountBase !== null && (
-                                          <div style={{ fontSize: '0.68rem', color: '#64748B' }}>
-                                            Base: {item.amountBase} {item.unitBase}
-                                          </div>
-                                        )}
                                       </div>
                                     </div>
                                   ))}
@@ -1165,48 +1405,46 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                         </div>
                       </div>
 
-                      {/* OPTION B AUDIT */}
-                      <div className="uber-card" style={{ padding: '1.5rem' }}>
+                      {/* 3. OPTION B AUDIT */}
+                      <div className="uber-card" style={{ padding: '1.5rem', borderTop: '4px solid #16A34A' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                          <span className="badge-tag badge-green">Opción B • {currentDay.optionB?.category || dietOptionB}</span>
-                          <span style={{ fontSize: '0.75rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
-                            ✓ Aprobado por Nutrición
+                          <span className="badge-tag" style={{ background: '#F0FDF4', color: '#16A34A', fontWeight: '800' }}>
+                            Opción B • {currentDay.optionB?.category || dietOptionB}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
+                            ✓ Aprobado
                           </span>
                         </div>
 
-                        <h4 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
+                        <h4 style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
                           {currentDay.optionB?.name || 'Platillo B'}
                         </h4>
 
                         {/* Clinical Macro Breakdown Grid */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '1rem 0', border: '1px solid #E2E8F0' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '0.85rem 0', border: '1px solid #E2E8F0' }}>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Calorías</div>
                             <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--primary)' }}>
                               {auditMode === 'production' ? `${nutritionB?.totalProduction.calories} kcal` : `${nutritionB?.unit.calories || currentDay.optionB?.calories || 430} kcal`}
                             </div>
-                            {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionB?.unit.calories} kcal/p)</div>}
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Proteína</div>
                             <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#2563EB' }}>
                               {auditMode === 'production' ? `${nutritionB?.totalProduction.protein}g` : `${nutritionB?.unit.protein || 18}g`}
                             </div>
-                            {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionB?.unit.protein}g/p)</div>}
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Carbos</div>
                             <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>
                               {auditMode === 'production' ? `${nutritionB?.totalProduction.carbs}g` : `${nutritionB?.unit.carbs || 50}g`}
                             </div>
-                            {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionB?.unit.carbs}g/p)</div>}
                           </div>
                           <div>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Grasas</div>
                             <div style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-dark)' }}>
                               {auditMode === 'production' ? `${nutritionB?.totalProduction.fats}g` : `${nutritionB?.unit.fats || 16}g`}
                             </div>
-                            {auditMode === 'production' && <div style={{ fontSize: '0.65rem', color: '#64748B' }}>({nutritionB?.unit.fats}g/p)</div>}
                           </div>
                         </div>
 
@@ -1225,39 +1463,21 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                             style={{ background: 'none', border: 'none', color: '#15803D', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', padding: 0 }}
                           >
                             <Scale size={14} />
-                            {expandedAuditRecipe === 'B' ? 'Ocultar Receta Técnica Escalada' : `Ver Insumos y Receta Escalada (${portionsToScale}p)`}
+                            {expandedAuditRecipe === 'B' ? 'Ocultar Insumos' : `Ver Insumos y Receta Escalada (${portionsToScale}p)`}
                           </button>
                           {expandedAuditRecipe === 'B' && (
                             <div className="animate-fade-in" style={{ marginTop: '0.6rem' }}>
                               {scaledB.length > 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginBottom: '0.5rem' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                                   {scaledB.map((item, idx) => (
-                                    <div
-                                      key={idx}
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        gap: '0.5rem',
-                                        padding: '0.45rem 0.65rem',
-                                        background: idx % 2 === 0 ? '#F8FAFC' : '#FFFFFF',
-                                        borderRadius: '6px',
-                                        border: '1px solid #E2E8F0',
-                                        fontSize: '0.78rem'
-                                      }}
-                                    >
-                                      <div style={{ fontWeight: '600', color: 'var(--text-dark)', flex: 1, minWidth: 0, wordBreak: 'break-word' }}>
+                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '0.45rem 0.65rem', background: idx % 2 === 0 ? '#F8FAFC' : '#FFFFFF', borderRadius: '6px', border: '1px solid #E2E8F0', fontSize: '0.78rem' }}>
+                                      <div style={{ fontWeight: '600', color: 'var(--text-dark)', flex: 1, minWidth: 0, wordBreak: 'break-word', whiteSpace: 'normal', lineHeight: '1.4' }}>
                                         {item.name}
                                       </div>
                                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                         <div style={{ fontWeight: '800', color: '#15803D', fontSize: '0.82rem' }}>
                                           {item.amountScaled !== null ? `${item.amountScaled} ${item.unitScaled}` : item.displayScaled}
                                         </div>
-                                        {item.amountBase !== null && (
-                                          <div style={{ fontSize: '0.68rem', color: '#64748B' }}>
-                                            Base: {item.amountBase} {item.unitBase}
-                                          </div>
-                                        )}
                                       </div>
                                     </div>
                                   ))}
@@ -1269,6 +1489,89 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
                           )}
                         </div>
                       </div>
+
+                      {/* 4. OPTION C AUDIT */}
+                      {currentDay.optionC && (
+                        <div className="uber-card" style={{ padding: '1.5rem', borderTop: '4px solid #8B5CF6' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                            <span className="badge-tag" style={{ background: '#FAF5FF', color: '#7C3AED', fontWeight: '800' }}>
+                              Opción C • {currentDay.optionC?.category || dietOptionC}
+                            </span>
+                            <span style={{ fontSize: '0.72rem', color: '#15803D', fontWeight: '700', background: '#F0FDF4', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
+                              ✓ Aprobado
+                            </span>
+                          </div>
+
+                          <h4 style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-dark)', marginBottom: '0.35rem' }}>
+                            {currentDay.optionC?.name || 'Platillo C'}
+                          </h4>
+
+                          {/* Clinical Macro Breakdown Grid */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', background: '#FAF5FF', padding: '0.75rem', borderRadius: '10px', textAlign: 'center', margin: '0.85rem 0', border: '1px solid #E9D5FF' }}>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: '#7C3AED' }}>Calorías</div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#7C3AED' }}>
+                                {auditMode === 'production' ? `${nutritionC?.totalProduction.calories} kcal` : `${nutritionC?.unit.calories || currentDay.optionC?.calories || 390} kcal`}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: '#7C3AED' }}>Proteína</div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#7C3AED' }}>
+                                {auditMode === 'production' ? `${nutritionC?.totalProduction.protein}g` : `${nutritionC?.unit.protein || 28}g`}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: '#7C3AED' }}>Carbos</div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#7C3AED' }}>
+                                {auditMode === 'production' ? `${nutritionC?.totalProduction.carbs}g` : `${nutritionC?.unit.carbs || 38}g`}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.68rem', color: '#7C3AED' }}>Grasas</div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#7C3AED' }}>
+                                {auditMode === 'production' ? `${nutritionC?.totalProduction.fats}g` : `${nutritionC?.unit.fats || 12}g`}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-dark)', marginBottom: '0.5rem' }}>
+                            <strong>Perfil Clínico:</strong> Formulación balanceada, control estricto de sodio e ingredientes digestivos.
+                          </div>
+
+                          {/* Receta Técnica Escalada Desplegable */}
+                          <div style={{ borderTop: '1px solid #E9D5FF', paddingTop: '0.75rem' }}>
+                            <button
+                              onClick={() => setExpandedAuditRecipe(expandedAuditRecipe === 'C' ? null : 'C')}
+                              style={{ background: 'none', border: 'none', color: '#7C3AED', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', padding: 0 }}
+                            >
+                              <Scale size={14} />
+                              {expandedAuditRecipe === 'C' ? 'Ocultar Insumos' : `Ver Insumos y Receta Escalada (${portionsToScale}p)`}
+                            </button>
+                            {expandedAuditRecipe === 'C' && (
+                              <div className="animate-fade-in" style={{ marginTop: '0.6rem' }}>
+                                {scaledC.length > 0 ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                    {scaledC.map((item, idx) => (
+                                      <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '0.45rem 0.65rem', background: '#FAF5FF', borderRadius: '6px', border: '1px solid #E9D5FF', fontSize: '0.78rem' }}>
+                                        <div style={{ fontWeight: '600', color: 'var(--text-dark)', flex: 1, minWidth: 0, wordBreak: 'break-word', whiteSpace: 'normal', lineHeight: '1.4' }}>
+                                          {item.name}
+                                        </div>
+                                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                          <div style={{ fontWeight: '800', color: '#7C3AED', fontSize: '0.82rem' }}>
+                                            {item.amountScaled !== null ? `${item.amountScaled} ${item.unitScaled}` : item.displayScaled}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sin ingredientes técnicos cargados.</div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                     </div>
                   </>
