@@ -208,7 +208,7 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
     setIsPublishing(true);
     setIsHumanVerified(true);
 
-    const updatedSelection = { ...dishSelection };
+    const updatedSelection = JSON.parse(JSON.stringify(dishSelection));
     
     // Recopilar preparaciones a enriquecer (Sopa fija + 3 enfoques)
     const dishesToEnrich = [];
@@ -276,24 +276,10 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
         ingredients: item.ingredients,
         category: item.category
       }).then(res => {
-        if (res) {
-          updatedSelection[item.dayName] = {
-            ...updatedSelection[item.dayName],
-            [item.option]: {
-              ...updatedSelection[item.dayName][item.option],
-              calories: res.calorias,
-              protein: res.proteina,
-              carbs: res.carbos,
-              fats: res.grasas,
-              sodium: res.sodio_mg || 340,
-              sodio_mg: res.sodio_mg || 340,
-              clinicalProfile: res.perfilClinico,
-              allergens: res.alergenos
-            }
-          };
-        }
+        return { item, res };
       }).catch(e => {
         console.warn('Error al enriquecer platillo con IA:', item.name, e);
+        return { item, res: null };
       }).finally(() => {
         completedCount++;
         setPublishingState(prev => ({
@@ -304,9 +290,27 @@ export default function NutriologaView({ selectedWeek, onWeekChange, serviceProf
       });
     });
 
-    try {
-      await Promise.all(promises);
-    } catch (_) {}
+    const results = await Promise.all(promises);
+
+    results.forEach(({ item, res }) => {
+      if (res) {
+        if (!updatedSelection[item.dayName]) updatedSelection[item.dayName] = {};
+        if (!updatedSelection[item.dayName][item.option]) updatedSelection[item.dayName][item.option] = {};
+        updatedSelection[item.dayName][item.option] = {
+          ...updatedSelection[item.dayName][item.option],
+          calories: res.calorias,
+          protein: res.proteina,
+          carbs: res.carbos,
+          fats: res.grasas,
+          sodium: res.sodio_mg || 340,
+          sodio_mg: res.sodio_mg || 340,
+          clinicalProfile: res.perfilClinico,
+          allergens: res.alergenos
+        };
+      }
+    });
+
+    setDishSelection(updatedSelection);
 
     // Transición a etapa de guardado
     setPublishingState(prev => ({

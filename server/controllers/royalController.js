@@ -258,8 +258,8 @@ export async function guardarMenuSemana(req, res) {
           `INSERT INTO menu_b2b_dias (
             id, menu_id, dia_semana, fecha, tipo_opcion, nombre_platillo, 
             categoria, calorias, proteinas_g, carbohidratos_g, grasas_g, sodio_mg,
-            ingredientes, metodo_preparacion, imagen_url
-          ) VALUES ($1, $2, $3, $4, 'S', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+            ingredientes, metodo_preparacion, imagen_url, perfil_clinico, alergenos
+          ) VALUES ($1, $2, $3, $4, 'S', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
           [
             diaIdS,
             menuId,
@@ -274,7 +274,9 @@ export async function guardarMenuSemana(req, res) {
             sodiumNumS,
             d.soup.recipe?.ingredients || '',
             d.soup.recipe?.method || '',
-            d.soup.image || null
+            d.soup.image || null,
+            d.soup.clinicalProfile || null,
+            JSON.stringify(d.soup.allergens || [])
           ]
         )
       }
@@ -361,8 +363,8 @@ export async function guardarMenuSemana(req, res) {
           `INSERT INTO menu_b2b_dias (
             id, menu_id, dia_semana, fecha, tipo_opcion, nombre_platillo, 
             categoria, calorias, proteinas_g, carbohidratos_g, grasas_g, sodio_mg,
-            ingredientes, metodo_preparacion, imagen_url
-          ) VALUES ($1, $2, $3, $4, 'C', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+            ingredientes, metodo_preparacion, imagen_url, perfil_clinico, alergenos
+          ) VALUES ($1, $2, $3, $4, 'C', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
           [
             diaIdC,
             menuId,
@@ -377,7 +379,9 @@ export async function guardarMenuSemana(req, res) {
             sodiumNumC,
             d.optionC.recipe?.ingredients || '',
             d.optionC.recipe?.method || '',
-            d.optionC.image || null
+            d.optionC.image || null,
+            d.optionC.clinicalProfile || null,
+            JSON.stringify(d.optionC.allergens || [])
           ]
         )
       }

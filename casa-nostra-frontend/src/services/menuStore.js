@@ -185,6 +185,12 @@ export const menuStore = {
                     return parsedStored;
                   }
                 }
+                // Si el almacén local ya tiene perfiles clínicos reales y el backend aún no, conservar local
+                const localHasClinical = parsedStored?.days?.some(d => d.soup?.clinicalProfile && d.optionA?.clinicalProfile);
+                const backendMissingClinical = !formattedMenu?.days?.some(d => d.soup?.clinicalProfile && d.optionA?.clinicalProfile);
+                if (localHasClinical && backendMissingClinical) {
+                  return parsedStored;
+                }
               } catch (_) {}
             }
             localStorage.setItem(`${MENU_STORAGE_PREFIX}${weekInfo.weekKey}`, stringified);
