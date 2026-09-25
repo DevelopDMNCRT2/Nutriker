@@ -71,6 +71,9 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
   
   // Registro de raciones servidas por el chef por día
   const [servingsByDay, setServingsByDay] = useState({});
+
+  // Día seleccionado en la sección de Raciones Chef (por defecto primer día, 0)
+  const [selectedServingsDayIdx, setSelectedServingsDayIdx] = useState(0);
   
   // Insumos comprados/recibidos capturados por el usuario
   const [purchasedSupplies, setPurchasedSupplies] = useState({});
@@ -183,6 +186,35 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
   }, [statsWeekInfo]);
 
   const days = useMemo(() => activeMenu?.days || EMPTY_DAYS, [activeMenu]);
+
+  // Raciones del día seleccionado para los contadores superiores (cálculo por día)
+  const activeDayServings = useMemo(() => {
+    const targetDay = (selectedServingsDayIdx !== null && days[selectedServingsDayIdx])
+      ? days[selectedServingsDayIdx]
+      : (days[0] || null);
+
+    if (!targetDay) {
+      return { soup: 0, a: 0, b: 0, c: 0, pctA: 0, pctB: 0, pctC: 0, dayName: '' };
+    }
+
+    const dayServing = servingsByDay[targetDay.dayName] || {};
+    const servSoup = parseInt(dayServing.soup, 10) || 0;
+    const servA = parseInt(dayServing.optionA, 10) || 0;
+    const servB = parseInt(dayServing.optionB, 10) || 0;
+    const servC = parseInt(dayServing.optionC, 10) || 0;
+    const totalMain = servA + servB + servC;
+
+    return {
+      dayName: targetDay.dayName,
+      soup: servSoup,
+      a: servA,
+      b: servB,
+      c: servC,
+      pctA: totalMain > 0 ? Math.round((servA / totalMain) * 100) : 0,
+      pctB: totalMain > 0 ? Math.round((servB / totalMain) * 100) : 0,
+      pctC: totalMain > 0 ? Math.round((servC / totalMain) * 100) : 0,
+    };
+  }, [selectedServingsDayIdx, days, servingsByDay]);
 
   // Reiniciar todas las raciones a blanco
   const handleClearAllServings = () => {
@@ -810,7 +842,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
 
       // Encabezados limpios y compactos idénticos a la tabla del sistema
       const nutritionHeaders = [
-        "Día", "Fecha", "Sopa (Fijo)", "Opción A", "Opción B", "Opción C", "Raciones Principales", "Raciones Sopa",
+        "Día", "Fecha", "Sopa", "Platillo Fuerte", "Guarnición", "Postre", "Raciones Principales", "Raciones Sopa",
         "Calorías (kcal)", "Proteína (g)", "Carbohidratos (g)", "Lípidos (g)", 
         "Sodio (mg)", "Evaluación Geriátrica"
       ];
@@ -819,9 +851,9 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
       // Días del ciclo de menú
       computedData.dailyNutritionSummary.forEach(item => {
         const dishSoupText = item.dishSoup ? `${item.dishSoup} (${item.servingsSoup})` : (item.servingsSoup ? `Sopa (${item.servingsSoup})` : 'N/D');
-        const dishAText = item.dishA ? `${item.dishA} (${item.servingsA})` : `Opción A (${item.servingsA})`;
-        const dishBText = item.dishB ? `${item.dishB} (${item.servingsB})` : `Opción B (${item.servingsB})`;
-        const dishCText = item.dishC ? `${item.dishC} (${item.servingsC})` : (item.servingsC ? `Opción C (${item.servingsC})` : 'N/D');
+        const dishAText = item.dishA ? `${item.dishA} (${item.servingsA})` : `Platillo Fuerte (${item.servingsA})`;
+        const dishBText = item.dishB ? `${item.dishB} (${item.servingsB})` : `Guarnición (${item.servingsB})`;
+        const dishCText = item.dishC ? `${item.dishC} (${item.servingsC})` : (item.servingsC ? `Postre (${item.servingsC})` : 'N/D');
         const row = [
           `"${item.dayName}"`,
           `"${item.dateLabel}"`,
@@ -1249,11 +1281,83 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                 </h3>
               </div>
 
-              {/* Indicador de captura manual de raciones */}
+              {/* Selector de días por iniciales — píldora rectangular / cuadrada */}
+              {days.length > 0 && (() => {
+                const INITIALS = {
+                  'Lunes': 'L',
+                  'Martes': 'M',
+                  'Miércoles': 'I',
+                  'Miercoles': 'I',
+                  'Jueves': 'J',
+                  'Viernes': 'V',
+                  'Sábado': 'S',
+                  'Sabado': 'S',
+                  'Domingo': 'D'
+                };
+                return (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    background: '#F1F5F9',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: '10px',
+                    padding: '4px'
+                  }}>
+                    {days.map((day, idx) => {
+                      const initial = INITIALS[day.dayName] || day.dayName.charAt(0);
+                      const isActive = selectedServingsDayIdx === idx;
+                      return (
+                        <button
+                          key={day.dayName}
+                          onClick={() => setSelectedServingsDayIdx(idx)}
+                          title={`${day.dayName}`}
+                          style={{
+                            minWidth: '34px',
+                            height: '34px',
+                            padding: '0 0.5rem',
+                            borderRadius: '8px',
+                            border: isActive ? '1px solid #92400E' : '1px solid transparent',
+                            background: isActive
+                              ? 'linear-gradient(135deg, #B45309 0%, #92400E 100%)'
+                              : 'transparent',
+                            color: isActive ? '#FFFFFF' : '#475569',
+                            fontWeight: '800',
+                            fontSize: '0.82rem',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            boxShadow: isActive ? '0 2px 6px rgba(180,83,9,0.35)' : 'none',
+                            fontFamily: 'inherit',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                          onMouseEnter={e => {
+                            if (!isActive) {
+                              e.currentTarget.style.background = '#FEF3C7';
+                              e.currentTarget.style.color = '#B45309';
+                              e.currentTarget.style.borderColor = '#FDE68A';
+                            }
+                          }}
+                          onMouseLeave={e => {
+                            if (!isActive) {
+                              e.currentTarget.style.background = 'transparent';
+                              e.currentTarget.style.color = '#475569';
+                              e.currentTarget.style.borderColor = 'transparent';
+                            }
+                          }}
+                        >
+                          {initial}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+
+              {/* Acciones de Raciones */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.78rem', color: '#B45309', background: '#FEF3C7', padding: '0.4rem 0.85rem', borderRadius: '8px', fontWeight: '700', border: '1px solid #FDE68A' }}>
-                  Captura Manual por Platillo
-                </span>
                 <button
                   onClick={handleClearAllServings}
                   style={{
@@ -1277,45 +1381,54 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
               </div>
             </div>
 
-            {/* Grid de KPIs de Raciones */}
+            {/* Grid de KPIs de Raciones por Día Seleccionado */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
               <div style={{ background: '#FFFBEB', padding: '1rem', borderRadius: '14px', border: '1px solid #FDE68A' }}>
-                <span style={{ fontSize: '0.78rem', color: '#92400E', fontWeight: '700', textTransform: 'uppercase' }}>Sopas Servidas</span>
+                <span style={{ fontSize: '0.78rem', color: '#92400E', fontWeight: '700', textTransform: 'uppercase' }}>
+                  Sopa {activeDayServings.dayName ? `· ${activeDayServings.dayName}` : ''}
+                </span>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginTop: '0.2rem' }}>
-                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#D97706' }}>{computedData.totalServingsSoup}</span>
+                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#D97706' }}>{activeDayServings.soup}</span>
                   <span style={{ fontSize: '0.85rem', color: '#B45309', fontWeight: '800' }}>raciones</span>
                 </div>
               </div>
 
               <div style={{ background: '#EFF6FF', padding: '1rem', borderRadius: '14px', border: '1px solid #BFDBFE' }}>
-                <span style={{ fontSize: '0.78rem', color: '#1E40AF', fontWeight: '700', textTransform: 'uppercase' }}>Opción A (Tradicional)</span>
+                <span style={{ fontSize: '0.78rem', color: '#1E40AF', fontWeight: '700', textTransform: 'uppercase' }}>
+                  Platillo Fuerte {activeDayServings.dayName ? `· ${activeDayServings.dayName}` : ''}
+                </span>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginTop: '0.2rem' }}>
-                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#1E3A8A' }}>{computedData.totalServingsA}</span>
-                  <span style={{ fontSize: '0.85rem', color: '#2563EB', fontWeight: '800' }}>({computedData.percentA}%)</span>
+                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#1E3A8A' }}>{activeDayServings.a}</span>
+                  <span style={{ fontSize: '0.85rem', color: '#2563EB', fontWeight: '800' }}>({activeDayServings.pctA}%)</span>
                 </div>
               </div>
 
               <div style={{ background: '#F0FDF4', padding: '1rem', borderRadius: '14px', border: '1px solid #BBF7D0' }}>
-                <span style={{ fontSize: '0.78rem', color: '#166534', fontWeight: '700', textTransform: 'uppercase' }}>Opción B (Suave)</span>
+                <span style={{ fontSize: '0.78rem', color: '#166534', fontWeight: '700', textTransform: 'uppercase' }}>
+                  Guarnición {activeDayServings.dayName ? `· ${activeDayServings.dayName}` : ''}
+                </span>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginTop: '0.2rem' }}>
-                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#14532D' }}>{computedData.totalServingsB}</span>
-                  <span style={{ fontSize: '0.85rem', color: '#16A34A', fontWeight: '800' }}>({computedData.percentB}%)</span>
+                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#14532D' }}>{activeDayServings.b}</span>
+                  <span style={{ fontSize: '0.85rem', color: '#16A34A', fontWeight: '800' }}>({activeDayServings.pctB}%)</span>
                 </div>
               </div>
 
               <div style={{ background: '#FAF5FF', padding: '1rem', borderRadius: '14px', border: '1px solid #E9D5FF' }}>
-                <span style={{ fontSize: '0.78rem', color: '#7E22CE', fontWeight: '700', textTransform: 'uppercase' }}>Opción C (Saludable)</span>
+                <span style={{ fontSize: '0.78rem', color: '#7E22CE', fontWeight: '700', textTransform: 'uppercase' }}>
+                  Postre {activeDayServings.dayName ? `· ${activeDayServings.dayName}` : ''}
+                </span>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', marginTop: '0.2rem' }}>
-                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#6B21A8' }}>{computedData.totalServingsC}</span>
-                  <span style={{ fontSize: '0.85rem', color: '#8B5CF6', fontWeight: '800' }}>({computedData.percentC}%)</span>
+                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#6B21A8' }}>{activeDayServings.c}</span>
+                  <span style={{ fontSize: '0.85rem', color: '#8B5CF6', fontWeight: '800' }}>({activeDayServings.pctC}%)</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Días con Controles de Raciones */}
+          {/* Días con Controles de Raciones — filtrado por día seleccionado */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {days.map((day, idx) => {
+            {(selectedServingsDayIdx !== null ? [days[selectedServingsDayIdx]].filter(Boolean) : days).map((day, _relIdx) => {
+              const idx = days.indexOf(day);
               const dayServing = servingsByDay[day.dayName] || { 
                 soup: '',
                 optionA: '', 
@@ -1401,7 +1514,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                         <div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
                             <span style={{ fontSize: '0.7rem', fontWeight: '800', color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                              SOPA • PRIMER TIEMPO (FIJO)
+                              SOPA
                             </span>
                             <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#92400E' }}>
                               {hasCapture && servSoup !== '' ? `${numSoup} raciones` : '---'}
@@ -1462,7 +1575,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                         <div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
                             <span style={{ fontSize: '0.7rem', fontWeight: '800', color: '#2563EB', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                              OPCIÓN A • {day.optionA?.category || 'Menú Tradicional'}
+                              PLATILLO FUERTE
                             </span>
                             <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#1E40AF' }}>
                               {hasCapture && totalDayMain > 0 && servA !== '' ? `${Math.round((numA / totalDayMain) * 100)}% preferencia` : '---'}
@@ -1523,7 +1636,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                         <div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
                             <span style={{ fontSize: '0.7rem', fontWeight: '800', color: '#16A34A', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                              OPCIÓN B • {day.optionB?.category || 'Textura Suave'}
+                              GUARNICIÓN
                             </span>
                             <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#166534' }}>
                               {hasCapture && totalDayMain > 0 && servB !== '' ? `${Math.round((numB / totalDayMain) * 100)}% preferencia` : '---'}
@@ -1584,7 +1697,7 @@ export default function StatsView({ selectedWeek, initialTab = 'residentes' }) {
                         <div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
                             <span style={{ fontSize: '0.7rem', fontWeight: '800', color: '#8B5CF6', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                              OPCIÓN C • {day.optionC?.category || 'Especial & Saludable'}
+                              POSTRE
                             </span>
                             <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#6B21A8' }}>
                               {hasCapture && totalDayMain > 0 && servC !== '' ? `${Math.round((numC / totalDayMain) * 100)}% preferencia` : '---'}
